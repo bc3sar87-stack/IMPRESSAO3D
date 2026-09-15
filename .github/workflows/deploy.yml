@@ -15,9 +15,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            echo "DIAG whoami=$(whoami)"
-            echo "DIAG hostname=$(hostname)"
-            echo "DIAG public_ip=$(curl -s ifconfig.me || echo unknown)"
-            echo "DIAG file_exists=$(test -f /opt/deploy-impressao3d.sh && echo yes || echo no)"
-            bash /opt/deploy-impressao3d.sh
+          # A chave VPS_SSH_KEY tem um "forced command" no authorized_keys da
+          # VPS (command="/opt/mjprime/deploy-3dprintcontrol.sh"): por segurança,
+          # o sshd ignora o script abaixo e sempre roda apenas esse arquivo fixo,
+          # que já faz o pull do site institucional e o deploy do app Next.js.
+          script: bash /opt/mjprime/deploy-3dprintcontrol.sh
