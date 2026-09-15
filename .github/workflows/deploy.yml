@@ -15,4 +15,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: bash /opt/deploy-impressao3d.sh
+          script: |
+            echo "DIAG whoami=$(whoami)"
+            echo "DIAG hostname=$(hostname)"
+            echo "DIAG public_ip=$(curl -s ifconfig.me || echo unknown)"
+            echo "DIAG file_exists=$(test -f /opt/deploy-impressao3d.sh && echo yes || echo no)"
+            bash /opt/deploy-impressao3d.sh
