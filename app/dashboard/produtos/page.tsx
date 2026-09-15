@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
+import TimeInput, { formatSegundos } from '../time-input';
 
 interface Produto {
   codigo: number;
@@ -9,6 +10,9 @@ interface Produto {
   link_stl: string | null;
   stl_nome: string | null;
   tem_foto: boolean;
+  quantidade: number;
+  tempo_impressao_segundos: number;
+  tempo_mao_obra_segundos: number;
 }
 
 interface MateriaPrima {
@@ -37,6 +41,9 @@ const emptyForm = {
   fotoTipo: '',
   fotoPreview: '',
   stlNomeAtual: '' as string | null,
+  quantidade: 1,
+  tempoImpressaoSegundos: 0,
+  tempoMaoObraSegundos: 0,
 };
 
 export default function ProdutosPage() {
@@ -80,6 +87,9 @@ export default function ProdutosPage() {
       fotoTipo: '',
       fotoPreview: p.tem_foto ? `/api/produtos/${p.codigo}/foto` : '',
       stlNomeAtual: p.stl_nome,
+      quantidade: p.quantidade,
+      tempoImpressaoSegundos: p.tempo_impressao_segundos,
+      tempoMaoObraSegundos: p.tempo_mao_obra_segundos,
     });
     setStlFile(null);
     setError('');
@@ -135,6 +145,9 @@ export default function ProdutosPage() {
           link_stl: form.link_stl,
           foto_base64: form.fotoBase64 || undefined,
           foto_tipo: form.fotoTipo || undefined,
+          quantidade: form.quantidade,
+          tempo_impressao_segundos: form.tempoImpressaoSegundos,
+          tempo_mao_obra_segundos: form.tempoMaoObraSegundos,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -228,6 +241,9 @@ export default function ProdutosPage() {
               <th>Foto</th>
               <th>Código</th>
               <th>Descrição</th>
+              <th>Qtd</th>
+              <th>Tempo Impressão</th>
+              <th>Tempo Mão de Obra</th>
               <th>STL</th>
               <th></th>
             </tr>
@@ -248,6 +264,9 @@ export default function ProdutosPage() {
                 </td>
                 <td>{p.codigo}</td>
                 <td>{p.descricao}</td>
+                <td>{p.quantidade}</td>
+                <td>{formatSegundos(p.tempo_impressao_segundos)}</td>
+                <td>{formatSegundos(p.tempo_mao_obra_segundos)}</td>
                 <td>
                   {p.stl_nome && (
                     <a href={`/api/produtos/${p.codigo}/stl`}>{p.stl_nome}</a>
@@ -275,7 +294,7 @@ export default function ProdutosPage() {
             ))}
             {produtosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={5}>Nenhum produto encontrado.</td>
+                <td colSpan={8}>Nenhum produto encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -292,6 +311,17 @@ export default function ProdutosPage() {
               <input
                 value={form.descricao}
                 onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                required
+              />
+            </div>
+            <div className="field">
+              <label>Quantidade</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={form.quantidade}
+                onChange={(e) => setForm({ ...form, quantidade: Number(e.target.value) })}
                 required
               />
             </div>
@@ -335,6 +365,24 @@ export default function ProdutosPage() {
               <p className="hint">Máximo 4MB. Deixe em branco para manter a foto atual.</p>
             </div>
           </div>
+
+          <div className="form-grid" style={{ marginTop: 16 }}>
+            <div className="field">
+              <label>Tempo de Impressão</label>
+              <TimeInput
+                value={form.tempoImpressaoSegundos}
+                onChange={(segundos) => setForm({ ...form, tempoImpressaoSegundos: segundos })}
+              />
+            </div>
+            <div className="field">
+              <label>Tempo Mão de Obra</label>
+              <TimeInput
+                value={form.tempoMaoObraSegundos}
+                onChange={(segundos) => setForm({ ...form, tempoMaoObraSegundos: segundos })}
+              />
+            </div>
+          </div>
+
           <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
             <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
               {editingCodigo ? 'Salvar' : 'Adicionar'}

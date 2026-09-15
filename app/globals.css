@@ -467,6 +467,46 @@ body {
   min-width: 0;
 }
 
+.time-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.time-input-part {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.time-input-part label {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.time-input-part input {
+  width: 100%;
+  border: none;
+  text-align: center;
+  font-size: 15px;
+  padding: 2px;
+  -moz-appearance: textfield;
+}
+
+.time-input-part input:focus {
+  outline: none;
+}
+
+.time-input-sep {
+  color: #cbd5e1;
+  padding-bottom: 14px;
+}
+
 .search-box {
   width: 100%;
   max-width: 320px;

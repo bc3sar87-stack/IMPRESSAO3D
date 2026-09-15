@@ -8,14 +8,30 @@ interface Orcamento {
   cliente_codigo: number;
   cliente_nome: string;
   data: string;
+  data_entrega: string | null;
   status: 'ABERTO' | 'APROVADO' | 'REJEITADO';
   observacoes: string | null;
   valor_total: string;
+  equipamento_codigo: number | null;
+  equipamento_fabricante: string | null;
+  equipamento_modelo: string | null;
+  markup_percentual: string;
+  impostos_percentual: string;
+  taxa_marketplace: string;
+  taxa_percentual: string;
+  embalagem_valor: string;
+  custos_extras_valor: string;
 }
 
 interface Cliente {
   codigo: number;
   nome: string;
+}
+
+interface Equipamento {
+  codigo: number;
+  fabricante: string;
+  modelo: string;
 }
 
 interface Produto {
@@ -39,7 +55,20 @@ interface ItemPendente {
   valor_unitario: string;
 }
 
-const emptyForm = { cliente_codigo: '', data: '', status: 'ABERTO' as Orcamento['status'], observacoes: '' };
+const emptyForm = {
+  cliente_codigo: '',
+  data: '',
+  data_entrega: '',
+  status: 'ABERTO' as Orcamento['status'],
+  observacoes: '',
+  equipamento_codigo: '',
+  markup_percentual: '',
+  impostos_percentual: '',
+  taxa_marketplace: 'MANUAL',
+  taxa_percentual: '',
+  embalagem_valor: '',
+  custos_extras_valor: '',
+};
 const emptyNovoItem = { produto_codigo: '', quantidade: '', valor_unitario: '' };
 
 function hoje() {
@@ -50,6 +79,7 @@ export default function OrcamentosPage() {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -75,14 +105,16 @@ export default function OrcamentosPage() {
   );
 
   async function load() {
-    const [orcRes, cliRes, prodRes] = await Promise.all([
+    const [orcRes, cliRes, prodRes, eqRes] = await Promise.all([
       fetch('/api/orcamentos'),
       fetch('/api/clientes'),
       fetch('/api/produtos'),
+      fetch('/api/equipamentos'),
     ]);
     if (orcRes.ok) setOrcamentos(await orcRes.json());
     if (cliRes.ok) setClientes(await cliRes.json());
     if (prodRes.ok) setProdutos(await prodRes.json());
+    if (eqRes.ok) setEquipamentos(await eqRes.json());
   }
 
   useEffect(() => {
@@ -94,8 +126,16 @@ export default function OrcamentosPage() {
     setForm({
       cliente_codigo: String(o.cliente_codigo),
       data: o.data.slice(0, 10),
+      data_entrega: o.data_entrega ? o.data_entrega.slice(0, 10) : '',
       status: o.status,
       observacoes: o.observacoes || '',
+      equipamento_codigo: o.equipamento_codigo ? String(o.equipamento_codigo) : '',
+      markup_percentual: o.markup_percentual || '',
+      impostos_percentual: o.impostos_percentual || '',
+      taxa_marketplace: o.taxa_marketplace || 'MANUAL',
+      taxa_percentual: o.taxa_percentual || '',
+      embalagem_valor: o.embalagem_valor || '',
+      custos_extras_valor: o.custos_extras_valor || '',
     });
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
@@ -255,6 +295,8 @@ export default function OrcamentosPage() {
               <th>Código</th>
               <th>Cliente</th>
               <th>Data</th>
+              <th>Entrega</th>
+              <th>Equipamento</th>
               <th>Status</th>
               <th>Total</th>
               <th></th>
@@ -266,6 +308,14 @@ export default function OrcamentosPage() {
                 <td>{o.codigo}</td>
                 <td>{o.cliente_nome}</td>
                 <td>{new Date(o.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
+                <td>
+                  {o.data_entrega
+                    ? new Date(o.data_entrega).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                    : '-'}
+                </td>
+                <td>
+                  {o.equipamento_fabricante ? `${o.equipamento_fabricante} ${o.equipamento_modelo}` : '-'}
+                </td>
                 <td>{o.status}</td>
                 <td>R$ {o.valor_total}</td>
                 <td>
@@ -283,7 +333,7 @@ export default function OrcamentosPage() {
             ))}
             {orcamentosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={6}>Nenhum orçamento encontrado.</td>
+                <td colSpan={8}>Nenhum orçamento encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -322,6 +372,14 @@ export default function OrcamentosPage() {
               />
             </div>
             <div className="field">
+              <label>Data de Entrega</label>
+              <input
+                type="date"
+                value={form.data_entrega}
+                onChange={(e) => setForm({ ...form, data_entrega: e.target.value })}
+              />
+            </div>
+            <div className="field">
               <label>Status</label>
               <select
                 value={form.status}
@@ -333,11 +391,94 @@ export default function OrcamentosPage() {
               </select>
             </div>
             <div className="field">
+              <label>Equipamento de Impressão</label>
+              <select
+                value={form.equipamento_codigo}
+                onChange={(e) => setForm({ ...form, equipamento_codigo: e.target.value })}
+              >
+                <option value="">Selecione...</option>
+                {equipamentos.map((eq) => (
+                  <option key={eq.codigo} value={eq.codigo}>
+                    {eq.fabricante} {eq.modelo}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
               <label>Observações</label>
               <input
                 value={form.observacoes}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
               />
+            </div>
+          </div>
+
+          <h4 style={{ marginTop: 24, marginBottom: 8 }}>Precificação Avançada</h4>
+          <div className="form-grid">
+            <div className="field">
+              <label>Markup (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.markup_percentual}
+                onChange={(e) => setForm({ ...form, markup_percentual: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Impostos (DAS) (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.impostos_percentual}
+                onChange={(e) => setForm({ ...form, impostos_percentual: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Taxa Marketplace</label>
+              <select
+                value={form.taxa_marketplace}
+                onChange={(e) => setForm({ ...form, taxa_marketplace: e.target.value })}
+              >
+                <option value="MANUAL">Manual</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>% Taxa</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.taxa_percentual}
+                onChange={(e) => setForm({ ...form, taxa_percentual: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Embalagem (R$)</label>
+              <div className="input-prefix-group">
+                <span className="input-prefix">R$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.embalagem_valor}
+                  onChange={(e) => setForm({ ...form, embalagem_valor: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label>Custos Extras (R$)</label>
+              <div className="input-prefix-group">
+                <span className="input-prefix">R$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.custos_extras_valor}
+                  onChange={(e) => setForm({ ...form, custos_extras_valor: e.target.value })}
+                />
+              </div>
             </div>
           </div>
 

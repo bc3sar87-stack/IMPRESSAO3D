@@ -12,7 +12,8 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT codigo, descricao, link_stl, stl_nome, (foto IS NOT NULL) AS tem_foto
+    `SELECT codigo, descricao, link_stl, stl_nome, (foto IS NOT NULL) AS tem_foto,
+            quantidade, tempo_impressao_segundos, tempo_mao_obra_segundos
      FROM produtos WHERE empresa_codigo = $1 ORDER BY codigo`,
     [session.empresa_codigo]
   );
@@ -28,7 +29,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Selecione uma empresa para cadastrar produtos.' }, { status: 400 });
   }
 
-  const { descricao, link_stl, foto_base64, foto_tipo } = await request.json().catch(() => ({}));
+  const {
+    descricao,
+    link_stl,
+    foto_base64,
+    foto_tipo,
+    quantidade,
+    tempo_impressao_segundos,
+    tempo_mao_obra_segundos,
+  } = await request.json().catch(() => ({}));
 
   if (!descricao) {
     return NextResponse.json({ error: 'Informe a descrição.' }, { status: 400 });
@@ -37,10 +46,19 @@ export async function POST(request: NextRequest) {
   const foto = foto_base64 ? Buffer.from(foto_base64, 'base64') : null;
 
   const { rows } = await pool.query(
-    `INSERT INTO produtos (descricao, link_stl, foto, foto_tipo, empresa_codigo)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO produtos (descricao, link_stl, foto, foto_tipo, quantidade, tempo_impressao_segundos, tempo_mao_obra_segundos, empresa_codigo)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING codigo`,
-    [descricao, link_stl || null, foto, foto ? foto_tipo : null, session.empresa_codigo]
+    [
+      descricao,
+      link_stl || null,
+      foto,
+      foto ? foto_tipo : null,
+      quantidade || 1,
+      tempo_impressao_segundos || 0,
+      tempo_mao_obra_segundos || 0,
+      session.empresa_codigo,
+    ]
   );
   return NextResponse.json({ codigo: rows[0].codigo }, { status: 201 });
 }
