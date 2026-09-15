@@ -9,6 +9,7 @@ interface MateriaPrima {
   marca: string;
   descricao: string;
   cor: string;
+  unidade_medida: 'UN' | 'G';
 }
 
 interface Tipo {
@@ -16,7 +17,7 @@ interface Tipo {
   nome: string;
 }
 
-const emptyForm = { tipo_codigo: '', marca: '', descricao: '', cor: '' };
+const emptyForm = { tipo_codigo: '', marca: '', descricao: '', cor: '', unidade_medida: 'UN' as 'UN' | 'G' };
 
 export default function MateriaPrimaPage() {
   const [itens, setItens] = useState<MateriaPrima[]>([]);
@@ -46,6 +47,7 @@ export default function MateriaPrimaPage() {
       marca: item.marca,
       descricao: item.descricao,
       cor: item.cor,
+      unidade_medida: item.unidade_medida,
     });
     setError('');
   }
@@ -113,6 +115,7 @@ export default function MateriaPrimaPage() {
               <th>Marca</th>
               <th>Descrição</th>
               <th>Cor</th>
+              <th>Unidade</th>
               <th></th>
             </tr>
           </thead>
@@ -124,6 +127,7 @@ export default function MateriaPrimaPage() {
                 <td>{item.marca}</td>
                 <td>{item.descricao}</td>
                 <td>{item.cor}</td>
+                <td>{item.unidade_medida === 'UN' ? 'Unitário' : 'Gramas'}</td>
                 <td>
                   <button className="btn-small" onClick={() => startEdit(item)}>
                     Editar
@@ -136,7 +140,7 @@ export default function MateriaPrimaPage() {
             ))}
             {itens.length === 0 && (
               <tr>
-                <td colSpan={6}>Nenhuma matéria prima cadastrada.</td>
+                <td colSpan={7}>Nenhuma matéria prima cadastrada.</td>
               </tr>
             )}
           </tbody>
@@ -188,6 +192,16 @@ export default function MateriaPrimaPage() {
                 onChange={(e) => setForm({ ...form, descricao: e.target.value })}
                 required
               />
+            </div>
+            <div className="field">
+              <label>Unidade de Medida</label>
+              <select
+                value={form.unidade_medida}
+                onChange={(e) => setForm({ ...form, unidade_medida: e.target.value as 'UN' | 'G' })}
+              >
+                <option value="UN">UN - Unitário</option>
+                <option value="G">G - Gramas</option>
+              </select>
             </div>
           </div>
           <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>

@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT mp.codigo, mp.tipo_codigo, t.nome AS tipo_nome, mp.marca, mp.descricao, mp.cor
+    `SELECT mp.codigo, mp.tipo_codigo, t.nome AS tipo_nome, mp.marca, mp.descricao, mp.cor, mp.unidade_medida
      FROM materia_prima mp
      JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
      WHERE mp.empresa_codigo = $1
@@ -31,10 +31,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Selecione uma empresa para cadastrar matéria prima.' }, { status: 400 });
   }
 
-  const { tipo_codigo, marca, descricao, cor } = await request.json().catch(() => ({}));
+  const { tipo_codigo, marca, descricao, cor, unidade_medida } = await request.json().catch(() => ({}));
 
-  if (!tipo_codigo || !marca || !descricao || !cor) {
+  if (!tipo_codigo || !marca || !descricao || !cor || !unidade_medida) {
     return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
+  }
+  if (unidade_medida !== 'UN' && unidade_medida !== 'G') {
+    return NextResponse.json({ error: 'Unidade de medida inválida.' }, { status: 400 });
   }
 
   const { rows: tipoRows } = await pool.query(
@@ -46,9 +49,9 @@ export async function POST(request: NextRequest) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO materia_prima (tipo_codigo, marca, descricao, cor, empresa_codigo) VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO materia_prima (tipo_codigo, marca, descricao, cor, unidade_medida, empresa_codigo) VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING codigo`,
-    [tipo_codigo, marca, descricao, cor, session.empresa_codigo]
+    [tipo_codigo, marca, descricao, cor, unidade_medida, session.empresa_codigo]
   );
   return NextResponse.json({ codigo: rows[0].codigo }, { status: 201 });
 }

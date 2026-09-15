@@ -12,13 +12,13 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT mp.codigo, t.nome AS tipo_nome, mp.marca, mp.cor,
+    `SELECT mp.codigo, t.nome AS tipo_nome, mp.marca, mp.cor, mp.unidade_medida,
             COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo
      FROM materia_prima mp
      JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
      LEFT JOIN movimentacoes_estoque me ON me.materia_prima_codigo = mp.codigo
      WHERE mp.empresa_codigo = $1
-     GROUP BY mp.codigo, t.nome, mp.marca, mp.cor
+     GROUP BY mp.codigo, t.nome, mp.marca, mp.cor, mp.unidade_medida
      ORDER BY mp.codigo`,
     [session.empresa_codigo]
   );

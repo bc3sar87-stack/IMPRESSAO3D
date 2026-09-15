@@ -8,6 +8,7 @@ interface ItemEstoque {
   marca: string;
   cor: string;
   saldo: string;
+  unidade_medida: 'UN' | 'G';
 }
 
 interface Movimentacao {
@@ -98,6 +99,7 @@ export default function EstoquePage() {
               <th>Marca</th>
               <th>Cor</th>
               <th>Saldo</th>
+              <th>Unidade</th>
               <th></th>
             </tr>
           </thead>
@@ -109,6 +111,7 @@ export default function EstoquePage() {
                 <td>{item.marca}</td>
                 <td>{item.cor}</td>
                 <td>{item.saldo}</td>
+                <td>{item.unidade_medida}</td>
                 <td>
                   <button className="btn-small" onClick={() => abrirItem(item)}>
                     Movimentar
@@ -118,7 +121,7 @@ export default function EstoquePage() {
             ))}
             {itens.length === 0 && (
               <tr>
-                <td colSpan={6}>Nenhuma matéria prima cadastrada.</td>
+                <td colSpan={7}>Nenhuma matéria prima cadastrada.</td>
               </tr>
             )}
           </tbody>
@@ -132,7 +135,7 @@ export default function EstoquePage() {
               {selecionado.tipo_nome} — {selecionado.marca} ({selecionado.cor})
               <br />
               <small style={{ color: '#64748b', fontWeight: 400 }}>
-                Saldo atual: {selecionado.saldo}
+                Saldo atual: {selecionado.saldo} {selecionado.unidade_medida}
               </small>
             </h3>
             <button className="btn-small" onClick={fechar}>
@@ -155,7 +158,7 @@ export default function EstoquePage() {
                 </select>
               </div>
               <div className="field">
-                <label>Quantidade</label>
+                <label>Quantidade ({selecionado.unidade_medida})</label>
                 <input
                   type="number"
                   step="0.01"
@@ -194,7 +197,9 @@ export default function EstoquePage() {
                   <tr key={mov.codigo}>
                     <td>{new Date(mov.criado_em).toLocaleString('pt-BR')}</td>
                     <td>{mov.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
-                    <td>{mov.quantidade}</td>
+                    <td>
+                      {mov.quantidade} {selecionado.unidade_medida}
+                    </td>
                     <td>{mov.observacao || '-'}</td>
                   </tr>
                 ))}
