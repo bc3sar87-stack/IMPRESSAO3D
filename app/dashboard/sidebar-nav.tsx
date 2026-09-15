@@ -4,16 +4,32 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const adminLinks = [
-  { href: '/dashboard/usuarios', label: 'Cadastro de Usuários' },
-  { href: '/dashboard/empresas', label: 'Cadastro de Empresas' },
-  { href: '/dashboard/vinculos', label: 'Usuários x Empresas' },
-  { href: '/dashboard/configuracao-email', label: 'Configuração de E-mail' },
+interface NavGroup {
+  title: string;
+  links: { href: string; label: string }[];
+}
+
+const groups: NavGroup[] = [
+  {
+    title: 'Administração',
+    links: [
+      { href: '/dashboard/usuarios', label: 'Cadastro de Usuários' },
+      { href: '/dashboard/empresas', label: 'Cadastro de Empresas' },
+      { href: '/dashboard/vinculos', label: 'Usuários x Empresas' },
+      { href: '/dashboard/configuracao-email', label: 'Configuração de E-mail' },
+    ],
+  },
+  {
+    title: 'Configurações',
+    links: [{ href: '/dashboard/equipamentos', label: 'Cadastro de Equipamentos' }],
+  },
 ];
 
 export default function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
-  const [adminOpen, setAdminOpen] = useState(true);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
+    Object.fromEntries(groups.map((g) => [g.title, true]))
+  );
 
   return (
     <nav className="sidebar-nav">
@@ -21,31 +37,32 @@ export default function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
         Início
       </Link>
 
-      {isAdmin && (
-        <div className="sidebar-group">
-          <button
-            type="button"
-            className="sidebar-group-toggle"
-            onClick={() => setAdminOpen(!adminOpen)}
-          >
-            Administração
-            <span>{adminOpen ? '▾' : '▸'}</span>
-          </button>
-          {adminOpen && (
-            <div className="sidebar-subnav">
-              {adminLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={pathname === link.href ? 'sidebar-link active' : 'sidebar-link'}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {isAdmin &&
+        groups.map((group) => (
+          <div className="sidebar-group" key={group.title}>
+            <button
+              type="button"
+              className="sidebar-group-toggle"
+              onClick={() => setOpenGroups({ ...openGroups, [group.title]: !openGroups[group.title] })}
+            >
+              {group.title}
+              <span>{openGroups[group.title] ? '▾' : '▸'}</span>
+            </button>
+            {openGroups[group.title] && (
+              <div className="sidebar-subnav">
+                {group.links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={pathname === link.href ? 'sidebar-link active' : 'sidebar-link'}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
     </nav>
   );
 }
