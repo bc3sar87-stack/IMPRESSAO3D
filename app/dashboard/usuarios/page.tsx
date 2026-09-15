@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import { maskCPF } from '@/lib/masks';
 
 interface Usuario {
   codigo: number;
@@ -41,7 +42,7 @@ export default function UsuariosPage() {
 
   function startEdit(u: Usuario) {
     setEditingCodigo(u.codigo);
-    setForm({ nome: u.nome, email: u.email, cpf: u.cpf, nivel: u.nivel, senha: '' });
+    setForm({ nome: u.nome, email: u.email, cpf: maskCPF(u.cpf), nivel: u.nivel, senha: '' });
     setError('');
     setInfo('');
   }
@@ -144,7 +145,7 @@ export default function UsuariosPage() {
                 <td>{u.codigo}</td>
                 <td>{u.nome}</td>
                 <td>{u.email}</td>
-                <td>{u.cpf}</td>
+                <td>{maskCPF(u.cpf)}</td>
                 <td>{u.nivel}</td>
                 <td>{u.tem_senha ? 'Definida' : 'Pendente'}</td>
                 <td>
@@ -207,7 +208,7 @@ export default function UsuariosPage() {
               <input
                 placeholder="000.000.000-00"
                 value={form.cpf}
-                onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })}
                 required
               />
             </div>

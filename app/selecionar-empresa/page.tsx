@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 interface Empresa {
   codigo: number;
   razao_social: string;
-  cnpj: string;
+  documento: string;
+  tipo_pessoa: 'PJ' | 'PF';
 }
 
 export default function SelecionarEmpresaPage() {

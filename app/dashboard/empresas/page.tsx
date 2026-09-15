@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import { maskCNPJ, maskCPF } from '@/lib/masks';
 
 interface Empresa {
   codigo: number;
-  cnpj: string;
+  documento: string;
   razao_social: string;
+  tipo_pessoa: 'PJ' | 'PF';
 }
 
-const emptyForm = { cnpj: '', razao_social: '' };
+const emptyForm = { documento: '', razao_social: '', tipo_pessoa: 'PJ' as Empresa['tipo_pessoa'] };
 
 export default function EmpresasPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -28,7 +30,7 @@ export default function EmpresasPage() {
 
   function startEdit(emp: Empresa) {
     setEditingCodigo(emp.codigo);
-    setForm({ cnpj: emp.cnpj, razao_social: emp.razao_social });
+    setForm({ documento: emp.documento, razao_social: emp.razao_social, tipo_pessoa: emp.tipo_pessoa });
     setError('');
   }
 
@@ -36,6 +38,15 @@ export default function EmpresasPage() {
     setEditingCodigo(null);
     setForm(emptyForm);
     setError('');
+  }
+
+  function handleDocumentoChange(value: string) {
+    const masked = form.tipo_pessoa === 'PJ' ? maskCNPJ(value) : maskCPF(value);
+    setForm({ ...form, documento: masked });
+  }
+
+  function handleTipoChange(tipo: Empresa['tipo_pessoa']) {
+    setForm({ ...form, tipo_pessoa: tipo, documento: '' });
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -63,7 +74,7 @@ export default function EmpresasPage() {
   }
 
   async function handleDelete(codigo: number) {
-    if (!confirm('Excluir esta empresa?')) return;
+    if (!confirm('Excluir este registro?')) return;
     const res = await fetch(`/api/empresas/${codigo}`, { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -72,6 +83,8 @@ export default function EmpresasPage() {
     }
     load();
   }
+
+  const isPJ = form.tipo_pessoa === 'PJ';
 
   return (
     <div>
@@ -84,8 +97,9 @@ export default function EmpresasPage() {
           <thead>
             <tr>
               <th>Código</th>
-              <th>CNPJ</th>
-              <th>Razão Social</th>
+              <th>Tipo</th>
+              <th>CNPJ/CPF</th>
+              <th>Razão Social/Nome</th>
               <th></th>
             </tr>
           </thead>
@@ -93,7 +107,8 @@ export default function EmpresasPage() {
             {empresas.map((emp) => (
               <tr key={emp.codigo}>
                 <td>{emp.codigo}</td>
-                <td>{emp.cnpj}</td>
+                <td>{emp.tipo_pessoa === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}</td>
+                <td>{emp.tipo_pessoa === 'PJ' ? maskCNPJ(emp.documento) : maskCPF(emp.documento)}</td>
                 <td>{emp.razao_social}</td>
                 <td>
                   <button className="btn-small" onClick={() => startEdit(emp)}>
@@ -107,7 +122,7 @@ export default function EmpresasPage() {
             ))}
             {empresas.length === 0 && (
               <tr>
-                <td colSpan={4}>Nenhuma empresa cadastrada.</td>
+                <td colSpan={5}>Nenhum registro cadastrado.</td>
               </tr>
             )}
           </tbody>
@@ -115,21 +130,31 @@ export default function EmpresasPage() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar empresa' : 'Nova empresa'}</h3>
+        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar registro' : 'Novo registro'}</h3>
         {error && <div className="error-msg">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field">
-              <label>CNPJ</label>
+              <label>Tipo</label>
+              <select
+                value={form.tipo_pessoa}
+                onChange={(e) => handleTipoChange(e.target.value as Empresa['tipo_pessoa'])}
+              >
+                <option value="PJ">Pessoa Jurídica (CNPJ)</option>
+                <option value="PF">Pessoa Física (CPF)</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>{isPJ ? 'CNPJ' : 'CPF'}</label>
               <input
-                placeholder="00.000.000/0000-00"
-                value={form.cnpj}
-                onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+                placeholder={isPJ ? '00.000.000/0000-00' : '000.000.000-00'}
+                value={form.documento}
+                onChange={(e) => handleDocumentoChange(e.target.value)}
                 required
               />
             </div>
             <div className="field">
-              <label>Razão Social</label>
+              <label>{isPJ ? 'Razão Social' : 'Nome'}</label>
               <input
                 value={form.razao_social}
                 onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
