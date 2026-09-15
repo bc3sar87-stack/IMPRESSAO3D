@@ -7,6 +7,7 @@ const links = [
   { href: '/dashboard', label: 'Início', adminOnly: false },
   { href: '/dashboard/usuarios', label: 'Cadastro de Usuários', adminOnly: true },
   { href: '/dashboard/empresas', label: 'Cadastro de Empresas', adminOnly: true },
+  { href: '/dashboard/vinculos', label: 'Usuários x Empresas', adminOnly: true },
 ];
 
 export default function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
