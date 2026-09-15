@@ -3,19 +3,29 @@ import { pool } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
 export async function GET() {
-  if (!(await requireAdmin())) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
+  }
+  if (!session.empresa_codigo) {
+    return NextResponse.json([]);
   }
 
   const { rows } = await pool.query(
-    `SELECT codigo, fabricante, modelo, consumo_w_hora FROM equipamentos ORDER BY codigo`
+    `SELECT codigo, fabricante, modelo, consumo_w_hora
+     FROM equipamentos WHERE empresa_codigo = $1 ORDER BY codigo`,
+    [session.empresa_codigo]
   );
   return NextResponse.json(rows);
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await requireAdmin())) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
+  }
+  if (!session.empresa_codigo) {
+    return NextResponse.json({ error: 'Selecione uma empresa para cadastrar equipamentos.' }, { status: 400 });
   }
 
   const { fabricante, modelo, consumo_w_hora } = await request.json().catch(() => ({}));
@@ -28,9 +38,9 @@ export async function POST(request: NextRequest) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO equipamentos (fabricante, modelo, consumo_w_hora) VALUES ($1, $2, $3)
+    `INSERT INTO equipamentos (fabricante, modelo, consumo_w_hora, empresa_codigo) VALUES ($1, $2, $3, $4)
      RETURNING codigo, fabricante, modelo, consumo_w_hora`,
-    [fabricante, modelo, consumo_w_hora]
+    [fabricante, modelo, consumo_w_hora, session.empresa_codigo]
   );
   return NextResponse.json(rows[0], { status: 201 });
 }

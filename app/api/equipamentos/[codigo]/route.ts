@@ -3,8 +3,12 @@ import { pool } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
-  if (!(await requireAdmin())) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
+  }
+  if (!session.empresa_codigo) {
+    return NextResponse.json({ error: 'Selecione uma empresa.' }, { status: 400 });
   }
 
   const { codigo } = await params;
@@ -18,9 +22,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { rows } = await pool.query(
-    `UPDATE equipamentos SET fabricante=$1, modelo=$2, consumo_w_hora=$3 WHERE codigo=$4
+    `UPDATE equipamentos SET fabricante=$1, modelo=$2, consumo_w_hora=$3
+     WHERE codigo=$4 AND empresa_codigo=$5
      RETURNING codigo, fabricante, modelo, consumo_w_hora`,
-    [fabricante, modelo, consumo_w_hora, codigo]
+    [fabricante, modelo, consumo_w_hora, codigo, session.empresa_codigo]
   );
   if (rows.length === 0) {
     return NextResponse.json({ error: 'Equipamento não encontrado.' }, { status: 404 });
@@ -29,11 +34,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
-  if (!(await requireAdmin())) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
+  }
+  if (!session.empresa_codigo) {
+    return NextResponse.json({ error: 'Selecione uma empresa.' }, { status: 400 });
   }
 
   const { codigo } = await params;
-  await pool.query(`DELETE FROM equipamentos WHERE codigo=$1`, [codigo]);
+  await pool.query(`DELETE FROM equipamentos WHERE codigo=$1 AND empresa_codigo=$2`, [
+    codigo,
+    session.empresa_codigo,
+  ]);
   return NextResponse.json({ ok: true });
 }
