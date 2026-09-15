@@ -24,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-title">
-          <img src="/logo-full-light.svg" alt="3D Print Control" height={34} />
+          <img src="/logo-full-light.svg" alt="3D Print Control" height={40} />
         </div>
         <SidebarNav isAdmin={session.nivel === 'ADMINISTRADOR'} />
       </aside>
