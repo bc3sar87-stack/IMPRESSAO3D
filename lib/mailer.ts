@@ -57,15 +57,24 @@ export async function sendSystemEmail(opts: { to: string; subject: string; text:
 
 const CONVITE_VALIDADE_HORAS = 48;
 
-export async function criarConviteSenha(usuarioCodigo: number, nome: string, email: string) {
+async function gerarTokenSenha(usuarioCodigo: number): Promise<string> {
   const token = randomBytes(32).toString('hex');
 
+  // invalida links antigos ainda não usados para esse usuário
+  await pool.query(`DELETE FROM tokens_senha WHERE usuario_codigo = $1 AND usado_em IS NULL`, [
+    usuarioCodigo,
+  ]);
   await pool.query(
     `INSERT INTO tokens_senha (token, usuario_codigo, expira_em)
      VALUES ($1, $2, now() + interval '${CONVITE_VALIDADE_HORAS} hours')`,
     [token, usuarioCodigo]
   );
 
+  return token;
+}
+
+export async function criarConviteSenha(usuarioCodigo: number, nome: string, email: string) {
+  const token = await gerarTokenSenha(usuarioCodigo);
   const baseUrl = process.env.APP_URL || '';
   const link = `${baseUrl}/definir-senha?token=${token}`;
 
@@ -74,5 +83,18 @@ export async function criarConviteSenha(usuarioCodigo: number, nome: string, ema
     subject: 'Bem-vindo ao 3D print control - defina sua senha',
     text: `Olá, ${nome}!\n\nSeu cadastro no sistema 3D print control foi criado. Acesse o link abaixo para definir sua senha de acesso:\n\n${link}\n\nEste link expira em ${CONVITE_VALIDADE_HORAS} horas.`,
     html: `<p>Olá, ${nome}!</p><p>Seu cadastro no sistema 3D print control foi criado. Clique no link abaixo para definir sua senha de acesso:</p><p><a href="${link}">${link}</a></p><p>Este link expira em ${CONVITE_VALIDADE_HORAS} horas.</p>`,
+  });
+}
+
+export async function enviarLinkRedefinicaoSenha(usuarioCodigo: number, nome: string, email: string) {
+  const token = await gerarTokenSenha(usuarioCodigo);
+  const baseUrl = process.env.APP_URL || '';
+  const link = `${baseUrl}/definir-senha?token=${token}`;
+
+  await sendSystemEmail({
+    to: email,
+    subject: 'Redefinição de senha - 3D print control',
+    text: `Olá, ${nome}!\n\nRecebemos um pedido para redefinir sua senha no 3D print control. Acesse o link abaixo para escolher uma nova senha:\n\n${link}\n\nSe você não pediu isso, pode ignorar este e-mail. Este link expira em ${CONVITE_VALIDADE_HORAS} horas.`,
+    html: `<p>Olá, ${nome}!</p><p>Recebemos um pedido para redefinir sua senha no 3D print control. Clique no link abaixo para escolher uma nova senha:</p><p><a href="${link}">${link}</a></p><p>Se você não pediu isso, pode ignorar este e-mail. Este link expira em ${CONVITE_VALIDADE_HORAS} horas.</p>`,
   });
 }

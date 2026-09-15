@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -69,6 +70,9 @@ export default function LoginPage() {
               autoComplete="current-password"
               required
             />
+            <p className="hint" style={{ textAlign: 'right' }}>
+              <Link href="/esqueci-senha">Esqueci minha senha</Link>
+            </p>
           </div>
           <button className="btn-primary" type="submit" disabled={loading}>
             {loading ? 'Entrando...' : 'Entrar'}
