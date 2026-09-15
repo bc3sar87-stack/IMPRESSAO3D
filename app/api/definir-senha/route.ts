@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { signSession, SESSION_COOKIE } from '@/lib/auth';
+import { setSessionCookie } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   const { token, senha } = await request.json().catch(() => ({}));
@@ -40,14 +40,23 @@ export async function POST(request: NextRequest) {
 
   await pool.query(`DELETE FROM tokens_senha WHERE usuario_codigo = $1`, [convite.usuario_codigo]);
 
-  const sessionToken = signSession({ codigo: usuario.codigo, nome: usuario.nome, nivel: usuario.nivel });
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 8 * 60 * 60,
+  const { rows: empresas } = await pool.query(
+    `SELECT empresa_codigo FROM usuarios_empresas WHERE usuario_codigo = $1`,
+    [usuario.codigo]
+  );
+  const multiEmpresa = empresas.length > 1;
+  const empresa_codigo = empresas.length === 1 ? empresas[0].empresa_codigo : null;
+
+  const response = NextResponse.json({
+    ok: true,
+    redirect: multiEmpresa ? '/selecionar-empresa' : '/dashboard',
+  });
+  setSessionCookie(response, {
+    codigo: usuario.codigo,
+    nome: usuario.nome,
+    nivel: usuario.nivel,
+    empresa_codigo,
+    multiEmpresa,
   });
   return response;
 }

@@ -20,12 +20,12 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setError(data.error || 'Não foi possível entrar.');
         return;
       }
-      router.push('/dashboard');
+      router.push(data.redirect || '/dashboard');
       router.refresh();
     } catch {
       setError('Erro de conexão. Tente novamente.');

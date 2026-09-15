@@ -29,12 +29,12 @@ function DefinirSenhaForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, senha }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setError(data.error || 'Não foi possível definir a senha.');
         return;
       }
-      router.push('/dashboard');
+      router.push(data.redirect || '/dashboard');
       router.refresh();
     } catch {
       setError('Erro de conexão. Tente novamente.');

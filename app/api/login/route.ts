@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { signSession, SESSION_COOKIE } from '@/lib/auth';
+import { setSessionCookie } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   const { email, senha } = await request.json().catch(() => ({ email: '', senha: '' }));
@@ -21,15 +21,25 @@ export async function POST(request: NextRequest) {
   }
 
   const user = rows[0];
-  const token = signSession({ codigo: user.codigo, nome: user.nome, nivel: user.nivel });
 
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 8 * 60 * 60,
+  const { rows: empresas } = await pool.query(
+    `SELECT empresa_codigo FROM usuarios_empresas WHERE usuario_codigo = $1`,
+    [user.codigo]
+  );
+
+  const multiEmpresa = empresas.length > 1;
+  const empresa_codigo = empresas.length === 1 ? empresas[0].empresa_codigo : null;
+
+  const response = NextResponse.json({
+    ok: true,
+    redirect: multiEmpresa ? '/selecionar-empresa' : '/dashboard',
+  });
+  setSessionCookie(response, {
+    codigo: user.codigo,
+    nome: user.nome,
+    nivel: user.nivel,
+    empresa_codigo,
+    multiEmpresa,
   });
   return response;
 }
