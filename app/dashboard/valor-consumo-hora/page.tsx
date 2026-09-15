@@ -48,15 +48,19 @@ export default function ValorConsumoHoraPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="field" style={{ maxWidth: 240 }}>
-            <label>Valor por hora</label>
-            <input
-              type="number"
-              step="0.0001"
-              min="0"
-              value={valorHora}
-              onChange={(e) => setValorHora(e.target.value)}
-              required
-            />
+            <label>Valor por hora (R$)</label>
+            <div className="input-prefix-group">
+              <span className="input-prefix">R$</span>
+              <input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={valorHora}
+                onChange={(e) => setValorHora(e.target.value)}
+                required
+              />
+            </div>
+            <p className="hint">Valor específico da empresa selecionada no momento.</p>
           </div>
           <button className="btn-primary" type="submit" disabled={saving} style={{ width: 'auto', padding: '10px 24px', marginTop: 16 }}>
             {saving ? 'Salvando...' : 'Salvar'}
