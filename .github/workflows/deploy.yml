@@ -9,17 +9,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Debug key
-        run: |
-          echo "${{ secrets.VPS_SSH_KEY }}" > /tmp/key
-          chmod 600 /tmp/key
-          wc -l /tmp/key
-          ssh-keygen -lf /tmp/key
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: echo "deploy triggeredd"
+          script: echo "deploy triggered"
