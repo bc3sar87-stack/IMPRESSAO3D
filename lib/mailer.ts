@@ -71,8 +71,8 @@ export async function criarConviteSenha(usuarioCodigo: number, nome: string, ema
 
   await sendSystemEmail({
     to: email,
-    subject: 'Bem-vindo ao IMPRESSAO3D - defina sua senha',
-    text: `Olá, ${nome}!\n\nSeu cadastro no sistema IMPRESSAO3D foi criado. Acesse o link abaixo para definir sua senha de acesso:\n\n${link}\n\nEste link expira em ${CONVITE_VALIDADE_HORAS} horas.`,
-    html: `<p>Olá, ${nome}!</p><p>Seu cadastro no sistema IMPRESSAO3D foi criado. Clique no link abaixo para definir sua senha de acesso:</p><p><a href="${link}">${link}</a></p><p>Este link expira em ${CONVITE_VALIDADE_HORAS} horas.</p>`,
+    subject: 'Bem-vindo ao 3D print control - defina sua senha',
+    text: `Olá, ${nome}!\n\nSeu cadastro no sistema 3D print control foi criado. Acesse o link abaixo para definir sua senha de acesso:\n\n${link}\n\nEste link expira em ${CONVITE_VALIDADE_HORAS} horas.`,
+    html: `<p>Olá, ${nome}!</p><p>Seu cadastro no sistema 3D print control foi criado. Clique no link abaixo para definir sua senha de acesso:</p><p><a href="${link}">${link}</a></p><p>Este link expira em ${CONVITE_VALIDADE_HORAS} horas.</p>`,
   });
 }

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'IMPRESSAO3D',
+  title: '3D print control',
   description: 'Sistema de controle de impressão 3D',
 };
 

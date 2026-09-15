@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
         : config.email_remetente,
       to: destinatario,
       cc: config.email_cc || undefined,
-      subject: 'E-mail de teste - IMPRESSAO3D',
-      text: 'Este é um e-mail de teste enviado pelo sistema IMPRESSAO3D.',
+      subject: 'E-mail de teste - 3D print control',
+      text: 'Este é um e-mail de teste enviado pelo sistema 3D print control.',
     });
     return NextResponse.json({ ok: true });
   } catch (err) {

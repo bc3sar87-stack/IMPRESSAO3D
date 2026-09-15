@@ -23,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="sidebar-title">IMPRESSAO3D</div>
+        <div className="sidebar-title">3D print control</div>
         <SidebarNav isAdmin={session.nivel === 'ADMINISTRADOR'} />
       </aside>
       <div className="main">
