@@ -142,9 +142,9 @@ body {
 }
 
 .dashboard-content {
-  max-width: 960px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px 32px;
 }
 
 .card {
@@ -320,8 +320,8 @@ body {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+  gap: 16px;
 }
 
 .card-header {
