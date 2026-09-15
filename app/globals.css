@@ -452,18 +452,19 @@ body {
   align-items: stretch;
 }
 
-.color-picker {
-  flex-shrink: 0;
-  width: 42px;
+.field .color-field input.color-picker {
+  flex: 0 0 36px;
+  width: 36px;
   padding: 2px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   cursor: pointer;
 }
 
-.color-field input[type='text'],
-.color-field input:not(.color-picker) {
-  flex: 1;
+.field .color-field input:not(.color-picker) {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
 }
 
 .search-box {
