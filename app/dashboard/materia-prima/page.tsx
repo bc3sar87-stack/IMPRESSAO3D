@@ -4,24 +4,35 @@ import { useEffect, useState, FormEvent } from 'react';
 
 interface MateriaPrima {
   codigo: number;
-  tipo: string;
+  tipo_codigo: number;
+  tipo_nome: string;
   marca: string;
   descricao: string;
   cor: string;
 }
 
-const emptyForm = { tipo: '', marca: '', descricao: '', cor: '' };
+interface Tipo {
+  codigo: number;
+  nome: string;
+}
+
+const emptyForm = { tipo_codigo: '', marca: '', descricao: '', cor: '' };
 
 export default function MateriaPrimaPage() {
   const [itens, setItens] = useState<MateriaPrima[]>([]);
+  const [tipos, setTipos] = useState<Tipo[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function load() {
-    const res = await fetch('/api/materia-prima');
-    if (res.ok) setItens(await res.json());
+    const [itensRes, tiposRes] = await Promise.all([
+      fetch('/api/materia-prima'),
+      fetch('/api/tipos-materia-prima'),
+    ]);
+    if (itensRes.ok) setItens(await itensRes.json());
+    if (tiposRes.ok) setTipos(await tiposRes.json());
   }
 
   useEffect(() => {
@@ -30,7 +41,12 @@ export default function MateriaPrimaPage() {
 
   function startEdit(item: MateriaPrima) {
     setEditingCodigo(item.codigo);
-    setForm({ tipo: item.tipo, marca: item.marca, descricao: item.descricao, cor: item.cor });
+    setForm({
+      tipo_codigo: String(item.tipo_codigo),
+      marca: item.marca,
+      descricao: item.descricao,
+      cor: item.cor,
+    });
     setError('');
   }
 
@@ -81,6 +97,13 @@ export default function MateriaPrimaPage() {
         <h2>Cadastro de Matéria Prima</h2>
       </div>
 
+      {tipos.length === 0 && (
+        <div className="error-msg">
+          Cadastre pelo menos um Tipo (em Cadastros → Cadastro de Tipo) antes de criar uma matéria
+          prima.
+        </div>
+      )}
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -97,7 +120,7 @@ export default function MateriaPrimaPage() {
             {itens.map((item) => (
               <tr key={item.codigo}>
                 <td>{item.codigo}</td>
-                <td>{item.tipo}</td>
+                <td>{item.tipo_nome}</td>
                 <td>{item.marca}</td>
                 <td>{item.descricao}</td>
                 <td>{item.cor}</td>
@@ -127,12 +150,20 @@ export default function MateriaPrimaPage() {
           <div className="form-grid">
             <div className="field">
               <label>Tipo</label>
-              <input
-                placeholder="PLA, ABS, PETG..."
-                value={form.tipo}
-                onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+              <select
+                value={form.tipo_codigo}
+                onChange={(e) => setForm({ ...form, tipo_codigo: e.target.value })}
                 required
-              />
+              >
+                <option value="" disabled>
+                  Selecione...
+                </option>
+                {tipos.map((tipo) => (
+                  <option key={tipo.codigo} value={tipo.codigo}>
+                    {tipo.nome}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="field">
               <label>Marca</label>
