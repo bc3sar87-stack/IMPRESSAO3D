@@ -8,6 +8,8 @@ interface ItemEstoque {
   tipo_nome: string;
   marca: string;
   cor: string;
+  cor_hex: string;
+  fornecedor: string | null;
   saldo: string;
   unidade_medida_sigla: string;
 }
@@ -95,6 +97,24 @@ export default function EstoquePage() {
     }
   }
 
+  async function handleDeleteMovimentacao(movCodigo: number) {
+    if (!selecionado) return;
+    if (!confirm('Deseja realmente excluir esta movimentação?')) return;
+    setError('');
+    const res = await fetch(`/api/estoque/movimentacao/${movCodigo}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || 'Não foi possível excluir a movimentação.');
+      return;
+    }
+    await load();
+    const atualizado = (await (await fetch('/api/estoque')).json()) as ItemEstoque[];
+    const item = atualizado.find((i) => i.codigo === selecionado.codigo);
+    if (item) setSelecionado(item);
+    const res2 = await fetch(`/api/estoque/${selecionado.codigo}`);
+    if (res2.ok) setMovimentacoes(await res2.json());
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -111,6 +131,7 @@ export default function EstoquePage() {
               <th>Tipo</th>
               <th>Marca</th>
               <th>Cor</th>
+              <th>Fornecedor</th>
               <th>Saldo</th>
               <th>Unidade</th>
               <th></th>
@@ -122,7 +143,11 @@ export default function EstoquePage() {
                 <td>{item.codigo}</td>
                 <td>{item.tipo_nome}</td>
                 <td>{item.marca}</td>
-                <td>{item.cor}</td>
+                <td>
+                  <span className="color-swatch" style={{ backgroundColor: item.cor_hex }} />
+                  {item.cor}
+                </td>
+                <td>{item.fornecedor || '-'}</td>
                 <td>{item.saldo}</td>
                 <td>{item.unidade_medida_sigla}</td>
                 <td>
@@ -134,7 +159,7 @@ export default function EstoquePage() {
             ))}
             {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhuma matéria prima encontrada.</td>
+                <td colSpan={8}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>
@@ -203,6 +228,7 @@ export default function EstoquePage() {
                   <th>Tipo</th>
                   <th>Quantidade</th>
                   <th>Observação</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -214,11 +240,19 @@ export default function EstoquePage() {
                       {mov.quantidade} {selecionado.unidade_medida_sigla}
                     </td>
                     <td>{mov.observacao || '-'}</td>
+                    <td>
+                      <button
+                        className="btn-small danger"
+                        onClick={() => handleDeleteMovimentacao(mov.codigo)}
+                      >
+                        Excluir
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {movimentacoes.length === 0 && (
                   <tr>
-                    <td colSpan={4}>Nenhuma movimentação registrada.</td>
+                    <td colSpan={5}>Nenhuma movimentação registrada.</td>
                   </tr>
                 )}
               </tbody>
