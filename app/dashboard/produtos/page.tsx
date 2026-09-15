@@ -7,12 +7,8 @@ interface Produto {
   codigo: number;
   descricao: string;
   link_stl: string | null;
+  stl_nome: string | null;
   tem_foto: boolean;
-}
-
-interface Tipo {
-  codigo: number;
-  nome: string;
 }
 
 interface MateriaPrima {
@@ -34,12 +30,20 @@ interface ItemMaterial {
   peso: string;
 }
 
-const emptyForm = { descricao: '', link_stl: '', fotoBase64: '', fotoTipo: '', fotoPreview: '' };
+const emptyForm = {
+  descricao: '',
+  link_stl: '',
+  fotoBase64: '',
+  fotoTipo: '',
+  fotoPreview: '',
+  stlNomeAtual: '' as string | null,
+};
 
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrima[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [stlFile, setStlFile] = useState<File | null>(null);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,13 +79,16 @@ export default function ProdutosPage() {
       fotoBase64: '',
       fotoTipo: '',
       fotoPreview: p.tem_foto ? `/api/produtos/${p.codigo}/foto` : '',
+      stlNomeAtual: p.stl_nome,
     });
+    setStlFile(null);
     setError('');
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setForm(emptyForm);
+    setStlFile(null);
     setError('');
   }
 
@@ -130,11 +137,25 @@ export default function ProdutosPage() {
           foto_tipo: form.fotoTipo || undefined,
         }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setError(data.error || 'Não foi possível salvar.');
         return;
       }
+
+      if (stlFile) {
+        const codigo = editingCodigo || data.codigo;
+        const fd = new FormData();
+        fd.append('arquivo', stlFile);
+        const stlRes = await fetch(`/api/produtos/${codigo}/stl`, { method: 'POST', body: fd });
+        if (!stlRes.ok) {
+          const stlData = await stlRes.json().catch(() => ({}));
+          setError(stlData.error || 'Produto salvo, mas não foi possível enviar o arquivo STL.');
+          load();
+          return;
+        }
+      }
+
       cancelEdit();
       load();
     } finally {
@@ -228,13 +249,16 @@ export default function ProdutosPage() {
                 <td>{p.codigo}</td>
                 <td>{p.descricao}</td>
                 <td>
-                  {p.link_stl ? (
-                    <a href={p.link_stl} target="_blank" rel="noreferrer">
-                      Abrir
-                    </a>
-                  ) : (
-                    '-'
+                  {p.stl_nome && (
+                    <a href={`/api/produtos/${p.codigo}/stl`}>{p.stl_nome}</a>
                   )}
+                  {p.stl_nome && p.link_stl && <br />}
+                  {p.link_stl && (
+                    <a href={p.link_stl} target="_blank" rel="noreferrer">
+                      Link externo
+                    </a>
+                  )}
+                  {!p.stl_nome && !p.link_stl && '-'}
                 </td>
                 <td>
                   <button className="btn-small" onClick={() => startEdit(p)}>
@@ -279,6 +303,18 @@ export default function ProdutosPage() {
                 value={form.link_stl}
                 onChange={(e) => setForm({ ...form, link_stl: e.target.value })}
               />
+            </div>
+            <div className="field">
+              <label>Arquivo STL da impressão</label>
+              <input
+                type="file"
+                accept=".stl"
+                onChange={(e) => setStlFile(e.target.files?.[0] || null)}
+              />
+              {form.stlNomeAtual && !stlFile && (
+                <p className="hint">Arquivo atual: {form.stlNomeAtual}</p>
+              )}
+              <p className="hint">Máximo 50MB.</p>
             </div>
             <div className="field">
               <label>Foto</label>

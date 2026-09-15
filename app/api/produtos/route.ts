@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT codigo, descricao, link_stl, (foto IS NOT NULL) AS tem_foto
+    `SELECT codigo, descricao, link_stl, stl_nome, (foto IS NOT NULL) AS tem_foto
      FROM produtos WHERE empresa_codigo = $1 ORDER BY codigo`,
     [session.empresa_codigo]
   );
