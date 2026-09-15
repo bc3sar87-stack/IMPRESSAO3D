@@ -11,7 +11,9 @@ export default function ValorConsumoHoraPage() {
   useEffect(() => {
     fetch('/api/valor-consumo-hora')
       .then((r) => r.json())
-      .then((data) => setValorHora(data.valor_hora ?? ''));
+      .then((data) =>
+        setValorHora(data.valor_hora !== null ? Number(data.valor_hora).toFixed(2) : '')
+      );
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -23,7 +25,7 @@ export default function ValorConsumoHoraPage() {
       const res = await fetch('/api/valor-consumo-hora', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ valor_hora: valorHora }),
+        body: JSON.stringify({ valor_hora: Number(valorHora).toFixed(2) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -53,7 +55,7 @@ export default function ValorConsumoHoraPage() {
               <span className="input-prefix">R$</span>
               <input
                 type="number"
-                step="0.0001"
+                step="0.01"
                 min="0"
                 value={valorHora}
                 onChange={(e) => setValorHora(e.target.value)}
