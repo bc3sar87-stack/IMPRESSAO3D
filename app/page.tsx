@@ -37,7 +37,9 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <div className="login-card">
-        <h1>3D print control</h1>
+        <div className="login-logo">
+          <img src="/logo-full.svg" alt="3D Print Control" height={34} />
+        </div>
         <p className="subtitle">Entre com seu e-mail e senha</p>
 
         {error && <div className="error-msg">{error}</div>}
