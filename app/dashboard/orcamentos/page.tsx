@@ -32,7 +32,15 @@ interface ItemOrcamento {
   subtotal: string;
 }
 
+interface ItemPendente {
+  produto_codigo: string;
+  produto_descricao: string;
+  quantidade: string;
+  valor_unitario: string;
+}
+
 const emptyForm = { cliente_codigo: '', data: '', status: 'ABERTO' as Orcamento['status'], observacoes: '' };
+const emptyNovoItem = { produto_codigo: '', quantidade: '', valor_unitario: '' };
 
 function hoje() {
   return new Date().toISOString().slice(0, 10);
@@ -48,15 +56,23 @@ export default function OrcamentosPage() {
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
 
+  const [itensPendentes, setItensPendentes] = useState<ItemPendente[]>([]);
+  const [novoItemLocal, setNovoItemLocal] = useState(emptyNovoItem);
+
   const [selecionado, setSelecionado] = useState<Orcamento | null>(null);
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
-  const [novoItem, setNovoItem] = useState({ produto_codigo: '', quantidade: '', valor_unitario: '' });
+  const [novoItem, setNovoItem] = useState(emptyNovoItem);
   const [itemError, setItemError] = useState('');
 
   const orcamentosFiltrados = orcamentos.filter((o) => {
     const q = busca.toLowerCase();
     return o.cliente_nome.toLowerCase().includes(q) || o.status.toLowerCase().includes(q);
   });
+
+  const totalPendente = itensPendentes.reduce(
+    (soma, item) => soma + Number(item.quantidade || 0) * Number(item.valor_unitario || 0),
+    0
+  );
 
   async function load() {
     const [orcRes, cliRes, prodRes] = await Promise.all([
@@ -81,13 +97,35 @@ export default function OrcamentosPage() {
       status: o.status,
       observacoes: o.observacoes || '',
     });
+    setItensPendentes([]);
+    setNovoItemLocal(emptyNovoItem);
     setError('');
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setForm(emptyForm);
+    setItensPendentes([]);
+    setNovoItemLocal(emptyNovoItem);
     setError('');
+  }
+
+  function handleAddItemLocal() {
+    setError('');
+    const produto = produtos.find((p) => String(p.codigo) === novoItemLocal.produto_codigo);
+    if (!produto || !novoItemLocal.quantidade || novoItemLocal.valor_unitario === '') {
+      setError('Selecione o produto e informe quantidade e valor do item.');
+      return;
+    }
+    setItensPendentes([
+      ...itensPendentes,
+      { ...novoItemLocal, produto_descricao: produto.descricao },
+    ]);
+    setNovoItemLocal(emptyNovoItem);
+  }
+
+  function handleRemoveItemLocal(index: number) {
+    setItensPendentes(itensPendentes.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -102,11 +140,31 @@ export default function OrcamentosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, data: form.data || hoje() }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         setError(data.error || 'Não foi possível salvar.');
         return;
       }
+
+      if (!editingCodigo && itensPendentes.length > 0) {
+        const codigo = data.codigo;
+        for (const item of itensPendentes) {
+          const itemRes = await fetch(`/api/orcamentos/${codigo}/itens`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item),
+          });
+          if (!itemRes.ok) {
+            const itemData = await itemRes.json().catch(() => ({}));
+            setError(
+              `Orçamento criado, mas houve um problema ao adicionar "${item.produto_descricao}": ${itemData.error || 'erro desconhecido'}`
+            );
+            load();
+            return;
+          }
+        }
+      }
+
       cancelEdit();
       load();
     } finally {
@@ -128,7 +186,7 @@ export default function OrcamentosPage() {
   async function abrirItens(o: Orcamento) {
     setSelecionado(o);
     setItemError('');
-    setNovoItem({ produto_codigo: '', quantidade: '', valor_unitario: '' });
+    setNovoItem(emptyNovoItem);
     const res = await fetch(`/api/orcamentos/${o.codigo}/itens`);
     if (res.ok) setItens(await res.json());
   }
@@ -166,7 +224,7 @@ export default function OrcamentosPage() {
       setItemError(data.error || 'Não foi possível adicionar.');
       return;
     }
-    setNovoItem({ produto_codigo: '', quantidade: '', valor_unitario: '' });
+    setNovoItem(emptyNovoItem);
     await refreshItens(selecionado.codigo);
   }
 
@@ -282,9 +340,100 @@ export default function OrcamentosPage() {
               />
             </div>
           </div>
+
+          {!editingCodigo && (
+            <>
+              <h4 style={{ marginTop: 24, marginBottom: 8 }}>Itens do orçamento</h4>
+
+              {itensPendentes.length > 0 && (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Produto</th>
+                        <th>Quantidade</th>
+                        <th>Valor Unitário</th>
+                        <th>Subtotal</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itensPendentes.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.produto_descricao}</td>
+                          <td>{item.quantidade}</td>
+                          <td>R$ {Number(item.valor_unitario).toFixed(2)}</td>
+                          <td>R$ {(Number(item.quantidade) * Number(item.valor_unitario)).toFixed(2)}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn-small danger"
+                              onClick={() => handleRemoveItemLocal(index)}
+                            >
+                              Remover
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600 }}>
+                          Total
+                        </td>
+                        <td style={{ fontWeight: 600 }}>R$ {totalPendente.toFixed(2)}</td>
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="form-grid">
+                <div className="field">
+                  <label>Produto</label>
+                  <select
+                    value={novoItemLocal.produto_codigo}
+                    onChange={(e) => setNovoItemLocal({ ...novoItemLocal, produto_codigo: e.target.value })}
+                  >
+                    <option value="" disabled>
+                      Selecione...
+                    </option>
+                    {produtos.map((p) => (
+                      <option key={p.codigo} value={p.codigo}>
+                        {p.descricao}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Quantidade</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    value={novoItemLocal.quantidade}
+                    onChange={(e) => setNovoItemLocal({ ...novoItemLocal, quantidade: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Valor Unitário (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={novoItemLocal.valor_unitario}
+                    onChange={(e) => setNovoItemLocal({ ...novoItemLocal, valor_unitario: e.target.value })}
+                  />
+                </div>
+              </div>
+              <button type="button" className="btn-small" onClick={handleAddItemLocal} style={{ marginTop: 8 }}>
+                Adicionar item à lista
+              </button>
+            </>
+          )}
+
           <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
             <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Adicionar'}
+              {editingCodigo ? 'Salvar' : 'Criar orçamento'}
             </button>
             {editingCodigo && (
               <button type="button" className="btn-small" onClick={cancelEdit}>
