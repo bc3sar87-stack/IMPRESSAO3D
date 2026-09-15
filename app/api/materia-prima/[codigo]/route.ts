@@ -12,13 +12,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { codigo } = await params;
-  const { tipo_codigo, marca, descricao, cor, unidade_medida } = await request.json().catch(() => ({}));
+  const { tipo_codigo, marca, descricao, cor, unidade_medida, fornecedor, valor_custo } =
+    await request.json().catch(() => ({}));
 
   if (!tipo_codigo || !marca || !descricao || !cor || !unidade_medida) {
     return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
   }
   if (unidade_medida !== 'UN' && unidade_medida !== 'G') {
     return NextResponse.json({ error: 'Unidade de medida inválida.' }, { status: 400 });
+  }
+  if (valor_custo !== undefined && valor_custo !== null && valor_custo !== '' && Number.isNaN(Number(valor_custo))) {
+    return NextResponse.json({ error: 'Valor custo inválido.' }, { status: 400 });
   }
 
   const { rows: tipoRows } = await pool.query(
@@ -30,10 +34,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { rows } = await pool.query(
-    `UPDATE materia_prima SET tipo_codigo=$1, marca=$2, descricao=$3, cor=$4, unidade_medida=$5
-     WHERE codigo=$6 AND empresa_codigo=$7
+    `UPDATE materia_prima SET tipo_codigo=$1, marca=$2, descricao=$3, cor=$4, unidade_medida=$5, fornecedor=$6, valor_custo=$7
+     WHERE codigo=$8 AND empresa_codigo=$9
      RETURNING codigo`,
-    [tipo_codigo, marca, descricao, cor, unidade_medida, codigo, session.empresa_codigo]
+    [
+      tipo_codigo,
+      marca,
+      descricao,
+      cor,
+      unidade_medida,
+      fornecedor || null,
+      valor_custo || null,
+      codigo,
+      session.empresa_codigo,
+    ]
   );
   if (rows.length === 0) {
     return NextResponse.json({ error: 'Matéria prima não encontrada.' }, { status: 404 });

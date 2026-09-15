@@ -11,6 +11,8 @@ interface MateriaPrima {
   descricao: string;
   cor: string;
   unidade_medida: 'UN' | 'G';
+  fornecedor: string | null;
+  valor_custo: string | null;
 }
 
 interface Tipo {
@@ -18,7 +20,15 @@ interface Tipo {
   nome: string;
 }
 
-const emptyForm = { tipo_codigo: '', marca: '', descricao: '', cor: '', unidade_medida: 'UN' as 'UN' | 'G' };
+const emptyForm = {
+  tipo_codigo: '',
+  marca: '',
+  descricao: '',
+  cor: '',
+  unidade_medida: 'UN' as 'UN' | 'G',
+  fornecedor: '',
+  valor_custo: '',
+};
 
 export default function MateriaPrimaPage() {
   const [itens, setItens] = useState<MateriaPrima[]>([]);
@@ -35,7 +45,8 @@ export default function MateriaPrimaPage() {
       item.tipo_nome.toLowerCase().includes(q) ||
       item.marca.toLowerCase().includes(q) ||
       item.descricao.toLowerCase().includes(q) ||
-      item.cor.toLowerCase().includes(q)
+      item.cor.toLowerCase().includes(q) ||
+      (item.fornecedor || '').toLowerCase().includes(q)
     );
   });
 
@@ -60,6 +71,8 @@ export default function MateriaPrimaPage() {
       descricao: item.descricao,
       cor: item.cor,
       unidade_medida: item.unidade_medida,
+      fornecedor: item.fornecedor || '',
+      valor_custo: item.valor_custo || '',
     });
     setError('');
   }
@@ -130,6 +143,8 @@ export default function MateriaPrimaPage() {
               <th>Descrição</th>
               <th>Cor</th>
               <th>Unidade</th>
+              <th>Fornecedor</th>
+              <th>Valor Custo</th>
               <th></th>
             </tr>
           </thead>
@@ -142,6 +157,8 @@ export default function MateriaPrimaPage() {
                 <td>{item.descricao}</td>
                 <td>{item.cor}</td>
                 <td>{item.unidade_medida === 'UN' ? 'Unitário' : 'Gramas'}</td>
+                <td>{item.fornecedor || '-'}</td>
+                <td>{item.valor_custo ? `R$ ${item.valor_custo}/Kg` : '-'}</td>
                 <td>
                   <button className="btn-small" onClick={() => startEdit(item)}>
                     Editar
@@ -154,7 +171,7 @@ export default function MateriaPrimaPage() {
             ))}
             {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhuma matéria prima encontrada.</td>
+                <td colSpan={9}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>
@@ -216,6 +233,26 @@ export default function MateriaPrimaPage() {
                 <option value="UN">UN - Unitário</option>
                 <option value="G">G - Gramas</option>
               </select>
+            </div>
+            <div className="field">
+              <label>Fornecedor</label>
+              <input
+                value={form.fornecedor}
+                onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Valor Custo (R$/Kg)</label>
+              <div className="input-prefix-group">
+                <span className="input-prefix">R$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.valor_custo}
+                  onChange={(e) => setForm({ ...form, valor_custo: e.target.value })}
+                />
+              </div>
             </div>
           </div>
           <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
