@@ -22,7 +22,8 @@ export default function VinculosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
-  const [pending, setPending] = useState<string | null>(null);
+  const [selecionado, setSelecionado] = useState<Usuario | null>(null);
+  const [pending, setPending] = useState<number | null>(null);
 
   async function loadAll() {
     const [u, e, v] = await Promise.all([
@@ -39,6 +40,10 @@ export default function VinculosPage() {
     loadAll();
   }, []);
 
+  function empresasDoUsuario(usuarioCodigo: number) {
+    return vinculos.filter((v) => v.usuario_codigo === usuarioCodigo).length;
+  }
+
   function isLinked(usuarioCodigo: number, empresaCodigo: number) {
     return vinculos.some(
       (v) => v.usuario_codigo === usuarioCodigo && v.empresa_codigo === empresaCodigo
@@ -46,8 +51,7 @@ export default function VinculosPage() {
   }
 
   async function toggle(usuarioCodigo: number, empresaCodigo: number) {
-    const key = `${usuarioCodigo}-${empresaCodigo}`;
-    setPending(key);
+    setPending(empresaCodigo);
     try {
       if (isLinked(usuarioCodigo, empresaCodigo)) {
         await fetch(`/api/vinculos?usuario_codigo=${usuarioCodigo}&empresa_codigo=${empresaCodigo}`, {
@@ -72,46 +76,68 @@ export default function VinculosPage() {
         <h2>Usuários x Empresas</h2>
       </div>
 
-      {empresas.length === 0 || usuarios.length === 0 ? (
-        <div className="card">
-          Cadastre pelo menos um usuário e uma empresa para poder criar vínculos.
-        </div>
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Usuário</th>
-                {empresas.map((emp) => (
-                  <th key={emp.codigo}>{emp.razao_social}</th>
-                ))}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Usuário</th>
+              <th>E-mail</th>
+              <th>Empresas vinculadas</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {usuarios.map((u) => (
+              <tr key={u.codigo}>
+                <td>{u.nome}</td>
+                <td>{u.email}</td>
+                <td>{empresasDoUsuario(u.codigo)}</td>
+                <td>
+                  <button className="btn-small" onClick={() => setSelecionado(u)}>
+                    Gerenciar acesso
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {usuarios.map((u) => (
-                <tr key={u.codigo}>
-                  <td>
-                    {u.nome}
-                    <br />
-                    <small style={{ color: '#64748b' }}>{u.email}</small>
-                  </td>
-                  {empresas.map((emp) => {
-                    const key = `${u.codigo}-${emp.codigo}`;
-                    return (
-                      <td key={emp.codigo} style={{ textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={isLinked(u.codigo, emp.codigo)}
-                          disabled={pending === key}
-                          onChange={() => toggle(u.codigo, emp.codigo)}
-                        />
-                      </td>
-                    );
-                  })}
-                </tr>
+            ))}
+            {usuarios.length === 0 && (
+              <tr>
+                <td colSpan={4}>Nenhum usuário cadastrado.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {selecionado && (
+        <div className="card">
+          <div className="card-header">
+            <h3>
+              Empresas de {selecionado.nome}
+              <br />
+              <small style={{ color: '#64748b', fontWeight: 400 }}>{selecionado.email}</small>
+            </h3>
+            <button className="btn-small" onClick={() => setSelecionado(null)}>
+              Fechar
+            </button>
+          </div>
+
+          {empresas.length === 0 ? (
+            <p style={{ color: '#64748b' }}>Nenhuma empresa cadastrada ainda.</p>
+          ) : (
+            <div className="checklist">
+              {empresas.map((emp) => (
+                <label key={emp.codigo} className="checklist-item">
+                  <input
+                    type="checkbox"
+                    checked={isLinked(selecionado.codigo, emp.codigo)}
+                    disabled={pending === emp.codigo}
+                    onChange={() => toggle(selecionado.codigo, emp.codigo)}
+                  />
+                  {emp.razao_social}
+                </label>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
       )}
     </div>
