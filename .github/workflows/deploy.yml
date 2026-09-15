@@ -15,4 +15,29 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: echo "deploy triggered"
+          script: |
+            set -e
+
+            # Site institucional estático (dominio raiz)
+            cd /opt/mjprime/nginx/static/3dprintcontrol
+            git pull origin main
+
+            # App Next.js (login / sistema) - subdominio app.
+            if [ ! -d /opt/impressao3d/.git ]; then
+              git clone https://github.com/bc3sar87-stack/IMPRESSAO3D.git /opt/impressao3d
+            fi
+            cd /opt/impressao3d
+            git fetch origin main
+            git reset --hard origin/main
+
+            docker build -t impressao3d-app:latest .
+            docker rm -f impressao3d-app 2>/dev/null || true
+            docker run -d \
+              --name impressao3d-app \
+              --network supabase_default \
+              --restart unless-stopped \
+              --env-file /opt/impressao3d/.env.production \
+              impressao3d-app:latest
+
+            cp /opt/impressao3d/deploy/nginx/app.3dprintcontrol.conf /opt/mjprime/nginx/conf.d/app.3dprintcontrol.conf
+            docker exec mjprime-nginx nginx -s reload
