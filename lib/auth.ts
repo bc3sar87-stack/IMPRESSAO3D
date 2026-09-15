@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { cookies } from 'next/headers';
 
 export interface SessionPayload {
   codigo: number;
@@ -23,3 +24,14 @@ export function verifySession(token: string): SessionPayload | null {
 }
 
 export const SESSION_COOKIE = 'session';
+
+export async function getSession(): Promise<SessionPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  return token ? verifySession(token) : null;
+}
+
+export async function requireAdmin(): Promise<SessionPayload | null> {
+  const session = await getSession();
+  return session?.nivel === 'ADMINISTRADOR' ? session : null;
+}
