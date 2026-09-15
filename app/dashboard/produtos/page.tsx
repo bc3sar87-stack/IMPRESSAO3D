@@ -34,7 +34,7 @@ interface ItemMaterial {
   peso: string;
 }
 
-const emptyForm = { descricao: '', link_stl: '', fotoBase64: '', fotoTipo: '' };
+const emptyForm = { descricao: '', link_stl: '', fotoBase64: '', fotoTipo: '', fotoPreview: '' };
 
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -69,7 +69,13 @@ export default function ProdutosPage() {
 
   function startEdit(p: Produto) {
     setEditingCodigo(p.codigo);
-    setForm({ descricao: p.descricao, link_stl: p.link_stl || '', fotoBase64: '', fotoTipo: '' });
+    setForm({
+      descricao: p.descricao,
+      link_stl: p.link_stl || '',
+      fotoBase64: '',
+      fotoTipo: '',
+      fotoPreview: p.tem_foto ? `/api/produtos/${p.codigo}/foto` : '',
+    });
     setError('');
   }
 
@@ -81,17 +87,30 @@ export default function ProdutosPage() {
 
   function handleFotoChange(file: File | null) {
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('O arquivo colado/selecionado precisa ser uma imagem.');
+      return;
+    }
     if (file.size > 4 * 1024 * 1024) {
       setError('A foto deve ter no máximo 4MB.');
       return;
     }
+    setError('');
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
       const [, base64] = dataUrl.split(',');
-      setForm((f) => ({ ...f, fotoBase64: base64, fotoTipo: file.type }));
+      setForm((f) => ({ ...f, fotoBase64: base64, fotoTipo: file.type, fotoPreview: dataUrl }));
     };
     reader.readAsDataURL(file);
+  }
+
+  function handleFotoPaste(e: React.ClipboardEvent) {
+    const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith('image/'));
+    if (item) {
+      e.preventDefault();
+      handleFotoChange(item.getAsFile());
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -263,6 +282,15 @@ export default function ProdutosPage() {
             </div>
             <div className="field">
               <label>Foto</label>
+              <div className="paste-zone" tabIndex={0} onPaste={handleFotoPaste}>
+                {form.fotoPreview ? (
+                  <img src={form.fotoPreview} alt="Prévia" className="paste-zone-preview" />
+                ) : (
+                  <span className="hint" style={{ margin: 0 }}>
+                    Clique aqui e pressione Ctrl+V para colar uma imagem
+                  </span>
+                )}
+              </div>
               <input
                 type="file"
                 accept="image/*"

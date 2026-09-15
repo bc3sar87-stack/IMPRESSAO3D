@@ -410,6 +410,32 @@ body {
   border-radius: 0 8px 8px 0;
 }
 
+.paste-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+  cursor: text;
+  text-align: center;
+}
+
+.paste-zone:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.paste-zone-preview {
+  max-height: 100px;
+  max-width: 100%;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
 .search-box {
   width: 100%;
   max-width: 320px;
