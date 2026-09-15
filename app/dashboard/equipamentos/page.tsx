@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import SearchBox from '../search-box';
 
 interface Equipamento {
   codigo: number;
@@ -17,6 +18,12 @@ export default function EquipamentosPage() {
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [busca, setBusca] = useState('');
+
+  const equipamentosFiltrados = equipamentos.filter((eq) => {
+    const q = busca.toLowerCase();
+    return eq.fabricante.toLowerCase().includes(q) || eq.modelo.toLowerCase().includes(q);
+  });
 
   async function load() {
     const res = await fetch('/api/equipamentos');
@@ -80,6 +87,8 @@ export default function EquipamentosPage() {
         <h2>Cadastro de Equipamentos</h2>
       </div>
 
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por fabricante ou modelo..." />
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -92,7 +101,7 @@ export default function EquipamentosPage() {
             </tr>
           </thead>
           <tbody>
-            {equipamentos.map((eq) => (
+            {equipamentosFiltrados.map((eq) => (
               <tr key={eq.codigo}>
                 <td>{eq.codigo}</td>
                 <td>{eq.fabricante}</td>
@@ -108,9 +117,9 @@ export default function EquipamentosPage() {
                 </td>
               </tr>
             ))}
-            {equipamentos.length === 0 && (
+            {equipamentosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={5}>Nenhum equipamento cadastrado.</td>
+                <td colSpan={5}>Nenhum equipamento encontrado.</td>
               </tr>
             )}
           </tbody>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import SearchBox from '../search-box';
 
 interface ItemEstoque {
   codigo: number;
@@ -28,6 +29,16 @@ export default function EstoquePage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [busca, setBusca] = useState('');
+
+  const itensFiltrados = itens.filter((item) => {
+    const q = busca.toLowerCase();
+    return (
+      item.tipo_nome.toLowerCase().includes(q) ||
+      item.marca.toLowerCase().includes(q) ||
+      item.cor.toLowerCase().includes(q)
+    );
+  });
 
   async function load() {
     const res = await fetch('/api/estoque');
@@ -90,6 +101,8 @@ export default function EstoquePage() {
         <h2>Controle de Estoque</h2>
       </div>
 
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo, marca ou cor..." />
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -104,7 +117,7 @@ export default function EstoquePage() {
             </tr>
           </thead>
           <tbody>
-            {itens.map((item) => (
+            {itensFiltrados.map((item) => (
               <tr key={item.codigo}>
                 <td>{item.codigo}</td>
                 <td>{item.tipo_nome}</td>
@@ -119,9 +132,9 @@ export default function EstoquePage() {
                 </td>
               </tr>
             ))}
-            {itens.length === 0 && (
+            {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhuma matéria prima cadastrada.</td>
+                <td colSpan={7}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>

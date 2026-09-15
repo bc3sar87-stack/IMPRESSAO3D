@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import SearchBox from '../search-box';
 
 interface Tipo {
   codigo: number;
@@ -13,6 +14,9 @@ export default function TiposMateriaPrimaPage() {
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [busca, setBusca] = useState('');
+
+  const tiposFiltrados = tipos.filter((tipo) => tipo.nome.toLowerCase().includes(busca.toLowerCase()));
 
   async function load() {
     const res = await fetch('/api/tipos-materia-prima');
@@ -76,6 +80,8 @@ export default function TiposMateriaPrimaPage() {
         <h2>Cadastro de Tipo</h2>
       </div>
 
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por nome..." />
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -86,7 +92,7 @@ export default function TiposMateriaPrimaPage() {
             </tr>
           </thead>
           <tbody>
-            {tipos.map((tipo) => (
+            {tiposFiltrados.map((tipo) => (
               <tr key={tipo.codigo}>
                 <td>{tipo.codigo}</td>
                 <td>{tipo.nome}</td>
@@ -100,9 +106,9 @@ export default function TiposMateriaPrimaPage() {
                 </td>
               </tr>
             ))}
-            {tipos.length === 0 && (
+            {tiposFiltrados.length === 0 && (
               <tr>
-                <td colSpan={3}>Nenhum tipo cadastrado.</td>
+                <td colSpan={3}>Nenhum tipo encontrado.</td>
               </tr>
             )}
           </tbody>

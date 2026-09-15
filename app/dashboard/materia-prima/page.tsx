@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import SearchBox from '../search-box';
 
 interface MateriaPrima {
   codigo: number;
@@ -26,6 +27,17 @@ export default function MateriaPrimaPage() {
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [busca, setBusca] = useState('');
+
+  const itensFiltrados = itens.filter((item) => {
+    const q = busca.toLowerCase();
+    return (
+      item.tipo_nome.toLowerCase().includes(q) ||
+      item.marca.toLowerCase().includes(q) ||
+      item.descricao.toLowerCase().includes(q) ||
+      item.cor.toLowerCase().includes(q)
+    );
+  });
 
   async function load() {
     const [itensRes, tiposRes] = await Promise.all([
@@ -106,6 +118,8 @@ export default function MateriaPrimaPage() {
         </div>
       )}
 
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo, marca, cor ou descrição..." />
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -120,7 +134,7 @@ export default function MateriaPrimaPage() {
             </tr>
           </thead>
           <tbody>
-            {itens.map((item) => (
+            {itensFiltrados.map((item) => (
               <tr key={item.codigo}>
                 <td>{item.codigo}</td>
                 <td>{item.tipo_nome}</td>
@@ -138,9 +152,9 @@ export default function MateriaPrimaPage() {
                 </td>
               </tr>
             ))}
-            {itens.length === 0 && (
+            {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhuma matéria prima cadastrada.</td>
+                <td colSpan={7}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>

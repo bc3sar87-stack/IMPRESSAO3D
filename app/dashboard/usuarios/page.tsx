@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import { maskCPF } from '@/lib/masks';
+import SearchBox from '../search-box';
 
 interface Usuario {
   codigo: number;
@@ -30,6 +31,17 @@ export default function UsuariosPage() {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendingCodigo, setResendingCodigo] = useState<number | null>(null);
+  const [busca, setBusca] = useState('');
+
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const q = busca.toLowerCase();
+    return (
+      u.nome.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.cpf.includes(q) ||
+      u.nivel.toLowerCase().includes(q)
+    );
+  });
 
   async function load() {
     const res = await fetch('/api/usuarios');
@@ -126,6 +138,8 @@ export default function UsuariosPage() {
 
       {info && <div className="success-msg">{info}</div>}
 
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por nome, e-mail, CPF ou nível..." />
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -140,7 +154,7 @@ export default function UsuariosPage() {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => (
+            {usuariosFiltrados.map((u) => (
               <tr key={u.codigo}>
                 <td>{u.codigo}</td>
                 <td>{u.nome}</td>
@@ -167,9 +181,9 @@ export default function UsuariosPage() {
                 </td>
               </tr>
             ))}
-            {usuarios.length === 0 && (
+            {usuariosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhum usuário cadastrado.</td>
+                <td colSpan={7}>Nenhum usuário encontrado.</td>
               </tr>
             )}
           </tbody>

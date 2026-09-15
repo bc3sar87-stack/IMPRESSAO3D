@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import { maskCNPJ, maskCPF } from '@/lib/masks';
+import SearchBox from '../search-box';
 
 interface Empresa {
   codigo: number;
@@ -18,6 +19,16 @@ export default function EmpresasPage() {
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [busca, setBusca] = useState('');
+
+  const empresasFiltradas = empresas.filter((emp) => {
+    const q = busca.toLowerCase();
+    return (
+      emp.razao_social.toLowerCase().includes(q) ||
+      emp.documento.includes(q) ||
+      (emp.tipo_pessoa === 'PJ' ? 'pessoa jurídica' : 'pessoa física').includes(q)
+    );
+  });
 
   async function load() {
     const res = await fetch('/api/empresas');
@@ -92,6 +103,8 @@ export default function EmpresasPage() {
         <h2>Cadastro de Empresas</h2>
       </div>
 
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por nome, CNPJ/CPF ou tipo..." />
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -104,7 +117,7 @@ export default function EmpresasPage() {
             </tr>
           </thead>
           <tbody>
-            {empresas.map((emp) => (
+            {empresasFiltradas.map((emp) => (
               <tr key={emp.codigo}>
                 <td>{emp.codigo}</td>
                 <td>{emp.tipo_pessoa === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}</td>
@@ -120,9 +133,9 @@ export default function EmpresasPage() {
                 </td>
               </tr>
             ))}
-            {empresas.length === 0 && (
+            {empresasFiltradas.length === 0 && (
               <tr>
-                <td colSpan={5}>Nenhum registro cadastrado.</td>
+                <td colSpan={5}>Nenhum registro encontrado.</td>
               </tr>
             )}
           </tbody>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import SearchBox from '../search-box';
 
 interface Usuario {
   codigo: number;
@@ -24,6 +25,17 @@ export default function VinculosPage() {
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [selecionado, setSelecionado] = useState<Usuario | null>(null);
   const [pending, setPending] = useState<number | null>(null);
+  const [busca, setBusca] = useState('');
+  const [buscaEmpresa, setBuscaEmpresa] = useState('');
+
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const q = busca.toLowerCase();
+    return u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+  });
+
+  const empresasFiltradas = empresas.filter((emp) =>
+    emp.razao_social.toLowerCase().includes(buscaEmpresa.toLowerCase())
+  );
 
   async function loadAll() {
     const [u, e, v] = await Promise.all([
@@ -76,6 +88,8 @@ export default function VinculosPage() {
         <h2>Usuários x Empresas</h2>
       </div>
 
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por nome ou e-mail..." />
+
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -87,7 +101,7 @@ export default function VinculosPage() {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => (
+            {usuariosFiltrados.map((u) => (
               <tr key={u.codigo}>
                 <td>{u.nome}</td>
                 <td>{u.email}</td>
@@ -99,9 +113,9 @@ export default function VinculosPage() {
                 </td>
               </tr>
             ))}
-            {usuarios.length === 0 && (
+            {usuariosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={4}>Nenhum usuário cadastrado.</td>
+                <td colSpan={4}>Nenhum usuário encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -124,19 +138,26 @@ export default function VinculosPage() {
           {empresas.length === 0 ? (
             <p style={{ color: '#64748b' }}>Nenhuma empresa cadastrada ainda.</p>
           ) : (
-            <div className="checklist">
-              {empresas.map((emp) => (
-                <label key={emp.codigo} className="checklist-item">
-                  <input
-                    type="checkbox"
-                    checked={isLinked(selecionado.codigo, emp.codigo)}
-                    disabled={pending === emp.codigo}
-                    onChange={() => toggle(selecionado.codigo, emp.codigo)}
-                  />
-                  {emp.razao_social}
-                </label>
-              ))}
-            </div>
+            <>
+              <SearchBox
+                value={buscaEmpresa}
+                onChange={setBuscaEmpresa}
+                placeholder="Pesquisar empresa..."
+              />
+              <div className="checklist">
+                {empresasFiltradas.map((emp) => (
+                  <label key={emp.codigo} className="checklist-item">
+                    <input
+                      type="checkbox"
+                      checked={isLinked(selecionado.codigo, emp.codigo)}
+                      disabled={pending === emp.codigo}
+                      onChange={() => toggle(selecionado.codigo, emp.codigo)}
+                    />
+                    {emp.razao_social}
+                  </label>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}

@@ -410,6 +410,23 @@ body {
   border-radius: 0 8px 8px 0;
 }
 
+.search-box {
+  width: 100%;
+  max-width: 320px;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.search-box:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  border-color: #2563eb;
+}
+
 .checklist {
   display: flex;
   flex-direction: column;
