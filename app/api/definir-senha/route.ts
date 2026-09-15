@@ -44,18 +44,19 @@ export async function POST(request: NextRequest) {
     `SELECT empresa_codigo FROM usuarios_empresas WHERE usuario_codigo = $1`,
     [usuario.codigo]
   );
+  const temEmpresa = empresas.length >= 1;
   const multiEmpresa = empresas.length > 1;
-  const empresa_codigo = empresas.length === 1 ? empresas[0].empresa_codigo : null;
 
   const response = NextResponse.json({
     ok: true,
-    redirect: multiEmpresa ? '/selecionar-empresa' : '/dashboard',
+    redirect: temEmpresa ? '/selecionar-empresa' : '/dashboard',
   });
   setSessionCookie(response, {
     codigo: usuario.codigo,
     nome: usuario.nome,
     nivel: usuario.nivel,
-    empresa_codigo,
+    empresa_codigo: null,
+    temEmpresa,
     multiEmpresa,
   });
   return response;

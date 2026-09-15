@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const precisaSelecionarEmpresa = session.multiEmpresa && !session.empresa_codigo;
+  const precisaSelecionarEmpresa = session.temEmpresa && !session.empresa_codigo;
 
   if (isLoginPage) {
     return NextResponse.redirect(
@@ -28,7 +28,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/selecionar-empresa', request.url));
   }
 
-  if (isSelecionarEmpresaPage && !session.multiEmpresa) {
+  if (isSelecionarEmpresaPage && !session.temEmpresa) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

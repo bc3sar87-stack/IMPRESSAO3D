@@ -7,6 +7,7 @@ export interface SessionPayload {
   nome: string;
   nivel: 'USUARIO' | 'ADMINISTRADOR';
   empresa_codigo: number | null;
+  temEmpresa: boolean;
   multiEmpresa: boolean;
 }
 
@@ -20,11 +21,11 @@ export function signSession(payload: SessionPayload): string {
 export function verifySession(token: string): SessionPayload | null {
   if (!SECRET) return null;
   try {
-    const { codigo, nome, nivel, empresa_codigo, multiEmpresa } = jwt.verify(
+    const { codigo, nome, nivel, empresa_codigo, temEmpresa, multiEmpresa } = jwt.verify(
       token,
       SECRET
     ) as SessionPayload & jwt.JwtPayload;
-    return { codigo, nome, nivel, empresa_codigo, multiEmpresa };
+    return { codigo, nome, nivel, empresa_codigo, temEmpresa, multiEmpresa };
   } catch {
     return null;
   }

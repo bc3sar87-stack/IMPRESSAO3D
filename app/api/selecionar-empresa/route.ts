@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     codigo: session.codigo,
     nome: session.nome,
     nivel: session.nivel,
+    temEmpresa: session.temEmpresa,
     multiEmpresa: session.multiEmpresa,
     empresa_codigo,
   });

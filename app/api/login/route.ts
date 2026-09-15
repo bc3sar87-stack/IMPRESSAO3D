@@ -27,18 +27,19 @@ export async function POST(request: NextRequest) {
     [user.codigo]
   );
 
+  const temEmpresa = empresas.length >= 1;
   const multiEmpresa = empresas.length > 1;
-  const empresa_codigo = empresas.length === 1 ? empresas[0].empresa_codigo : null;
 
   const response = NextResponse.json({
     ok: true,
-    redirect: multiEmpresa ? '/selecionar-empresa' : '/dashboard',
+    redirect: temEmpresa ? '/selecionar-empresa' : '/dashboard',
   });
   setSessionCookie(response, {
     codigo: user.codigo,
     nome: user.nome,
     nivel: user.nivel,
-    empresa_codigo,
+    empresa_codigo: null,
+    temEmpresa,
     multiEmpresa,
   });
   return response;
