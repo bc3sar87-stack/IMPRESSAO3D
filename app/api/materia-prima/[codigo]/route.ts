@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { codigo } = await params;
-  const { tipo_codigo, marca, descricao, cor, unidade_medida_codigo, fornecedor, valor_custo } =
+  const { tipo_codigo, marca, descricao, cor, cor_hex, unidade_medida_codigo, fornecedor, valor_custo } =
     await request.json().catch(() => ({}));
 
   if (!tipo_codigo || !marca || !descricao || !cor || !unidade_medida_codigo) {
@@ -20,6 +20,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   if (valor_custo !== undefined && valor_custo !== null && valor_custo !== '' && Number.isNaN(Number(valor_custo))) {
     return NextResponse.json({ error: 'Valor custo inválido.' }, { status: 400 });
+  }
+  if (cor_hex && !/^#[0-9a-fA-F]{6}$/.test(cor_hex)) {
+    return NextResponse.json({ error: 'Cor inválida.' }, { status: 400 });
   }
 
   const { rows: tipoRows } = await pool.query(
@@ -39,14 +42,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { rows } = await pool.query(
-    `UPDATE materia_prima SET tipo_codigo=$1, marca=$2, descricao=$3, cor=$4, unidade_medida_codigo=$5, fornecedor=$6, valor_custo=$7
-     WHERE codigo=$8 AND empresa_codigo=$9
+    `UPDATE materia_prima SET tipo_codigo=$1, marca=$2, descricao=$3, cor=$4, cor_hex=$5, unidade_medida_codigo=$6, fornecedor=$7, valor_custo=$8
+     WHERE codigo=$9 AND empresa_codigo=$10
      RETURNING codigo`,
     [
       tipo_codigo,
       marca,
       descricao,
       cor,
+      cor_hex || '#cccccc',
       unidade_medida_codigo,
       fornecedor || null,
       valor_custo || null,

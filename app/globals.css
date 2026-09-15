@@ -436,6 +436,36 @@ body {
   object-fit: cover;
 }
 
+.color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.color-field {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.color-picker {
+  flex-shrink: 0;
+  width: 42px;
+  padding: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.color-field input[type='text'],
+.color-field input:not(.color-picker) {
+  flex: 1;
+}
+
 .search-box {
   width: 100%;
   max-width: 320px;

@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT mp.codigo, mp.tipo_codigo, t.nome AS tipo_nome, mp.marca, mp.descricao, mp.cor,
+    `SELECT mp.codigo, mp.tipo_codigo, t.nome AS tipo_nome, mp.marca, mp.descricao, mp.cor, mp.cor_hex,
             mp.unidade_medida_codigo, u.sigla AS unidade_medida_sigla, u.nome AS unidade_medida_nome,
             mp.fornecedor, mp.valor_custo
      FROM materia_prima mp
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Selecione uma empresa para cadastrar matéria prima.' }, { status: 400 });
   }
 
-  const { tipo_codigo, marca, descricao, cor, unidade_medida_codigo, fornecedor, valor_custo } =
+  const { tipo_codigo, marca, descricao, cor, cor_hex, unidade_medida_codigo, fornecedor, valor_custo } =
     await request.json().catch(() => ({}));
 
   if (!tipo_codigo || !marca || !descricao || !cor || !unidade_medida_codigo) {
@@ -42,6 +42,9 @@ export async function POST(request: NextRequest) {
   }
   if (valor_custo !== undefined && valor_custo !== null && valor_custo !== '' && Number.isNaN(Number(valor_custo))) {
     return NextResponse.json({ error: 'Valor custo inválido.' }, { status: 400 });
+  }
+  if (cor_hex && !/^#[0-9a-fA-F]{6}$/.test(cor_hex)) {
+    return NextResponse.json({ error: 'Cor inválida.' }, { status: 400 });
   }
 
   const { rows: tipoRows } = await pool.query(
@@ -61,14 +64,15 @@ export async function POST(request: NextRequest) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO materia_prima (tipo_codigo, marca, descricao, cor, unidade_medida_codigo, fornecedor, valor_custo, empresa_codigo)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO materia_prima (tipo_codigo, marca, descricao, cor, cor_hex, unidade_medida_codigo, fornecedor, valor_custo, empresa_codigo)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING codigo`,
     [
       tipo_codigo,
       marca,
       descricao,
       cor,
+      cor_hex || '#cccccc',
       unidade_medida_codigo,
       fornecedor || null,
       valor_custo || null,

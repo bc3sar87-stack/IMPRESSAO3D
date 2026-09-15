@@ -10,6 +10,7 @@ interface MateriaPrima {
   marca: string;
   descricao: string;
   cor: string;
+  cor_hex: string;
   unidade_medida_codigo: number;
   unidade_medida_sigla: string;
   unidade_medida_nome: string;
@@ -33,6 +34,7 @@ const emptyForm = {
   marca: '',
   descricao: '',
   cor: '',
+  cor_hex: '#cccccc',
   unidade_medida_codigo: '',
   fornecedor: '',
   valor_custo: '',
@@ -81,6 +83,7 @@ export default function MateriaPrimaPage() {
       marca: item.marca,
       descricao: item.descricao,
       cor: item.cor,
+      cor_hex: item.cor_hex,
       unidade_medida_codigo: String(item.unidade_medida_codigo),
       fornecedor: item.fornecedor || '',
       valor_custo: item.valor_custo || '',
@@ -172,7 +175,10 @@ export default function MateriaPrimaPage() {
                 <td>{item.tipo_nome}</td>
                 <td>{item.marca}</td>
                 <td>{item.descricao}</td>
-                <td>{item.cor}</td>
+                <td>
+                  <span className="color-swatch" style={{ backgroundColor: item.cor_hex }} />
+                  {item.cor}
+                </td>
                 <td>{item.unidade_medida_nome}</td>
                 <td>{item.fornecedor || '-'}</td>
                 <td>{item.valor_custo ? `R$ ${item.valor_custo}/Kg` : '-'}</td>
@@ -227,11 +233,20 @@ export default function MateriaPrimaPage() {
             </div>
             <div className="field">
               <label>Cor</label>
-              <input
-                value={form.cor}
-                onChange={(e) => setForm({ ...form, cor: e.target.value })}
-                required
-              />
+              <div className="color-field">
+                <input
+                  type="color"
+                  className="color-picker"
+                  value={form.cor_hex}
+                  onChange={(e) => setForm({ ...form, cor_hex: e.target.value })}
+                />
+                <input
+                  value={form.cor}
+                  onChange={(e) => setForm({ ...form, cor: e.target.value })}
+                  placeholder="Nome da cor"
+                  required
+                />
+              </div>
             </div>
             <div className="field">
               <label>Descrição</label>
