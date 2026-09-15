@@ -10,7 +10,9 @@ interface MateriaPrima {
   marca: string;
   descricao: string;
   cor: string;
-  unidade_medida: 'UN' | 'G';
+  unidade_medida_codigo: number;
+  unidade_medida_sigla: string;
+  unidade_medida_nome: string;
   fornecedor: string | null;
   valor_custo: string | null;
 }
@@ -20,12 +22,18 @@ interface Tipo {
   nome: string;
 }
 
+interface Unidade {
+  codigo: number;
+  sigla: string;
+  nome: string;
+}
+
 const emptyForm = {
   tipo_codigo: '',
   marca: '',
   descricao: '',
   cor: '',
-  unidade_medida: 'UN' as 'UN' | 'G',
+  unidade_medida_codigo: '',
   fornecedor: '',
   valor_custo: '',
 };
@@ -33,6 +41,7 @@ const emptyForm = {
 export default function MateriaPrimaPage() {
   const [itens, setItens] = useState<MateriaPrima[]>([]);
   const [tipos, setTipos] = useState<Tipo[]>([]);
+  const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -51,12 +60,14 @@ export default function MateriaPrimaPage() {
   });
 
   async function load() {
-    const [itensRes, tiposRes] = await Promise.all([
+    const [itensRes, tiposRes, unidadesRes] = await Promise.all([
       fetch('/api/materia-prima'),
       fetch('/api/tipos-materia-prima'),
+      fetch('/api/unidades-medida'),
     ]);
     if (itensRes.ok) setItens(await itensRes.json());
     if (tiposRes.ok) setTipos(await tiposRes.json());
+    if (unidadesRes.ok) setUnidades(await unidadesRes.json());
   }
 
   useEffect(() => {
@@ -70,7 +81,7 @@ export default function MateriaPrimaPage() {
       marca: item.marca,
       descricao: item.descricao,
       cor: item.cor,
-      unidade_medida: item.unidade_medida,
+      unidade_medida_codigo: String(item.unidade_medida_codigo),
       fornecedor: item.fornecedor || '',
       valor_custo: item.valor_custo || '',
     });
@@ -130,6 +141,12 @@ export default function MateriaPrimaPage() {
           prima.
         </div>
       )}
+      {unidades.length === 0 && (
+        <div className="error-msg">
+          Cadastre pelo menos uma Unidade de Medida (em Cadastros → Cadastro de Unidade de Medida)
+          antes de criar uma matéria prima.
+        </div>
+      )}
 
       <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo, marca, cor ou descrição..." />
 
@@ -156,7 +173,7 @@ export default function MateriaPrimaPage() {
                 <td>{item.marca}</td>
                 <td>{item.descricao}</td>
                 <td>{item.cor}</td>
-                <td>{item.unidade_medida === 'UN' ? 'Unitário' : 'Gramas'}</td>
+                <td>{item.unidade_medida_nome}</td>
                 <td>{item.fornecedor || '-'}</td>
                 <td>{item.valor_custo ? `R$ ${item.valor_custo}/Kg` : '-'}</td>
                 <td>
@@ -227,11 +244,18 @@ export default function MateriaPrimaPage() {
             <div className="field">
               <label>Unidade de Medida</label>
               <select
-                value={form.unidade_medida}
-                onChange={(e) => setForm({ ...form, unidade_medida: e.target.value as 'UN' | 'G' })}
+                value={form.unidade_medida_codigo}
+                onChange={(e) => setForm({ ...form, unidade_medida_codigo: e.target.value })}
+                required
               >
-                <option value="UN">UN - Unitário</option>
-                <option value="G">G - Gramas</option>
+                <option value="" disabled>
+                  Selecione...
+                </option>
+                {unidades.map((u) => (
+                  <option key={u.codigo} value={u.codigo}>
+                    {u.sigla} - {u.nome}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="field">

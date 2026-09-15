@@ -13,9 +13,11 @@ export async function GET() {
 
   const { rows } = await pool.query(
     `SELECT mp.codigo, mp.tipo_codigo, t.nome AS tipo_nome, mp.marca, mp.descricao, mp.cor,
-            mp.unidade_medida, mp.fornecedor, mp.valor_custo
+            mp.unidade_medida_codigo, u.sigla AS unidade_medida_sigla, u.nome AS unidade_medida_nome,
+            mp.fornecedor, mp.valor_custo
      FROM materia_prima mp
      JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
+     JOIN unidades_medida u ON u.codigo = mp.unidade_medida_codigo
      WHERE mp.empresa_codigo = $1
      ORDER BY mp.codigo`,
     [session.empresa_codigo]
@@ -32,14 +34,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Selecione uma empresa para cadastrar matéria prima.' }, { status: 400 });
   }
 
-  const { tipo_codigo, marca, descricao, cor, unidade_medida, fornecedor, valor_custo } =
+  const { tipo_codigo, marca, descricao, cor, unidade_medida_codigo, fornecedor, valor_custo } =
     await request.json().catch(() => ({}));
 
-  if (!tipo_codigo || !marca || !descricao || !cor || !unidade_medida) {
+  if (!tipo_codigo || !marca || !descricao || !cor || !unidade_medida_codigo) {
     return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
-  }
-  if (unidade_medida !== 'UN' && unidade_medida !== 'G') {
-    return NextResponse.json({ error: 'Unidade de medida inválida.' }, { status: 400 });
   }
   if (valor_custo !== undefined && valor_custo !== null && valor_custo !== '' && Number.isNaN(Number(valor_custo))) {
     return NextResponse.json({ error: 'Valor custo inválido.' }, { status: 400 });
@@ -53,8 +52,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Tipo inválido.' }, { status: 400 });
   }
 
+  const { rows: unidadeRows } = await pool.query(
+    `SELECT 1 FROM unidades_medida WHERE codigo=$1 AND empresa_codigo=$2`,
+    [unidade_medida_codigo, session.empresa_codigo]
+  );
+  if (unidadeRows.length === 0) {
+    return NextResponse.json({ error: 'Unidade de medida inválida.' }, { status: 400 });
+  }
+
   const { rows } = await pool.query(
-    `INSERT INTO materia_prima (tipo_codigo, marca, descricao, cor, unidade_medida, fornecedor, valor_custo, empresa_codigo)
+    `INSERT INTO materia_prima (tipo_codigo, marca, descricao, cor, unidade_medida_codigo, fornecedor, valor_custo, empresa_codigo)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING codigo`,
     [
@@ -62,7 +69,7 @@ export async function POST(request: NextRequest) {
       marca,
       descricao,
       cor,
-      unidade_medida,
+      unidade_medida_codigo,
       fornecedor || null,
       valor_custo || null,
       session.empresa_codigo,

@@ -9,7 +9,7 @@ interface ItemEstoque {
   marca: string;
   cor: string;
   saldo: string;
-  unidade_medida: 'UN' | 'G';
+  unidade_medida_sigla: string;
 }
 
 interface Movimentacao {
@@ -124,7 +124,7 @@ export default function EstoquePage() {
                 <td>{item.marca}</td>
                 <td>{item.cor}</td>
                 <td>{item.saldo}</td>
-                <td>{item.unidade_medida}</td>
+                <td>{item.unidade_medida_sigla}</td>
                 <td>
                   <button className="btn-small" onClick={() => abrirItem(item)}>
                     Movimentar
@@ -148,7 +148,7 @@ export default function EstoquePage() {
               {selecionado.tipo_nome} — {selecionado.marca} ({selecionado.cor})
               <br />
               <small style={{ color: '#64748b', fontWeight: 400 }}>
-                Saldo atual: {selecionado.saldo} {selecionado.unidade_medida}
+                Saldo atual: {selecionado.saldo} {selecionado.unidade_medida_sigla}
               </small>
             </h3>
             <button className="btn-small" onClick={fechar}>
@@ -171,7 +171,7 @@ export default function EstoquePage() {
                 </select>
               </div>
               <div className="field">
-                <label>Quantidade ({selecionado.unidade_medida})</label>
+                <label>Quantidade ({selecionado.unidade_medida_sigla})</label>
                 <input
                   type="number"
                   step="0.01"
@@ -211,7 +211,7 @@ export default function EstoquePage() {
                     <td>{new Date(mov.criado_em).toLocaleString('pt-BR')}</td>
                     <td>{mov.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
                     <td>
-                      {mov.quantidade} {selecionado.unidade_medida}
+                      {mov.quantidade} {selecionado.unidade_medida_sigla}
                     </td>
                     <td>{mov.observacao || '-'}</td>
                   </tr>

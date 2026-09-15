@@ -13,10 +13,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 
   const { codigo } = await params;
   const { rows } = await pool.query(
-    `SELECT pm.codigo, pm.materia_prima_codigo, t.nome AS tipo_nome, mp.marca, mp.cor, mp.unidade_medida, pm.peso
+    `SELECT pm.codigo, pm.materia_prima_codigo, t.nome AS tipo_nome, mp.marca, mp.cor,
+            u.sigla AS unidade_medida_sigla, pm.peso
      FROM produto_materiais pm
      JOIN materia_prima mp ON mp.codigo = pm.materia_prima_codigo
      JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
+     JOIN unidades_medida u ON u.codigo = mp.unidade_medida_codigo
      WHERE pm.produto_codigo = $1 AND pm.empresa_codigo = $2
      ORDER BY pm.codigo`,
     [codigo, session.empresa_codigo]

@@ -17,7 +17,7 @@ interface MateriaPrima {
   tipo_nome: string;
   marca: string;
   cor: string;
-  unidade_medida: 'UN' | 'G';
+  unidade_medida_sigla: string;
 }
 
 interface ItemMaterial {
@@ -26,7 +26,7 @@ interface ItemMaterial {
   tipo_nome: string;
   marca: string;
   cor: string;
-  unidade_medida: 'UN' | 'G';
+  unidade_medida_sigla: string;
   peso: string;
 }
 
@@ -375,7 +375,7 @@ export default function ProdutosPage() {
                       {item.tipo_nome} — {item.marca} ({item.cor})
                     </td>
                     <td>
-                      {item.peso} {item.unidade_medida}
+                      {item.peso} {item.unidade_medida_sigla}
                     </td>
                     <td>
                       <button className="btn-small danger" onClick={() => handleDeleteMaterial(item.codigo)}>
