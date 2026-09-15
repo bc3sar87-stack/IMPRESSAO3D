@@ -20,7 +20,11 @@ export function signSession(payload: SessionPayload): string {
 export function verifySession(token: string): SessionPayload | null {
   if (!SECRET) return null;
   try {
-    return jwt.verify(token, SECRET) as SessionPayload;
+    const { codigo, nome, nivel, empresa_codigo, multiEmpresa } = jwt.verify(
+      token,
+      SECRET
+    ) as SessionPayload & jwt.JwtPayload;
+    return { codigo, nome, nivel, empresa_codigo, multiEmpresa };
   } catch {
     return null;
   }

@@ -22,6 +22,12 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ ok: true });
-  setSessionCookie(response, { ...session, empresa_codigo });
+  setSessionCookie(response, {
+    codigo: session.codigo,
+    nome: session.nome,
+    nivel: session.nivel,
+    multiEmpresa: session.multiEmpresa,
+    empresa_codigo,
+  });
   return response;
 }
