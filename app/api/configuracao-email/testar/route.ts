@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
-import { pool } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { loadEmailConfig, buildTransporter } from '@/lib/mailer';
 
 export async function POST(request: NextRequest) {
   if (!(await requireAdmin())) {
@@ -13,16 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Informe o e-mail de destino.' }, { status: 400 });
   }
 
-  const key = process.env.EMAIL_ENCRYPTION_KEY;
-  const { rows } = await pool.query(
-    `SELECT servidor_smtp, porta, seguranca, usuario,
-            pgp_sym_decrypt(senha, $1) AS senha,
-            email_remetente, nome_remetente, email_cc
-     FROM configuracao_email WHERE id = 1`,
-    [key]
-  );
-
-  const config = rows[0];
+  const config = await loadEmailConfig();
   if (!config || !config.servidor_smtp || !config.porta || !config.email_remetente) {
     return NextResponse.json(
       { error: 'Salve as configurações antes de testar.' },
@@ -30,15 +20,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const transporter = nodemailer.createTransport({
-    host: config.servidor_smtp,
-    port: config.porta,
-    secure: config.seguranca === 'SSL/TLS',
-    requireTLS: config.seguranca === 'STARTTLS',
-    auth: config.usuario ? { user: config.usuario, pass: config.senha } : undefined,
-  });
-
   try {
+    const transporter = buildTransporter(config);
     await transporter.sendMail({
       from: config.nome_remetente
         ? `"${config.nome_remetente}" <${config.email_remetente}>`
