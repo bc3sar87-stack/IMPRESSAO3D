@@ -3,21 +3,21 @@ import { pool } from '@/lib/db';
 import { signSession, SESSION_COOKIE } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
-  const { cpf, senha } = await request.json().catch(() => ({ cpf: '', senha: '' }));
+  const { email, senha } = await request.json().catch(() => ({ email: '', senha: '' }));
 
-  if (!cpf || !senha) {
-    return NextResponse.json({ error: 'Informe CPF e senha.' }, { status: 400 });
+  if (!email || !senha) {
+    return NextResponse.json({ error: 'Informe e-mail e senha.' }, { status: 400 });
   }
 
   const { rows } = await pool.query(
     `SELECT codigo, nome, nivel
      FROM usuarios
-     WHERE cpf = $1 AND senha = crypt($2, senha)`,
-    [cpf, senha]
+     WHERE email = $1 AND senha = crypt($2, senha)`,
+    [email, senha]
   );
 
   if (rows.length === 0) {
-    return NextResponse.json({ error: 'CPF ou senha inválidos.' }, { status: 401 });
+    return NextResponse.json({ error: 'E-mail ou senha inválidos.' }, { status: 401 });
   }
 
   const user = rows[0];

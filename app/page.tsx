@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [cpf, setCpf] = useState('');
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,7 @@ export default function LoginPage() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cpf, senha }),
+        body: JSON.stringify({ email, senha }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -38,20 +38,20 @@ export default function LoginPage() {
     <div className="login-wrap">
       <div className="login-card">
         <h1>IMPRESSAO3D</h1>
-        <p className="subtitle">Entre com seu CPF e senha</p>
+        <p className="subtitle">Entre com seu e-mail e senha</p>
 
         {error && <div className="error-msg">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="field">
-            <label htmlFor="cpf">CPF</label>
+            <label htmlFor="email">E-mail</label>
             <input
-              id="cpf"
-              name="cpf"
-              type="text"
-              placeholder="000.000.000-00"
-              value={cpf}
-              onChange={(e) => setCpf(e.target.value)}
+              id="email"
+              name="email"
+              type="email"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
               required
             />
