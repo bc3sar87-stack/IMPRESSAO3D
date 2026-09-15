@@ -21,7 +21,10 @@ const groups: NavGroup[] = [
   },
   {
     title: 'Configurações',
-    links: [{ href: '/dashboard/equipamentos', label: 'Cadastro de Equipamentos' }],
+    links: [
+      { href: '/dashboard/equipamentos', label: 'Cadastro de Equipamentos' },
+      { href: '/dashboard/valor-consumo-hora', label: 'Valor Consumo Hora' },
+    ],
   },
 ];
 
