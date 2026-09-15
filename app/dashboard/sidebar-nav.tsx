@@ -23,6 +23,7 @@ const groups: NavGroup[] = [
     title: 'Cadastros',
     links: [
       { href: '/dashboard/produtos', label: 'Cadastro de Produto' },
+      { href: '/dashboard/clientes', label: 'Cadastro de Clientes' },
       { href: '/dashboard/materia-prima', label: 'Cadastro de Matéria Prima' },
       { href: '/dashboard/tipos-materia-prima', label: 'Cadastro de Tipo' },
       { href: '/dashboard/estoque', label: 'Controle de Estoque' },
