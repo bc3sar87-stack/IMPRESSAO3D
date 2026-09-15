@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { rows } = await pool.query(
-    `SELECT codigo, nome, nivel
+    `SELECT codigo, nome, nivel, ativo
      FROM usuarios
      WHERE email = $1 AND senha = crypt($2, senha)`,
     [email, senha]
@@ -21,6 +21,13 @@ export async function POST(request: NextRequest) {
   }
 
   const user = rows[0];
+
+  if (!user.ativo) {
+    return NextResponse.json(
+      { error: 'Seu cadastro está aguardando aprovação de um administrador.' },
+      { status: 403 }
+    );
+  }
 
   const { rows: empresas } = await pool.query(
     `SELECT empresa_codigo FROM usuarios_empresas WHERE usuario_codigo = $1`,

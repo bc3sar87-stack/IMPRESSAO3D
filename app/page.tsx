@@ -78,6 +78,9 @@ export default function LoginPage() {
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
+        <p className="hint" style={{ textAlign: 'center', marginTop: 16 }}>
+          <Link href="/cadastro">Novo usuário</Link>
+        </p>
       </div>
     </div>
   );

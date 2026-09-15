@@ -11,6 +11,7 @@ interface Usuario {
   cpf: string;
   nivel: 'USUARIO' | 'ADMINISTRADOR';
   tem_senha: boolean;
+  ativo: boolean;
 }
 
 interface UsuarioForm {
@@ -19,9 +20,10 @@ interface UsuarioForm {
   cpf: string;
   nivel: Usuario['nivel'];
   senha: string;
+  ativo: boolean;
 }
 
-const emptyForm: UsuarioForm = { nome: '', email: '', cpf: '', nivel: 'USUARIO', senha: '' };
+const emptyForm: UsuarioForm = { nome: '', email: '', cpf: '', nivel: 'USUARIO', senha: '', ativo: true };
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -31,6 +33,7 @@ export default function UsuariosPage() {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendingCodigo, setResendingCodigo] = useState<number | null>(null);
+  const [aprovandoCodigo, setAprovandoCodigo] = useState<number | null>(null);
   const [busca, setBusca] = useState('');
 
   const usuariosFiltrados = usuarios.filter((u) => {
@@ -54,7 +57,7 @@ export default function UsuariosPage() {
 
   function startEdit(u: Usuario) {
     setEditingCodigo(u.codigo);
-    setForm({ nome: u.nome, email: u.email, cpf: maskCPF(u.cpf), nivel: u.nivel, senha: '' });
+    setForm({ nome: u.nome, email: u.email, cpf: maskCPF(u.cpf), nivel: u.nivel, senha: '', ativo: u.ativo });
     setError('');
     setInfo('');
   }
@@ -113,6 +116,24 @@ export default function UsuariosPage() {
     load();
   }
 
+  async function handleAprovar(codigo: number) {
+    setAprovandoCodigo(codigo);
+    setError('');
+    setInfo('');
+    try {
+      const res = await fetch(`/api/usuarios/${codigo}/aprovar`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Não foi possível aprovar.');
+        return;
+      }
+      setInfo('Usuário aprovado. Ele já pode acessar o sistema.');
+      load();
+    } finally {
+      setAprovandoCodigo(null);
+    }
+  }
+
   async function handleResend(codigo: number) {
     setResendingCodigo(codigo);
     setError('');
@@ -150,6 +171,7 @@ export default function UsuariosPage() {
               <th>CPF</th>
               <th>Nível</th>
               <th>Senha</th>
+              <th>Status</th>
               <th></th>
             </tr>
           </thead>
@@ -162,10 +184,20 @@ export default function UsuariosPage() {
                 <td>{maskCPF(u.cpf)}</td>
                 <td>{u.nivel}</td>
                 <td>{u.tem_senha ? 'Definida' : 'Pendente'}</td>
+                <td>{u.ativo ? 'Ativo' : 'Aguardando aprovação'}</td>
                 <td>
                   <button className="btn-small" onClick={() => startEdit(u)}>
                     Editar
                   </button>
+                  {!u.ativo && (
+                    <button
+                      className="btn-small"
+                      onClick={() => handleAprovar(u.codigo)}
+                      disabled={aprovandoCodigo === u.codigo}
+                    >
+                      {aprovandoCodigo === u.codigo ? 'Aprovando...' : 'Aprovar'}
+                    </button>
+                  )}
                   {!u.tem_senha && (
                     <button
                       className="btn-small"
@@ -183,7 +215,7 @@ export default function UsuariosPage() {
             ))}
             {usuariosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhum usuário encontrado.</td>
+                <td colSpan={8}>Nenhum usuário encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -245,6 +277,19 @@ export default function UsuariosPage() {
                   onChange={(e) => setForm({ ...form, senha: e.target.value })}
                 />
                 <p className="hint">Deixe em branco para não alterar.</p>
+              </div>
+            )}
+            {editingCodigo && (
+              <div className="field">
+                <label>Status</label>
+                <label className="checklist-item">
+                  <input
+                    type="checkbox"
+                    checked={form.ativo}
+                    onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+                  />
+                  Ativo (desmarque para bloquear o acesso)
+                </label>
               </div>
             )}
           </div>

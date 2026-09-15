@@ -9,7 +9,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT codigo, nome, email, cpf, nivel, (senha IS NOT NULL) AS tem_senha
+    `SELECT codigo, nome, email, cpf, nivel, ativo, (senha IS NOT NULL) AS tem_senha
      FROM usuarios ORDER BY codigo`
   );
   return NextResponse.json(rows);

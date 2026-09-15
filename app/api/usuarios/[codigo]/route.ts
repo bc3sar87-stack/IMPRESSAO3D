@@ -8,7 +8,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { codigo } = await params;
-  const { nome, email, cpf, nivel, senha } = await request.json().catch(() => ({}));
+  const { nome, email, cpf, nivel, senha, ativo } = await request.json().catch(() => ({}));
 
   if (!nome || !email || !cpf || !nivel) {
     return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
@@ -20,16 +20,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { rows } = senha
       ? await pool.query(
-          `UPDATE usuarios SET nome=$1, email=$2, cpf=$3, nivel=$4, senha=crypt($5, gen_salt('bf'))
-           WHERE codigo=$6
-           RETURNING codigo, nome, email, cpf, nivel`,
-          [nome, email, cpf, nivel, senha, codigo]
+          `UPDATE usuarios SET nome=$1, email=$2, cpf=$3, nivel=$4, ativo=$5, senha=crypt($6, gen_salt('bf'))
+           WHERE codigo=$7
+           RETURNING codigo, nome, email, cpf, nivel, ativo`,
+          [nome, email, cpf, nivel, ativo !== false, senha, codigo]
         )
       : await pool.query(
-          `UPDATE usuarios SET nome=$1, email=$2, cpf=$3, nivel=$4
-           WHERE codigo=$5
-           RETURNING codigo, nome, email, cpf, nivel`,
-          [nome, email, cpf, nivel, codigo]
+          `UPDATE usuarios SET nome=$1, email=$2, cpf=$3, nivel=$4, ativo=$5
+           WHERE codigo=$6
+           RETURNING codigo, nome, email, cpf, nivel, ativo`,
+          [nome, email, cpf, nivel, ativo !== false, codigo]
         );
 
     if (rows.length === 0) {
