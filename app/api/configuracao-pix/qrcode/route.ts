@@ -21,7 +21,7 @@ export async function GET() {
   return new NextResponse(config.qrcode_imagem, {
     headers: {
       'Content-Type': config.qrcode_tipo || 'application/octet-stream',
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'private, no-cache, must-revalidate',
     },
   });
 }

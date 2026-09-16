@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
 import TimeInput, { formatSegundos } from '../time-input';
 import { IconEdit, IconCopy, IconTrash, IconList } from '../icons';
+import MateriaPrimaPicker from '../materia-prima-picker';
 
 interface Produto {
   codigo: number;
@@ -24,7 +25,10 @@ interface MateriaPrima {
   tipo_nome: string;
   marca: string;
   cor: string;
+  cor_hex: string;
   unidade_medida_sigla: string;
+  valor_custo: string | null;
+  fornecedor: string | null;
 }
 
 interface ItemMaterial {
@@ -78,6 +82,7 @@ export default function ProdutosPage() {
   const [itensMaterial, setItensMaterial] = useState<ItemMaterial[]>([]);
   const [novoMaterial, setNovoMaterial] = useState({ materia_prima_codigo: '', peso: '' });
   const [materialError, setMaterialError] = useState('');
+  const [materiaPickerOpen, setMateriaPickerOpen] = useState(false);
 
   const produtosFiltrados = produtos.filter((p) =>
     p.descricao.toLowerCase().includes(busca.toLowerCase())
@@ -658,20 +663,39 @@ export default function ProdutosPage() {
             <div className="form-grid">
               <div className="field">
                 <label>Matéria Prima</label>
-                <select
-                  value={novoMaterial.materia_prima_codigo}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, materia_prima_codigo: e.target.value })}
-                  required
+                <button
+                  type="button"
+                  className="pricing-select-btn"
+                  onClick={() => setMateriaPickerOpen(true)}
                 >
-                  <option value="" disabled>
-                    Selecione...
-                  </option>
-                  {materiasPrimas.map((mp) => (
-                    <option key={mp.codigo} value={mp.codigo}>
-                      {mp.tipo_nome} — {mp.marca} ({mp.cor})
-                    </option>
-                  ))}
-                </select>
+                  {novoMaterial.materia_prima_codigo ? (
+                    (() => {
+                      const mp = materiasPrimas.find(
+                        (m) => String(m.codigo) === novoMaterial.materia_prima_codigo
+                      );
+                      return mp ? (
+                        <>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              width: 16,
+                              height: 16,
+                              borderRadius: 4,
+                              backgroundColor: mp.cor_hex,
+                              border: '1px solid #e2e8f0',
+                              flexShrink: 0,
+                            }}
+                          />
+                          {mp.tipo_nome} — {mp.marca} ({mp.cor})
+                        </>
+                      ) : (
+                        'Selecionar matéria prima...'
+                      );
+                    })()
+                  ) : (
+                    <span className="pricing-select-placeholder">Selecionar matéria prima...</span>
+                  )}
+                </button>
               </div>
               <div className="field">
                 <label>Peso</label>
@@ -691,6 +715,13 @@ export default function ProdutosPage() {
           </form>
         </div>
       )}
+
+      <MateriaPrimaPicker
+        open={materiaPickerOpen}
+        materiais={materiasPrimas}
+        onSelect={(mp) => setNovoMaterial({ ...novoMaterial, materia_prima_codigo: String(mp.codigo) })}
+        onClose={() => setMateriaPickerOpen(false)}
+      />
     </div>
   );
 }

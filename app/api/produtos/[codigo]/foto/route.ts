@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   return new NextResponse(produto.foto, {
     headers: {
       'Content-Type': produto.foto_tipo || 'application/octet-stream',
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'private, no-cache, must-revalidate',
     },
   });
 }
