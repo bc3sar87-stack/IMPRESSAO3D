@@ -682,7 +682,7 @@ export default function OrcamentosPage() {
                     onClick={() => handleRecalcularSalvo(o)}
                     disabled={recalculandoCodigo === o.codigo}
                   >
-                    {recalculandoCodigo === o.codigo ? 'Calculando...' : 'Recalcular'}
+                    {recalculandoCodigo === o.codigo ? 'Calculando...' : 'Raio X'}
                   </button>
                   <button className="btn-small danger" onClick={() => handleDelete(o.codigo)}>
                     Excluir
