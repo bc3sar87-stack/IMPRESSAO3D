@@ -10,6 +10,7 @@ export interface ProdutoPickerMaterial {
   cor: string;
   cor_hex: string;
   peso: string;
+  unidade_medida_sigla: string;
   valor_custo: string | null;
 }
 
@@ -86,7 +87,7 @@ export default function ProductPicker({
                         {p.materiais.map((m) => (
                           <span key={m.materia_prima_codigo} className="product-picker-material-tag">
                             <span className="color-swatch" style={{ backgroundColor: m.cor_hex }} />
-                            {m.nome} ({m.cor})
+                            {m.nome} ({m.cor}) — {Number(m.peso).toFixed(1)} {m.unidade_medida_sigla}
                           </span>
                         ))}
                       </span>

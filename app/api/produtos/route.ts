@@ -21,11 +21,13 @@ export async function GET() {
                  'cor', mp.cor,
                  'cor_hex', mp.cor_hex,
                  'peso', pm.peso,
+                 'unidade_medida_sigla', u.sigla,
                  'valor_custo', mp.valor_custo
                ) ORDER BY pm.codigo)
                FROM produto_materiais pm
                JOIN materia_prima mp ON mp.codigo = pm.materia_prima_codigo
                JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
+               JOIN unidades_medida u ON u.codigo = mp.unidade_medida_codigo
                WHERE pm.produto_codigo = p.codigo),
               '[]'
             ) AS materiais
