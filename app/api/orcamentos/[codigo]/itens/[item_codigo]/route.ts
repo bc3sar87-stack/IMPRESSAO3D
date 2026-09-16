@@ -1,6 +1,49 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+
+async function recalcularTotal(orcamentoCodigo: string, empresaCodigo: number) {
+  await pool.query(
+    `UPDATE orcamentos SET valor_total = (
+       SELECT COALESCE(SUM(quantidade * valor_unitario), 0)
+       FROM orcamento_itens WHERE orcamento_codigo = $1
+     ) WHERE codigo = $1 AND empresa_codigo = $2`,
+    [orcamentoCodigo, empresaCodigo]
+  );
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ codigo: string; item_codigo: string }> }
+) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
+  }
+  if (!session.empresa_codigo) {
+    return NextResponse.json({ error: 'Selecione uma empresa.' }, { status: 400 });
+  }
+
+  const { codigo, item_codigo } = await params;
+  const { valor_unitario } = await request.json().catch(() => ({}));
+
+  if (valor_unitario === undefined || valor_unitario === null || Number(valor_unitario) < 0) {
+    return NextResponse.json({ error: 'Valor unitário inválido.' }, { status: 400 });
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE orcamento_itens SET valor_unitario=$1
+     WHERE codigo=$2 AND orcamento_codigo=$3 AND empresa_codigo=$4
+     RETURNING codigo`,
+    [valor_unitario, item_codigo, codigo, session.empresa_codigo]
+  );
+  if (rows.length === 0) {
+    return NextResponse.json({ error: 'Item não encontrado.' }, { status: 404 });
+  }
+
+  await recalcularTotal(codigo, session.empresa_codigo);
+  return NextResponse.json({ ok: true });
+}
 
 export async function DELETE(
   _request: Request,
@@ -20,13 +63,6 @@ export async function DELETE(
     [item_codigo, codigo, session.empresa_codigo]
   );
 
-  await pool.query(
-    `UPDATE orcamentos SET valor_total = (
-       SELECT COALESCE(SUM(quantidade * valor_unitario), 0)
-       FROM orcamento_itens WHERE orcamento_codigo = $1
-     ) WHERE codigo = $1 AND empresa_codigo = $2`,
-    [codigo, session.empresa_codigo]
-  );
-
+  await recalcularTotal(codigo, session.empresa_codigo);
   return NextResponse.json({ ok: true });
 }

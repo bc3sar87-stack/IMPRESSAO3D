@@ -141,9 +141,8 @@ export default function OrcamentosPage() {
   const [novoItemLocal, setNovoItemLocal] = useState(emptyNovoItem);
   const [pickerFor, setPickerFor] = useState<'pendente' | 'existente' | null>(null);
 
-  const [calculando, setCalculando] = useState(false);
   const [addingItem, setAddingItem] = useState(false);
-  const [calcError, setCalcError] = useState('');
+  const [recalculandoCodigo, setRecalculandoCodigo] = useState<number | null>(null);
   const [raioX, setRaioX] = useState<RaioXData | null>(null);
   const [raioXOpen, setRaioXOpen] = useState(false);
 
@@ -209,7 +208,6 @@ export default function OrcamentosPage() {
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
     setError('');
-    setCalcError('');
     setRaioX(null);
     setModalOpen(true);
   }
@@ -254,7 +252,6 @@ export default function OrcamentosPage() {
     });
     setNovoItemLocal(emptyNovoItem);
     setError('');
-    setCalcError('');
     setRaioX(null);
 
     const res = await fetch(`/api/orcamentos/${o.codigo}/itens`);
@@ -282,7 +279,6 @@ export default function OrcamentosPage() {
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
     setError('');
-    setCalcError('');
     setRaioX(null);
     setModalOpen(false);
   }
@@ -295,8 +291,12 @@ export default function OrcamentosPage() {
     }
   }
 
-  async function calcularCustoProduto(produto: Produto, materiaisMap?: Map<number, MaterialAgregado>) {
-    const equipamentoSelecionado = equipamentos.find((eq) => String(eq.codigo) === form.equipamento_codigo);
+  async function calcularCustoProduto(
+    produto: Produto,
+    equipamentoCodigo: string,
+    materiaisMap?: Map<number, MaterialAgregado>
+  ) {
+    const equipamentoSelecionado = equipamentos.find((eq) => String(eq.codigo) === equipamentoCodigo);
     const consumoWHora = equipamentoSelecionado ? Number(equipamentoSelecionado.consumo_w_hora) : 0;
     const custoKgPadrao = parseDecimal(custoBaseFilamento) || 0;
     const valorHoraEnergia = parseDecimal(valorConsumoHora) || 0;
@@ -345,7 +345,10 @@ export default function OrcamentosPage() {
     }
     setAddingItem(true);
     try {
-      const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(produto);
+      const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(
+        produto,
+        form.equipamento_codigo
+      );
       const markup = parseDecimal(form.markup_percentual) || 0;
       const impostos = parseDecimal(form.impostos_percentual) || 0;
       const taxa = parseDecimal(form.taxa_percentual) || 0;
@@ -386,33 +389,44 @@ export default function OrcamentosPage() {
     );
   }
 
-  async function handleCalcular() {
-    setCalcError('');
-    if (itensPendentes.length === 0) {
-      setCalcError('Adicione ao menos um item para calcular o preço.');
-      return;
-    }
-    setCalculando(true);
+  async function handleRecalcularSalvo(o: Orcamento) {
+    setRecalculandoCodigo(o.codigo);
     try {
+      const res = await fetch(`/api/orcamentos/${o.codigo}/itens`);
+      if (!res.ok) {
+        alert('Não foi possível carregar os itens deste orçamento.');
+        return;
+      }
+      const itensSalvos: ItemOrcamento[] = await res.json();
+      if (itensSalvos.length === 0) {
+        alert('Este orçamento não possui itens para calcular.');
+        return;
+      }
+
+      const equipamentoCodigo = o.equipamento_codigo ? String(o.equipamento_codigo) : '';
       const materiaisMap = new Map<number, MaterialAgregado>();
 
       const itensCalculados = await Promise.all(
-        itensPendentes.map(async (item) => {
-          const produto = produtos.find((p) => String(p.codigo) === item.produto_codigo);
+        itensSalvos.map(async (item) => {
+          const produto = produtos.find((p) => p.codigo === item.produto_codigo);
           const quantidade = produto?.quantidade || Number(item.quantidade) || 1;
           if (!produto) {
             return { item, quantidade, materialCost: 0, energiaCost: 0, maoDeObraCost: 0 };
           }
-          const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(produto, materiaisMap);
+          const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(
+            produto,
+            equipamentoCodigo,
+            materiaisMap
+          );
           return { item, quantidade, materialCost, energiaCost, maoDeObraCost };
         })
       );
 
-      const embalagem = parseDecimal(form.embalagem_valor) || 0;
-      const custosExtras = parseDecimal(form.custos_extras_valor) || 0;
-      const markup = parseDecimal(form.markup_percentual) || 0;
-      const impostos = parseDecimal(form.impostos_percentual) || 0;
-      const taxa = parseDecimal(form.taxa_percentual) || 0;
+      const embalagem = Number(o.embalagem_valor) || 0;
+      const custosExtras = Number(o.custos_extras_valor) || 0;
+      const markup = Number(o.markup_percentual) || 0;
+      const impostos = Number(o.impostos_percentual) || 0;
+      const taxa = Number(o.taxa_percentual) || 0;
 
       const materialTotal = itensCalculados.reduce((s, i) => s + i.materialCost, 0);
       const energiaTotal = itensCalculados.reduce((s, i) => s + i.energiaCost, 0);
@@ -430,16 +444,17 @@ export default function OrcamentosPage() {
         const proporcao = somaBaseItens > 0 ? baseItem / somaBaseItens : 1 / itensCalculados.length;
         const precoItem = precoVenda * proporcao;
         const valorUnitario = quantidade > 0 ? precoItem / quantidade : precoItem;
-        const custoUnitario = quantidade > 0 ? baseItem / quantidade : baseItem;
-        return {
-          ...item,
-          quantidade: String(quantidade),
-          valor_unitario: valorUnitario.toFixed(2),
-          custo_unitario: custoUnitario.toFixed(2),
-        };
+        return { codigo: item.codigo, valor_unitario: valorUnitario.toFixed(2) };
       });
 
-      setItensPendentes(itensAtualizados);
+      for (const atualizado of itensAtualizados) {
+        await fetch(`/api/orcamentos/${o.codigo}/itens/${atualizado.codigo}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valor_unitario: atualizado.valor_unitario }),
+        });
+      }
+
       setRaioX({
         materialTotal,
         energiaTotal,
@@ -457,8 +472,13 @@ export default function OrcamentosPage() {
         materiais: Array.from(materiaisMap.values()),
       });
       setRaioXOpen(true);
+
+      await load();
+      if (selecionado && selecionado.codigo === o.codigo) {
+        await refreshItens(o.codigo);
+      }
     } finally {
-      setCalculando(false);
+      setRecalculandoCodigo(null);
     }
   }
 
@@ -656,6 +676,13 @@ export default function OrcamentosPage() {
                   </button>
                   <button className="btn-small" onClick={() => abrirItens(o)}>
                     Itens
+                  </button>
+                  <button
+                    className="btn-small"
+                    onClick={() => handleRecalcularSalvo(o)}
+                    disabled={recalculandoCodigo === o.codigo}
+                  >
+                    {recalculandoCodigo === o.codigo ? 'Calculando...' : 'Recalcular'}
                   </button>
                   <button className="btn-small danger" onClick={() => handleDelete(o.codigo)}>
                     Excluir
@@ -883,8 +910,6 @@ export default function OrcamentosPage() {
                     </div>
                   )}
 
-                  {calcError && <div className="error-msg">{calcError}</div>}
-
                   <div className="form-grid">
                     <div className="field">
                       <label>Produto</label>
@@ -912,16 +937,6 @@ export default function OrcamentosPage() {
                     <button type="button" className="btn-small" onClick={handleAddItemLocal} disabled={addingItem}>
                       {addingItem ? 'Calculando...' : 'Adicionar item à lista'}
                     </button>
-                    {itensPendentes.length > 0 && (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={handleCalcular}
-                        disabled={calculando}
-                      >
-                        {calculando ? 'Calculando...' : 'Recalcular Preço'}
-                      </button>
-                    )}
                   </div>
                 </>
               )}
