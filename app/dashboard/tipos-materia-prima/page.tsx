@@ -12,6 +12,7 @@ export default function TiposMateriaPrimaPage() {
   const [tipos, setTipos] = useState<Tipo[]>([]);
   const [nome, setNome] = useState('');
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
@@ -27,16 +28,32 @@ export default function TiposMateriaPrimaPage() {
     load();
   }, []);
 
+  function startNew() {
+    setEditingCodigo(null);
+    setNome('');
+    setError('');
+    setModalOpen(true);
+  }
+
   function startEdit(tipo: Tipo) {
     setEditingCodigo(tipo.codigo);
     setNome(tipo.nome);
     setError('');
+    setModalOpen(true);
+  }
+
+  function startCopy(tipo: Tipo) {
+    setEditingCodigo(null);
+    setNome(`${tipo.nome} (cópia)`);
+    setError('');
+    setModalOpen(true);
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setNome('');
     setError('');
+    setModalOpen(false);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -78,6 +95,9 @@ export default function TiposMateriaPrimaPage() {
     <div>
       <div className="page-header">
         <h2>Cadastro de Tipo</h2>
+        <button className="btn-primary" onClick={startNew} style={{ width: 'auto', padding: '10px 20px' }}>
+          Novo Tipo
+        </button>
       </div>
 
       <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por nome..." />
@@ -100,6 +120,9 @@ export default function TiposMateriaPrimaPage() {
                   <button className="btn-small" onClick={() => startEdit(tipo)}>
                     Editar
                   </button>
+                  <button className="btn-small" onClick={() => startCopy(tipo)}>
+                    Copiar
+                  </button>
                   <button className="btn-small danger" onClick={() => handleDelete(tipo.codigo)}>
                     Excluir
                   </button>
@@ -115,31 +138,38 @@ export default function TiposMateriaPrimaPage() {
         </table>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar tipo' : 'Novo tipo'}</h3>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="field" style={{ maxWidth: 300 }}>
-            <label>Nome</label>
-            <input
-              placeholder="PLA, ABS, PETG..."
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              required
-            />
-          </div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Adicionar'}
-            </button>
-            {editingCodigo && (
-              <button type="button" className="btn-small" onClick={cancelEdit}>
-                Cancelar
+      {modalOpen && (
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3>{editingCodigo ? 'Editar tipo' : 'Novo tipo'}</h3>
+              <button type="button" className="modal-close" onClick={cancelEdit} aria-label="Fechar">
+                ×
               </button>
-            )}
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            <form onSubmit={handleSubmit}>
+              <div className="field">
+                <label>Nome</label>
+                <input
+                  placeholder="PLA, ABS, PETG..."
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  required
+                />
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {editingCodigo ? 'Salvar' : 'Adicionar'}
+                </button>
+                <button type="button" className="btn-small" onClick={cancelEdit}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

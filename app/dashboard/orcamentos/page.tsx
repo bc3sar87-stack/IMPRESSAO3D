@@ -82,6 +82,7 @@ export default function OrcamentosPage() {
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
@@ -121,6 +122,15 @@ export default function OrcamentosPage() {
     load();
   }, []);
 
+  function startNew() {
+    setEditingCodigo(null);
+    setForm(emptyForm);
+    setItensPendentes([]);
+    setNovoItemLocal(emptyNovoItem);
+    setError('');
+    setModalOpen(true);
+  }
+
   function startEdit(o: Orcamento) {
     setEditingCodigo(o.codigo);
     setForm({
@@ -140,6 +150,44 @@ export default function OrcamentosPage() {
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
     setError('');
+    setModalOpen(true);
+  }
+
+  async function startCopy(o: Orcamento) {
+    setEditingCodigo(null);
+    setForm({
+      cliente_codigo: String(o.cliente_codigo),
+      data: hoje(),
+      data_entrega: '',
+      status: 'ABERTO',
+      observacoes: o.observacoes || '',
+      equipamento_codigo: o.equipamento_codigo ? String(o.equipamento_codigo) : '',
+      markup_percentual: o.markup_percentual || '',
+      impostos_percentual: o.impostos_percentual || '',
+      taxa_marketplace: o.taxa_marketplace || 'MANUAL',
+      taxa_percentual: o.taxa_percentual || '',
+      embalagem_valor: o.embalagem_valor || '',
+      custos_extras_valor: o.custos_extras_valor || '',
+    });
+    setNovoItemLocal(emptyNovoItem);
+    setError('');
+
+    const res = await fetch(`/api/orcamentos/${o.codigo}/itens`);
+    if (res.ok) {
+      const itensOriginais: ItemOrcamento[] = await res.json();
+      setItensPendentes(
+        itensOriginais.map((item) => ({
+          produto_codigo: String(item.produto_codigo),
+          produto_descricao: item.produto_descricao,
+          quantidade: item.quantidade,
+          valor_unitario: item.valor_unitario,
+        }))
+      );
+    } else {
+      setItensPendentes([]);
+    }
+
+    setModalOpen(true);
   }
 
   function cancelEdit() {
@@ -148,6 +196,7 @@ export default function OrcamentosPage() {
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
     setError('');
+    setModalOpen(false);
   }
 
   function handleAddItemLocal() {
@@ -278,6 +327,9 @@ export default function OrcamentosPage() {
     <div>
       <div className="page-header">
         <h2>Orçamentos</h2>
+        <button className="btn-primary" onClick={startNew} style={{ width: 'auto', padding: '10px 20px' }}>
+          Novo Orçamento
+        </button>
       </div>
 
       {clientes.length === 0 && (
@@ -322,6 +374,9 @@ export default function OrcamentosPage() {
                   <button className="btn-small" onClick={() => startEdit(o)}>
                     Editar
                   </button>
+                  <button className="btn-small" onClick={() => startCopy(o)}>
+                    Copiar
+                  </button>
                   <button className="btn-small" onClick={() => abrirItens(o)}>
                     Itens
                   </button>
@@ -340,10 +395,17 @@ export default function OrcamentosPage() {
         </table>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar orçamento' : 'Novo orçamento'}</h3>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
+      {modalOpen && (
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingCodigo ? 'Editar orçamento' : 'Novo orçamento'}</h3>
+              <button type="button" className="modal-close" onClick={cancelEdit} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field">
               <label>Cliente</label>
@@ -572,18 +634,18 @@ export default function OrcamentosPage() {
             </>
           )}
 
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Criar orçamento'}
-            </button>
-            {editingCodigo && (
-              <button type="button" className="btn-small" onClick={cancelEdit}>
-                Cancelar
-              </button>
-            )}
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {editingCodigo ? 'Salvar' : 'Criar orçamento'}
+                </button>
+                <button type="button" className="btn-small" onClick={cancelEdit}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
 
       {selecionado && (
         <div className="card">

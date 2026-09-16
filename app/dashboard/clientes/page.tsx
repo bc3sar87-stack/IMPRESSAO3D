@@ -27,6 +27,7 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
@@ -50,6 +51,13 @@ export default function ClientesPage() {
     load();
   }, []);
 
+  function startNew() {
+    setEditingCodigo(null);
+    setForm(emptyForm);
+    setError('');
+    setModalOpen(true);
+  }
+
   function startEdit(c: Cliente) {
     setEditingCodigo(c.codigo);
     setForm({
@@ -61,12 +69,28 @@ export default function ClientesPage() {
       endereco: c.endereco || '',
     });
     setError('');
+    setModalOpen(true);
+  }
+
+  function startCopy(c: Cliente) {
+    setEditingCodigo(null);
+    setForm({
+      tipo_pessoa: c.tipo_pessoa,
+      documento: '',
+      nome: `${c.nome} (cópia)`,
+      telefone: c.telefone || '',
+      email: c.email || '',
+      endereco: c.endereco || '',
+    });
+    setError('');
+    setModalOpen(true);
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setForm(emptyForm);
     setError('');
+    setModalOpen(false);
   }
 
   function handleDocumentoChange(value: string) {
@@ -119,6 +143,9 @@ export default function ClientesPage() {
     <div>
       <div className="page-header">
         <h2>Cadastro de Clientes</h2>
+        <button className="btn-primary" onClick={startNew} style={{ width: 'auto', padding: '10px 20px' }}>
+          Novo Cliente
+        </button>
       </div>
 
       <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por nome, documento, telefone ou e-mail..." />
@@ -147,6 +174,9 @@ export default function ClientesPage() {
                   <button className="btn-small" onClick={() => startEdit(c)}>
                     Editar
                   </button>
+                  <button className="btn-small" onClick={() => startCopy(c)}>
+                    Copiar
+                  </button>
                   <button className="btn-small danger" onClick={() => handleDelete(c.codigo)}>
                     Excluir
                   </button>
@@ -162,74 +192,81 @@ export default function ClientesPage() {
         </table>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar cliente' : 'Novo cliente'}</h3>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="field">
-              <label>Tipo</label>
-              <select
-                value={form.tipo_pessoa}
-                onChange={(e) => handleTipoChange(e.target.value as Cliente['tipo_pessoa'])}
-              >
-                <option value="PF">Pessoa Física (CPF)</option>
-                <option value="PJ">Pessoa Jurídica (CNPJ)</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>{isPJ ? 'CNPJ' : 'CPF'}</label>
-              <input
-                placeholder={isPJ ? '00.000.000/0000-00' : '000.000.000-00'}
-                value={form.documento}
-                onChange={(e) => handleDocumentoChange(e.target.value)}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Nome</label>
-              <input
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Telefone</label>
-              <input
-                placeholder="(00) 00000-0000"
-                value={form.telefone}
-                onChange={(e) => setForm({ ...form, telefone: maskTelefone(e.target.value) })}
-              />
-            </div>
-            <div className="field">
-              <label>E-mail</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label>Endereço</label>
-              <input
-                value={form.endereco}
-                onChange={(e) => setForm({ ...form, endereco: e.target.value })}
-              />
-            </div>
-          </div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Adicionar'}
-            </button>
-            {editingCodigo && (
-              <button type="button" className="btn-small" onClick={cancelEdit}>
-                Cancelar
+      {modalOpen && (
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingCodigo ? 'Editar cliente' : 'Novo cliente'}</h3>
+              <button type="button" className="modal-close" onClick={cancelEdit} aria-label="Fechar">
+                ×
               </button>
-            )}
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Tipo</label>
+                  <select
+                    value={form.tipo_pessoa}
+                    onChange={(e) => handleTipoChange(e.target.value as Cliente['tipo_pessoa'])}
+                  >
+                    <option value="PF">Pessoa Física (CPF)</option>
+                    <option value="PJ">Pessoa Jurídica (CNPJ)</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>{isPJ ? 'CNPJ' : 'CPF'}</label>
+                  <input
+                    placeholder={isPJ ? '00.000.000/0000-00' : '000.000.000-00'}
+                    value={form.documento}
+                    onChange={(e) => handleDocumentoChange(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Nome</label>
+                  <input
+                    value={form.nome}
+                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Telefone</label>
+                  <input
+                    placeholder="(00) 00000-0000"
+                    value={form.telefone}
+                    onChange={(e) => setForm({ ...form, telefone: maskTelefone(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>E-mail</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Endereço</label>
+                  <input
+                    value={form.endereco}
+                    onChange={(e) => setForm({ ...form, endereco: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {editingCodigo ? 'Salvar' : 'Adicionar'}
+                </button>
+                <button type="button" className="btn-small" onClick={cancelEdit}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

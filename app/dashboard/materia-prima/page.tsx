@@ -46,6 +46,7 @@ export default function MateriaPrimaPage() {
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
@@ -76,6 +77,13 @@ export default function MateriaPrimaPage() {
     load();
   }, []);
 
+  function startNew() {
+    setEditingCodigo(null);
+    setForm(emptyForm);
+    setError('');
+    setModalOpen(true);
+  }
+
   function startEdit(item: MateriaPrima) {
     setEditingCodigo(item.codigo);
     setForm({
@@ -89,12 +97,30 @@ export default function MateriaPrimaPage() {
       valor_custo: item.valor_custo || '',
     });
     setError('');
+    setModalOpen(true);
+  }
+
+  function startCopy(item: MateriaPrima) {
+    setEditingCodigo(null);
+    setForm({
+      tipo_codigo: String(item.tipo_codigo),
+      marca: item.marca,
+      descricao: `${item.descricao} (cópia)`,
+      cor: item.cor,
+      cor_hex: item.cor_hex,
+      unidade_medida_codigo: String(item.unidade_medida_codigo),
+      fornecedor: item.fornecedor || '',
+      valor_custo: item.valor_custo || '',
+    });
+    setError('');
+    setModalOpen(true);
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setForm(emptyForm);
     setError('');
+    setModalOpen(false);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -136,6 +162,9 @@ export default function MateriaPrimaPage() {
     <div>
       <div className="page-header">
         <h2>Cadastro de Matéria Prima</h2>
+        <button className="btn-primary" onClick={startNew} style={{ width: 'auto', padding: '10px 20px' }}>
+          Nova Matéria Prima
+        </button>
       </div>
 
       {tipos.length === 0 && (
@@ -186,6 +215,9 @@ export default function MateriaPrimaPage() {
                   <button className="btn-small" onClick={() => startEdit(item)}>
                     Editar
                   </button>
+                  <button className="btn-small" onClick={() => startCopy(item)}>
+                    Copiar
+                  </button>
                   <button className="btn-small danger" onClick={() => handleDelete(item.codigo)}>
                     Excluir
                   </button>
@@ -201,111 +233,118 @@ export default function MateriaPrimaPage() {
         </table>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar matéria prima' : 'Nova matéria prima'}</h3>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="field">
-              <label>Tipo</label>
-              <select
-                value={form.tipo_codigo}
-                onChange={(e) => setForm({ ...form, tipo_codigo: e.target.value })}
-                required
-              >
-                <option value="" disabled>
-                  Selecione...
-                </option>
-                {tipos.map((tipo) => (
-                  <option key={tipo.codigo} value={tipo.codigo}>
-                    {tipo.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Marca</label>
-              <input
-                value={form.marca}
-                onChange={(e) => setForm({ ...form, marca: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Cor</label>
-              <div className="color-field">
-                <input
-                  type="color"
-                  className="color-picker"
-                  value={form.cor_hex}
-                  onChange={(e) => setForm({ ...form, cor_hex: e.target.value })}
-                />
-                <input
-                  value={form.cor}
-                  onChange={(e) => setForm({ ...form, cor: e.target.value })}
-                  placeholder="Nome da cor"
-                  required
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label>Descrição</label>
-              <input
-                value={form.descricao}
-                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Unidade de Medida</label>
-              <select
-                value={form.unidade_medida_codigo}
-                onChange={(e) => setForm({ ...form, unidade_medida_codigo: e.target.value })}
-                required
-              >
-                <option value="" disabled>
-                  Selecione...
-                </option>
-                {unidades.map((u) => (
-                  <option key={u.codigo} value={u.codigo}>
-                    {u.sigla} - {u.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Fornecedor</label>
-              <input
-                value={form.fornecedor}
-                onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label>Valor Custo (R$/Kg)</label>
-              <div className="input-prefix-group">
-                <span className="input-prefix">R$</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.valor_custo}
-                  onChange={(e) => setForm({ ...form, valor_custo: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Adicionar'}
-            </button>
-            {editingCodigo && (
-              <button type="button" className="btn-small" onClick={cancelEdit}>
-                Cancelar
+      {modalOpen && (
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingCodigo ? 'Editar matéria prima' : 'Nova matéria prima'}</h3>
+              <button type="button" className="modal-close" onClick={cancelEdit} aria-label="Fechar">
+                ×
               </button>
-            )}
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Tipo</label>
+                  <select
+                    value={form.tipo_codigo}
+                    onChange={(e) => setForm({ ...form, tipo_codigo: e.target.value })}
+                    required
+                  >
+                    <option value="" disabled>
+                      Selecione...
+                    </option>
+                    {tipos.map((tipo) => (
+                      <option key={tipo.codigo} value={tipo.codigo}>
+                        {tipo.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Marca</label>
+                  <input
+                    value={form.marca}
+                    onChange={(e) => setForm({ ...form, marca: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Cor</label>
+                  <div className="color-field">
+                    <input
+                      type="color"
+                      className="color-picker"
+                      value={form.cor_hex}
+                      onChange={(e) => setForm({ ...form, cor_hex: e.target.value })}
+                    />
+                    <input
+                      value={form.cor}
+                      onChange={(e) => setForm({ ...form, cor: e.target.value })}
+                      placeholder="Nome da cor"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Descrição</label>
+                  <input
+                    value={form.descricao}
+                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Unidade de Medida</label>
+                  <select
+                    value={form.unidade_medida_codigo}
+                    onChange={(e) => setForm({ ...form, unidade_medida_codigo: e.target.value })}
+                    required
+                  >
+                    <option value="" disabled>
+                      Selecione...
+                    </option>
+                    {unidades.map((u) => (
+                      <option key={u.codigo} value={u.codigo}>
+                        {u.sigla} - {u.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Fornecedor</label>
+                  <input
+                    value={form.fornecedor}
+                    onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Valor Custo (R$/Kg)</label>
+                  <div className="input-prefix-group">
+                    <span className="input-prefix">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.valor_custo}
+                      onChange={(e) => setForm({ ...form, valor_custo: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {editingCodigo ? 'Salvar' : 'Adicionar'}
+                </button>
+                <button type="button" className="btn-small" onClick={cancelEdit}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -29,6 +29,7 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [form, setForm] = useState<UsuarioForm>(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,17 +56,35 @@ export default function UsuariosPage() {
     load();
   }, []);
 
+  function startNew() {
+    setEditingCodigo(null);
+    setForm(emptyForm);
+    setError('');
+    setInfo('');
+    setModalOpen(true);
+  }
+
   function startEdit(u: Usuario) {
     setEditingCodigo(u.codigo);
     setForm({ nome: u.nome, email: u.email, cpf: maskCPF(u.cpf), nivel: u.nivel, senha: '', ativo: u.ativo });
     setError('');
     setInfo('');
+    setModalOpen(true);
+  }
+
+  function startCopy(u: Usuario) {
+    setEditingCodigo(null);
+    setForm({ nome: `${u.nome} (cópia)`, email: '', cpf: '', nivel: u.nivel, senha: '', ativo: true });
+    setError('');
+    setInfo('');
+    setModalOpen(true);
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setForm(emptyForm);
     setError('');
+    setModalOpen(false);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -155,6 +174,9 @@ export default function UsuariosPage() {
     <div>
       <div className="page-header">
         <h2>Cadastro de Usuários</h2>
+        <button className="btn-primary" onClick={startNew} style={{ width: 'auto', padding: '10px 20px' }}>
+          Novo Usuário
+        </button>
       </div>
 
       {info && <div className="success-msg">{info}</div>}
@@ -189,6 +211,9 @@ export default function UsuariosPage() {
                   <button className="btn-small" onClick={() => startEdit(u)}>
                     Editar
                   </button>
+                  <button className="btn-small" onClick={() => startCopy(u)}>
+                    Copiar
+                  </button>
                   {!u.ativo && (
                     <button
                       className="btn-small"
@@ -222,89 +247,96 @@ export default function UsuariosPage() {
         </table>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar usuário' : 'Novo usuário'}</h3>
-        {error && <div className="error-msg">{error}</div>}
-        {!editingCodigo && (
-          <p className="hint" style={{ marginTop: -8, marginBottom: 16 }}>
-            O usuário recebe um e-mail com um link para definir a própria senha.
-          </p>
-        )}
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="field">
-              <label>Nome</label>
-              <input
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>E-mail</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>CPF</label>
-              <input
-                placeholder="000.000.000-00"
-                value={form.cpf}
-                onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Nível</label>
-              <select
-                value={form.nivel}
-                onChange={(e) => setForm({ ...form, nivel: e.target.value as Usuario['nivel'] })}
-              >
-                <option value="USUARIO">USUARIO</option>
-                <option value="ADMINISTRADOR">ADMINISTRADOR</option>
-              </select>
-            </div>
-            {editingCodigo && (
-              <div className="field">
-                <label>Nova senha (opcional)</label>
-                <input
-                  type="password"
-                  value={form.senha}
-                  onChange={(e) => setForm({ ...form, senha: e.target.value })}
-                />
-                <p className="hint">Deixe em branco para não alterar.</p>
-              </div>
-            )}
-            {editingCodigo && (
-              <div className="field">
-                <label>Status</label>
-                <label className="checklist-item">
-                  <input
-                    type="checkbox"
-                    checked={form.ativo}
-                    onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
-                  />
-                  Ativo (desmarque para bloquear o acesso)
-                </label>
-              </div>
-            )}
-          </div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Adicionar'}
-            </button>
-            {editingCodigo && (
-              <button type="button" className="btn-small" onClick={cancelEdit}>
-                Cancelar
+      {modalOpen && (
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingCodigo ? 'Editar usuário' : 'Novo usuário'}</h3>
+              <button type="button" className="modal-close" onClick={cancelEdit} aria-label="Fechar">
+                ×
               </button>
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            {!editingCodigo && (
+              <p className="hint" style={{ marginTop: -8, marginBottom: 16 }}>
+                O usuário recebe um e-mail com um link para definir a própria senha.
+              </p>
             )}
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Nome</label>
+                  <input
+                    value={form.nome}
+                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>E-mail</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>CPF</label>
+                  <input
+                    placeholder="000.000.000-00"
+                    value={form.cpf}
+                    onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Nível</label>
+                  <select
+                    value={form.nivel}
+                    onChange={(e) => setForm({ ...form, nivel: e.target.value as Usuario['nivel'] })}
+                  >
+                    <option value="USUARIO">USUARIO</option>
+                    <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                  </select>
+                </div>
+                {editingCodigo && (
+                  <div className="field">
+                    <label>Nova senha (opcional)</label>
+                    <input
+                      type="password"
+                      value={form.senha}
+                      onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                    />
+                    <p className="hint">Deixe em branco para não alterar.</p>
+                  </div>
+                )}
+                {editingCodigo && (
+                  <div className="field">
+                    <label>Status</label>
+                    <label className="checklist-item">
+                      <input
+                        type="checkbox"
+                        checked={form.ativo}
+                        onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+                      />
+                      Ativo (desmarque para bloquear o acesso)
+                    </label>
+                  </div>
+                )}
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {editingCodigo ? 'Salvar' : 'Adicionar'}
+                </button>
+                <button type="button" className="btn-small" onClick={cancelEdit}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

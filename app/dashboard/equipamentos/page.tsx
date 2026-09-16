@@ -16,6 +16,7 @@ export default function EquipamentosPage() {
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
@@ -34,16 +35,32 @@ export default function EquipamentosPage() {
     load();
   }, []);
 
+  function startNew() {
+    setEditingCodigo(null);
+    setForm(emptyForm);
+    setError('');
+    setModalOpen(true);
+  }
+
   function startEdit(eq: Equipamento) {
     setEditingCodigo(eq.codigo);
     setForm({ fabricante: eq.fabricante, modelo: eq.modelo, consumo_w_hora: eq.consumo_w_hora });
     setError('');
+    setModalOpen(true);
+  }
+
+  function startCopy(eq: Equipamento) {
+    setEditingCodigo(null);
+    setForm({ fabricante: eq.fabricante, modelo: `${eq.modelo} (cópia)`, consumo_w_hora: eq.consumo_w_hora });
+    setError('');
+    setModalOpen(true);
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setForm(emptyForm);
     setError('');
+    setModalOpen(false);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -85,6 +102,9 @@ export default function EquipamentosPage() {
     <div>
       <div className="page-header">
         <h2>Cadastro de Equipamentos</h2>
+        <button className="btn-primary" onClick={startNew} style={{ width: 'auto', padding: '10px 20px' }}>
+          Novo Equipamento
+        </button>
       </div>
 
       <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por fabricante ou modelo..." />
@@ -111,6 +131,9 @@ export default function EquipamentosPage() {
                   <button className="btn-small" onClick={() => startEdit(eq)}>
                     Editar
                   </button>
+                  <button className="btn-small" onClick={() => startCopy(eq)}>
+                    Copiar
+                  </button>
                   <button className="btn-small danger" onClick={() => handleDelete(eq.codigo)}>
                     Excluir
                   </button>
@@ -126,51 +149,58 @@ export default function EquipamentosPage() {
         </table>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar equipamento' : 'Novo equipamento'}</h3>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="field">
-              <label>Fabricante</label>
-              <input
-                value={form.fabricante}
-                onChange={(e) => setForm({ ...form, fabricante: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Modelo</label>
-              <input
-                value={form.modelo}
-                onChange={(e) => setForm({ ...form, modelo: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Consumo (W por hora)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.consumo_w_hora}
-                onChange={(e) => setForm({ ...form, consumo_w_hora: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Adicionar'}
-            </button>
-            {editingCodigo && (
-              <button type="button" className="btn-small" onClick={cancelEdit}>
-                Cancelar
+      {modalOpen && (
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+            <div className="modal-header">
+              <h3>{editingCodigo ? 'Editar equipamento' : 'Novo equipamento'}</h3>
+              <button type="button" className="modal-close" onClick={cancelEdit} aria-label="Fechar">
+                ×
               </button>
-            )}
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Fabricante</label>
+                  <input
+                    value={form.fabricante}
+                    onChange={(e) => setForm({ ...form, fabricante: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Modelo</label>
+                  <input
+                    value={form.modelo}
+                    onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Consumo (W por hora)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.consumo_w_hora}
+                    onChange={(e) => setForm({ ...form, consumo_w_hora: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {editingCodigo ? 'Salvar' : 'Adicionar'}
+                </button>
+                <button type="button" className="btn-small" onClick={cancelEdit}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

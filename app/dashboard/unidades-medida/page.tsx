@@ -15,6 +15,7 @@ export default function UnidadesMedidaPage() {
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
@@ -33,16 +34,32 @@ export default function UnidadesMedidaPage() {
     load();
   }, []);
 
+  function startNew() {
+    setEditingCodigo(null);
+    setForm(emptyForm);
+    setError('');
+    setModalOpen(true);
+  }
+
   function startEdit(u: Unidade) {
     setEditingCodigo(u.codigo);
     setForm({ sigla: u.sigla, nome: u.nome });
     setError('');
+    setModalOpen(true);
+  }
+
+  function startCopy(u: Unidade) {
+    setEditingCodigo(null);
+    setForm({ sigla: u.sigla, nome: `${u.nome} (cópia)` });
+    setError('');
+    setModalOpen(true);
   }
 
   function cancelEdit() {
     setEditingCodigo(null);
     setForm(emptyForm);
     setError('');
+    setModalOpen(false);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -84,6 +101,9 @@ export default function UnidadesMedidaPage() {
     <div>
       <div className="page-header">
         <h2>Cadastro de Unidade de Medida</h2>
+        <button className="btn-primary" onClick={startNew} style={{ width: 'auto', padding: '10px 20px' }}>
+          Nova Unidade
+        </button>
       </div>
 
       <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por sigla ou nome..." />
@@ -108,6 +128,9 @@ export default function UnidadesMedidaPage() {
                   <button className="btn-small" onClick={() => startEdit(u)}>
                     Editar
                   </button>
+                  <button className="btn-small" onClick={() => startCopy(u)}>
+                    Copiar
+                  </button>
                   <button className="btn-small danger" onClick={() => handleDelete(u.codigo)}>
                     Excluir
                   </button>
@@ -123,42 +146,49 @@ export default function UnidadesMedidaPage() {
         </table>
       </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>{editingCodigo ? 'Editar unidade' : 'Nova unidade'}</h3>
-        {error && <div className="error-msg">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <div className="field">
-              <label>Sigla</label>
-              <input
-                placeholder="UN, G, KG, M, L..."
-                value={form.sigla}
-                onChange={(e) => setForm({ ...form, sigla: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Nome</label>
-              <input
-                placeholder="Unitário, Gramas, Quilograma..."
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
-              {editingCodigo ? 'Salvar' : 'Adicionar'}
-            </button>
-            {editingCodigo && (
-              <button type="button" className="btn-small" onClick={cancelEdit}>
-                Cancelar
+      {modalOpen && (
+        <div className="modal-overlay" onClick={cancelEdit}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <h3>{editingCodigo ? 'Editar unidade' : 'Nova unidade'}</h3>
+              <button type="button" className="modal-close" onClick={cancelEdit} aria-label="Fechar">
+                ×
               </button>
-            )}
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Sigla</label>
+                  <input
+                    placeholder="UN, G, KG, M, L..."
+                    value={form.sigla}
+                    onChange={(e) => setForm({ ...form, sigla: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Nome</label>
+                  <input
+                    placeholder="Unitário, Gramas, Quilograma..."
+                    value={form.nome}
+                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {editingCodigo ? 'Salvar' : 'Adicionar'}
+                </button>
+                <button type="button" className="btn-small" onClick={cancelEdit}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
