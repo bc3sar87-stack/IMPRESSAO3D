@@ -38,7 +38,13 @@ const groups: NavGroup[] = [
       { href: '/dashboard/orcamentos-reprovados', label: 'Orçamentos Reprovados' },
       { href: '/dashboard/orcamentos-em-producao', label: 'Em Produção' },
       { href: '/dashboard/orcamentos-finalizados', label: 'Finalizados' },
+      { href: '/dashboard/orcamentos-pendente-entrega', label: 'Pendente de Entrega' },
+      { href: '/dashboard/orcamentos-entregues', label: 'Entregues' },
     ],
+  },
+  {
+    title: 'Financeiro',
+    links: [{ href: '/dashboard/contas-receber', label: 'Contas a Receber' }],
   },
   {
     title: 'Configurações',

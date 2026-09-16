@@ -5,7 +5,14 @@ import SearchBox from './search-box';
 import ProductPicker, { ProdutoPicker } from './product-picker';
 import { IconEdit, IconCopy, IconList, IconCalculator, IconTrash } from './icons';
 
-export type OrcamentoStatus = 'ABERTO' | 'APROVADO' | 'REJEITADO' | 'EM_PRODUCAO' | 'FINALIZADO';
+export type OrcamentoStatus =
+  | 'ABERTO'
+  | 'APROVADO'
+  | 'REJEITADO'
+  | 'EM_PRODUCAO'
+  | 'FINALIZADO'
+  | 'PENDENTE_ENTREGA'
+  | 'ENTREGUE';
 
 const STATUS_LABELS: Record<OrcamentoStatus, string> = {
   ABERTO: 'Pendente',
@@ -13,6 +20,8 @@ const STATUS_LABELS: Record<OrcamentoStatus, string> = {
   REJEITADO: 'Reprovado',
   EM_PRODUCAO: 'Em Produção',
   FINALIZADO: 'Finalizado',
+  PENDENTE_ENTREGA: 'Pendente de Entrega',
+  ENTREGUE: 'Entregue',
 };
 
 const STATUS_SELECT_CLASS: Record<OrcamentoStatus, string> = {
@@ -21,6 +30,8 @@ const STATUS_SELECT_CLASS: Record<OrcamentoStatus, string> = {
   REJEITADO: 'status-select-red',
   EM_PRODUCAO: 'status-select-orange',
   FINALIZADO: 'status-select-gray',
+  PENDENTE_ENTREGA: 'status-select-purple',
+  ENTREGUE: 'status-select-green',
 };
 
 interface Orcamento {
@@ -163,6 +174,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
 
   const [addingItem, setAddingItem] = useState(false);
   const [recalculandoCodigo, setRecalculandoCodigo] = useState<number | null>(null);
+  const [contaReceberOrcamento, setContaReceberOrcamento] = useState<Orcamento | null>(null);
+  const [contaReceberVencimento, setContaReceberVencimento] = useState('');
+  const [gerandoContaReceber, setGerandoContaReceber] = useState(false);
   const [raioX, setRaioX] = useState<RaioXData | null>(null);
   const [raioXOpen, setRaioXOpen] = useState(false);
 
@@ -606,6 +620,39 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       return;
     }
     load();
+
+    if (novoStatus === 'ENTREGUE' && confirm('Deseja gerar um Contas a Receber para este orçamento?')) {
+      const vencimentoPadrao = new Date();
+      vencimentoPadrao.setDate(vencimentoPadrao.getDate() + 30);
+      setContaReceberOrcamento(o);
+      setContaReceberVencimento(vencimentoPadrao.toISOString().slice(0, 10));
+    }
+  }
+
+  async function handleConfirmarContaReceber() {
+    if (!contaReceberOrcamento || !contaReceberVencimento) return;
+    setGerandoContaReceber(true);
+    try {
+      const res = await fetch('/api/contas-receber', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orcamento_codigo: contaReceberOrcamento.codigo,
+          cliente_codigo: contaReceberOrcamento.cliente_codigo,
+          descricao: `Orçamento #${contaReceberOrcamento.codigo} — ${contaReceberOrcamento.cliente_nome}`,
+          valor: contaReceberOrcamento.valor_total,
+          data_vencimento: contaReceberVencimento,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Não foi possível gerar o Contas a Receber.');
+        return;
+      }
+      setContaReceberOrcamento(null);
+    } finally {
+      setGerandoContaReceber(false);
+    }
   }
 
   async function abrirItens(o: Orcamento) {
@@ -726,6 +773,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <option value="REJEITADO">{STATUS_LABELS.REJEITADO}</option>
                     <option value="EM_PRODUCAO">{STATUS_LABELS.EM_PRODUCAO}</option>
                     <option value="FINALIZADO">{STATUS_LABELS.FINALIZADO}</option>
+                    <option value="PENDENTE_ENTREGA">{STATUS_LABELS.PENDENTE_ENTREGA}</option>
+                    <option value="ENTREGUE">{STATUS_LABELS.ENTREGUE}</option>
                   </select>
                 </td>
                 <td>R$ {o.valor_total}</td>
@@ -821,6 +870,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <option value="REJEITADO">{STATUS_LABELS.REJEITADO}</option>
                     <option value="EM_PRODUCAO">{STATUS_LABELS.EM_PRODUCAO}</option>
                     <option value="FINALIZADO">{STATUS_LABELS.FINALIZADO}</option>
+                    <option value="PENDENTE_ENTREGA">{STATUS_LABELS.PENDENTE_ENTREGA}</option>
+                    <option value="ENTREGUE">{STATUS_LABELS.ENTREGUE}</option>
                   </select>
                 </div>
                 <div className="field">
@@ -1164,6 +1215,51 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         onSelect={handlePickProduto}
         onClose={() => setPickerFor(null)}
       />
+
+      {contaReceberOrcamento && (
+        <div className="modal-overlay" onClick={() => setContaReceberOrcamento(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h3>Gerar Contas a Receber</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setContaReceberOrcamento(null)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <p className="hint" style={{ marginTop: -8 }}>
+              Orçamento #{contaReceberOrcamento.codigo} — {contaReceberOrcamento.cliente_nome} — R${' '}
+              {contaReceberOrcamento.valor_total}
+            </p>
+            <div className="field">
+              <label>Data de Vencimento</label>
+              <input
+                type="date"
+                value={contaReceberVencimento}
+                onChange={(e) => setContaReceberVencimento(e.target.value)}
+                required
+              />
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={gerandoContaReceber}
+                onClick={handleConfirmarContaReceber}
+                style={{ width: 'auto', padding: '10px 20px' }}
+              >
+                {gerandoContaReceber ? 'Gerando...' : 'Gerar Contas a Receber'}
+              </button>
+              <button type="button" className="btn-small" onClick={() => setContaReceberOrcamento(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selecionado && (
         <div className="card">
