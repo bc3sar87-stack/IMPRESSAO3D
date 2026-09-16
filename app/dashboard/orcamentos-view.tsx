@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from './search-box';
 import ProductPicker, { ProdutoPicker } from './product-picker';
-import { IconEdit, IconCopy, IconList, IconCalculator, IconTrash } from './icons';
+import { IconEdit, IconCopy, IconList, IconCalculator, IconTrash, IconCheck } from './icons';
 
 export type OrcamentoStatus =
   | 'ABERTO'
@@ -185,6 +185,16 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
   const [novoItem, setNovoItem] = useState(emptyNovoItem);
   const [itemError, setItemError] = useState('');
+  const [novoItemParamsOpen, setNovoItemParamsOpen] = useState(false);
+  const [novoItemParams, setNovoItemParams] = useState({
+    equipamento_codigo: '',
+    markup_percentual: '',
+    impostos_percentual: '',
+    taxa_marketplace: 'VENDA_DIRETA',
+    taxa_percentual: '0',
+  });
+  const [calculandoNovoItem, setCalculandoNovoItem] = useState(false);
+  const [salvandoValorCodigo, setSalvandoValorCodigo] = useState<number | null>(null);
 
   const orcamentosFiltrados = orcamentos.filter((o) => {
     const q = busca.toLowerCase();
@@ -708,32 +718,93 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     }
   }
 
-  async function handleAddItem(e: FormEvent) {
-    e.preventDefault();
-    if (!selecionado) return;
-    setItemError('');
+  function abrirParametrosNovoItem() {
     if (!novoItem.produto_codigo) {
       setItemError('Selecione um produto.');
       return;
     }
-    const res = await fetch(`/api/orcamentos/${selecionado.codigo}/itens`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...novoItem, valor_unitario: (novoItem.valor_unitario || '0').replace(',', '.') }),
+    if (!selecionado) return;
+    setNovoItemParams({
+      equipamento_codigo: selecionado.equipamento_codigo ? String(selecionado.equipamento_codigo) : '',
+      markup_percentual: selecionado.markup_percentual || '0',
+      impostos_percentual: selecionado.impostos_percentual || '0',
+      taxa_marketplace: selecionado.taxa_marketplace || 'VENDA_DIRETA',
+      taxa_percentual: selecionado.taxa_percentual || '0',
     });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setItemError(data.error || 'Não foi possível adicionar.');
-      return;
+    setItemError('');
+    setNovoItemParamsOpen(true);
+  }
+
+  async function handleCalcularEAdicionarItem() {
+    if (!selecionado) return;
+    const produto = produtos.find((p) => String(p.codigo) === novoItem.produto_codigo);
+    if (!produto) return;
+    setCalculandoNovoItem(true);
+    try {
+      const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(
+        produto,
+        novoItemParams.equipamento_codigo
+      );
+      const markup = parseDecimal(novoItemParams.markup_percentual) || 0;
+      const impostos = parseDecimal(novoItemParams.impostos_percentual) || 0;
+      const taxa = parseDecimal(novoItemParams.taxa_percentual) || 0;
+      const custoTotal = materialCost + energiaCost + maoDeObraCost;
+      const lucro = custoTotal * (markup / 100);
+      const precoBase = custoTotal + lucro;
+      const percentualFees = (impostos + taxa) / 100;
+      const precoVenda = percentualFees < 1 ? precoBase / (1 - percentualFees) : precoBase;
+      const valorUnitario = produto.quantidade > 0 ? precoVenda / produto.quantidade : precoVenda;
+
+      const res = await fetch(`/api/orcamentos/${selecionado.codigo}/itens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          produto_codigo: novoItem.produto_codigo,
+          quantidade: String(produto.quantidade),
+          valor_unitario: valorUnitario.toFixed(2),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setItemError(data.error || 'Não foi possível adicionar.');
+        return;
+      }
+      setNovoItem(emptyNovoItem);
+      setNovoItemParamsOpen(false);
+      await refreshItens(selecionado.codigo);
+    } finally {
+      setCalculandoNovoItem(false);
     }
-    setNovoItem(emptyNovoItem);
-    await refreshItens(selecionado.codigo);
   }
 
   async function handleDeleteItem(itemCodigo: number) {
     if (!selecionado) return;
     await fetch(`/api/orcamentos/${selecionado.codigo}/itens/${itemCodigo}`, { method: 'DELETE' });
     await refreshItens(selecionado.codigo);
+  }
+
+  function handleItemValorChange(itemCodigo: number, value: string) {
+    setItens(itens.map((it) => (it.codigo === itemCodigo ? { ...it, valor_unitario: value } : it)));
+  }
+
+  async function handleSalvarValorItem(item: ItemOrcamento) {
+    if (!selecionado) return;
+    setSalvandoValorCodigo(item.codigo);
+    try {
+      const res = await fetch(`/api/orcamentos/${selecionado.codigo}/itens/${item.codigo}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valor_unitario: String(item.valor_unitario).replace(',', '.') }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Não foi possível salvar o valor.');
+        return;
+      }
+      await refreshItens(selecionado.codigo);
+    } finally {
+      setSalvandoValorCodigo(null);
+    }
   }
 
   const produtoSelecionadoPendente = produtos.find((p) => String(p.codigo) === novoItemLocal.produto_codigo);
@@ -1251,6 +1322,106 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         </div>
       )}
 
+      {novoItemParamsOpen && (
+        <div className="modal-overlay" onClick={() => setNovoItemParamsOpen(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Parâmetros de Custo do Item</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setNovoItemParamsOpen(false)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <p className="hint" style={{ marginTop: -8 }}>
+              {produtoSelecionadoExistente?.descricao}
+            </p>
+            <div className="form-grid">
+              <div className="field">
+                <label>Equipamento de Impressão</label>
+                <select
+                  value={novoItemParams.equipamento_codigo}
+                  onChange={(e) => setNovoItemParams({ ...novoItemParams, equipamento_codigo: e.target.value })}
+                >
+                  <option value="">Selecione...</option>
+                  {equipamentos.map((eq) => (
+                    <option key={eq.codigo} value={eq.codigo}>
+                      {eq.fabricante} {eq.modelo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Markup (%)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={novoItemParams.markup_percentual}
+                  onChange={(e) => setNovoItemParams({ ...novoItemParams, markup_percentual: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Impostos (DAS) (%)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={novoItemParams.impostos_percentual}
+                  onChange={(e) => setNovoItemParams({ ...novoItemParams, impostos_percentual: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label>Taxa Marketplace</label>
+                <select
+                  value={novoItemParams.taxa_marketplace}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNovoItemParams({
+                      ...novoItemParams,
+                      taxa_marketplace: value,
+                      taxa_percentual: value === 'VENDA_DIRETA' ? '0' : novoItemParams.taxa_percentual,
+                    });
+                  }}
+                >
+                  <option value="VENDA_DIRETA">Venda Direta (0%)</option>
+                  <option value="MANUAL">Manual</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>% Taxa</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={novoItemParams.taxa_percentual}
+                  onChange={(e) => setNovoItemParams({ ...novoItemParams, taxa_percentual: e.target.value })}
+                  disabled={novoItemParams.taxa_marketplace === 'VENDA_DIRETA'}
+                />
+              </div>
+            </div>
+            <p className="hint">
+              Embalagem e Custos Extras são aplicados uma única vez sobre o orçamento inteiro — ajuste-os na edição
+              do orçamento e use o botão Raio X para recalcular todos os itens juntos.
+            </p>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={calculandoNovoItem}
+                onClick={handleCalcularEAdicionarItem}
+                style={{ width: 'auto', padding: '10px 20px' }}
+              >
+                {calculandoNovoItem ? 'Calculando...' : 'Calcular e Adicionar'}
+              </button>
+              <button type="button" className="btn-small" onClick={() => setNovoItemParamsOpen(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ProductPicker
         open={pickerFor !== null}
         produtos={produtos}
@@ -1337,12 +1508,32 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   <tr key={item.codigo}>
                     <td>{item.produto_descricao}</td>
                     <td>{item.quantidade}</td>
-                    <td>R$ {item.valor_unitario}</td>
+                    <td>
+                      <div className="input-prefix-group" style={{ minWidth: 140 }}>
+                        <span className="input-prefix">R$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={item.valor_unitario}
+                          onChange={(e) => handleItemValorChange(item.codigo, e.target.value)}
+                        />
+                      </div>
+                    </td>
                     <td>R$ {item.subtotal}</td>
                     <td>
-                      <button className="icon-btn danger" title="Remover" onClick={() => handleDeleteItem(item.codigo)}>
-                        <IconTrash />
-                      </button>
+                      <div className="row-actions">
+                        <button
+                          className="icon-btn"
+                          title="Salvar valor unitário"
+                          onClick={() => handleSalvarValorItem(item)}
+                          disabled={salvandoValorCodigo === item.codigo}
+                        >
+                          <IconCheck />
+                        </button>
+                        <button className="icon-btn danger" title="Remover" onClick={() => handleDeleteItem(item.codigo)}>
+                          <IconTrash />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1355,41 +1546,32 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
             </table>
           </div>
 
-          <form onSubmit={handleAddItem}>
-            <div className="form-grid">
-              <div className="field">
-                <label>Produto</label>
-                <button
-                  type="button"
-                  className="pricing-select-btn"
-                  onClick={() => setPickerFor('existente')}
-                >
-                  {produtoSelecionadoExistente ? (
-                    produtoSelecionadoExistente.descricao
-                  ) : (
-                    <span className="pricing-select-placeholder">Selecionar produto...</span>
-                  )}
-                </button>
-              </div>
-              <div className="field">
-                <label>Quantidade (do cadastro do produto)</label>
-                <input value={novoItem.quantidade} disabled />
-              </div>
-              <div className="field">
-                <label>Valor Unitário (R$)</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={novoItem.valor_unitario}
-                  onChange={(e) => setNovoItem({ ...novoItem, valor_unitario: e.target.value })}
-                  required
-                />
-              </div>
+          <div className="form-grid">
+            <div className="field">
+              <label>Produto</label>
+              <button
+                type="button"
+                className="pricing-select-btn"
+                onClick={() => setPickerFor('existente')}
+              >
+                {produtoSelecionadoExistente ? (
+                  produtoSelecionadoExistente.descricao
+                ) : (
+                  <span className="pricing-select-placeholder">Selecionar produto...</span>
+                )}
+              </button>
             </div>
-            <button className="btn-small" type="submit" style={{ marginTop: 8 }}>
-              Adicionar item
-            </button>
-          </form>
+            <div className="field">
+              <label>Quantidade (do cadastro do produto)</label>
+              <input value={novoItem.quantidade} disabled />
+            </div>
+          </div>
+          <p className="hint" style={{ marginTop: -4 }}>
+            Informe os parâmetros de custo para calcular o valor sugerido deste item.
+          </p>
+          <button type="button" className="btn-small" style={{ marginTop: 8 }} onClick={abrirParametrosNovoItem}>
+            Calcular e Adicionar
+          </button>
         </div>
       )}
     </div>
