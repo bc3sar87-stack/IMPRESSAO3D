@@ -407,7 +407,21 @@ body {
 }
 
 .input-prefix-group input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
   border-radius: 0 8px 8px 0;
+  font-size: 15px;
+}
+
+.input-prefix-group input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  border-color: #2563eb;
+  z-index: 1;
+  position: relative;
 }
 
 .paste-zone {

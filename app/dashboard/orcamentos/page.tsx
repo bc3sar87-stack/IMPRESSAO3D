@@ -849,7 +849,7 @@ export default function OrcamentosPage() {
                               <td>{item.quantidade}</td>
                               <td>R$ {Number(item.custo_unitario || 0).toFixed(2)}</td>
                               <td>
-                                <div className="input-prefix-group" style={{ maxWidth: 140 }}>
+                                <div className="input-prefix-group" style={{ minWidth: 140 }}>
                                   <span className="input-prefix">R$</span>
                                   <input
                                     type="text"
