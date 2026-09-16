@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireUsuario } from '@/lib/auth';
 
 async function recalcularTotal(orcamentoCodigo: string, empresaCodigo: number) {
   await pool.query(
@@ -13,7 +13,7 @@ async function recalcularTotal(orcamentoCodigo: string, empresaCodigo: number) {
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ codigo: string }> }) {
-  const session = await requireAdmin();
+  const session = await requireUsuario();
   if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
   }
@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
-  const session = await requireAdmin();
+  const session = await requireUsuario();
   if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
   }

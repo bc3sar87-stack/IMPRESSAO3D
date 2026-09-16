@@ -74,8 +74,9 @@ export default function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
         Início
       </Link>
 
-      {isAdmin &&
-        groups.map((group) => (
+      {groups
+        .filter((group) => group.title !== 'Administração' || isAdmin)
+        .map((group) => (
           <div className="sidebar-group" key={group.title}>
             <button
               type="button"

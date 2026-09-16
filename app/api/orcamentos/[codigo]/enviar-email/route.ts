@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireUsuario } from '@/lib/auth';
 import { sendSystemEmail } from '@/lib/mailer';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
-  const session = await requireAdmin();
+  const session = await requireUsuario();
   if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
   }
@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
-  const session = await requireAdmin();
+  const session = await requireUsuario();
   if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
   }

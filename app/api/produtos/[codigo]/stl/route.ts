@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { getSession, requireAdmin } from '@/lib/auth';
+import { getSession, requireUsuario } from '@/lib/auth';
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -30,7 +30,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
-  const session = await requireAdmin();
+  const session = await requireUsuario();
   if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
   }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
-  const session = await requireAdmin();
+  const session = await requireUsuario();
   if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
   }

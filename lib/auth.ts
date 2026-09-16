@@ -44,6 +44,10 @@ export async function requireAdmin(): Promise<SessionPayload | null> {
   return session?.nivel === 'ADMINISTRADOR' ? session : null;
 }
 
+export async function requireUsuario(): Promise<SessionPayload | null> {
+  return getSession();
+}
+
 export function setSessionCookie(response: NextResponse, payload: SessionPayload) {
   response.cookies.set(SESSION_COOKIE, signSession(payload), {
     httpOnly: true,

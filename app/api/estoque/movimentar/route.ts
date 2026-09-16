@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requireUsuario } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
-  const session = await requireAdmin();
+  const session = await requireUsuario();
   if (!session) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
   }
