@@ -36,7 +36,13 @@ export function buildTransporter(config: EmailConfig) {
   });
 }
 
-export async function sendSystemEmail(opts: { to: string; subject: string; text: string; html?: string }) {
+export async function sendSystemEmail(opts: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  attachments?: { filename: string; content: Buffer; cid?: string; contentType?: string }[];
+}) {
   const config = await loadEmailConfig();
   if (!config || !config.ativo || !config.servidor_smtp || !config.porta || !config.email_remetente) {
     throw new Error('Configuração de e-mail não está ativa ou está incompleta.');
@@ -52,6 +58,7 @@ export async function sendSystemEmail(opts: { to: string; subject: string; text:
     subject: opts.subject,
     text: opts.text,
     html: opts.html,
+    attachments: opts.attachments,
   });
 }
 

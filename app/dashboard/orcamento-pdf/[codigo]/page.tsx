@@ -35,12 +35,15 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
   const [orcamento, setOrcamento] = useState<OrcamentoDetalhe | null>(null);
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
   const [erro, setErro] = useState('');
+  const [chavePix, setChavePix] = useState('');
+  const [temQrcodePix, setTemQrcodePix] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const [orcRes, itensRes] = await Promise.all([
+      const [orcRes, itensRes, pixRes] = await Promise.all([
         fetch(`/api/orcamentos/${codigo}`),
         fetch(`/api/orcamentos/${codigo}/itens`),
+        fetch('/api/configuracao-pix'),
       ]);
       if (!orcRes.ok) {
         const data = await orcRes.json().catch(() => ({}));
@@ -49,6 +52,11 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
       }
       setOrcamento(await orcRes.json());
       if (itensRes.ok) setItens(await itensRes.json());
+      if (pixRes.ok) {
+        const pix = await pixRes.json();
+        setChavePix(pix.chave_pix || '');
+        setTemQrcodePix(pix.tem_qrcode);
+      }
     }
     load();
   }, [codigo]);
@@ -161,6 +169,27 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
           <>
             <h4 style={{ marginTop: 20, marginBottom: 8 }}>Observações</h4>
             <p style={{ margin: 0 }}>{orcamento.observacoes}</p>
+          </>
+        )}
+
+        {(chavePix || temQrcodePix) && (
+          <>
+            <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #e2e8f0' }} />
+            <h4 style={{ marginBottom: 8 }}>Pagamento via Pix</h4>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+              {temQrcodePix && (
+                <img
+                  src="/api/configuracao-pix/qrcode"
+                  alt="QR Code Pix"
+                  style={{ width: 140, height: 140, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 8 }}
+                />
+              )}
+              {chavePix && (
+                <p style={{ margin: 0 }}>
+                  <strong>Chave Pix:</strong> {chavePix}
+                </p>
+              )}
+            </div>
           </>
         )}
       </div>

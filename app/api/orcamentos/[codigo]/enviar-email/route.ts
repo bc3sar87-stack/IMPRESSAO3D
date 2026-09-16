@@ -70,6 +70,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     [codigo, session.empresa_codigo]
   );
 
+  const { rows: pixRows } = await pool.query(
+    `SELECT chave_pix, qrcode_imagem, qrcode_tipo FROM configuracao_pix WHERE empresa_codigo = $1`,
+    [session.empresa_codigo]
+  );
+  const pix = pixRows[0];
+
   const linhasItens = itensRows
     .map(
       (item) => `
@@ -122,6 +128,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         Total: R$ ${Number(orcamento.valor_total).toFixed(2)}
       </p>
       ${orcamento.observacoes ? `<p><strong>Observações:</strong> ${orcamento.observacoes}</p>` : ''}
+      ${
+        pix && (pix.chave_pix || pix.qrcode_imagem)
+          ? `<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
+               <h3 style="color:#1e293b;margin:0 0 8px;">Pagamento via Pix</h3>
+               <table style="width:100%;"><tr>
+                 ${pix.qrcode_imagem ? `<td style="vertical-align:middle;padding-right:16px;"><img src="cid:pixqrcode" alt="QR Code Pix" style="width:140px;height:140px;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;" /></td>` : ''}
+                 ${pix.chave_pix ? `<td style="vertical-align:middle;"><strong>Chave Pix:</strong><br/>${pix.chave_pix}</td>` : ''}
+               </tr></table>
+             </div>`
+          : ''
+      }
       <p style="color:#64748b;font-size:12px;margin-top:24px;">
         Este orçamento foi enviado por ${orcamento.empresa_razao_social}.
       </p>
@@ -136,6 +153,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       subject: `Orçamento #${orcamento.codigo} — ${orcamento.empresa_razao_social}`,
       text: `Olá, ${orcamento.cliente_nome}! Segue o orçamento #${orcamento.codigo}. Valor total: R$ ${Number(orcamento.valor_total).toFixed(2)}.`,
       html,
+      attachments: pix?.qrcode_imagem
+        ? [
+            {
+              filename: 'pix-qrcode.png',
+              content: pix.qrcode_imagem,
+              cid: 'pixqrcode',
+              contentType: pix.qrcode_tipo || 'image/png',
+            },
+          ]
+        : undefined,
     });
   } catch (err) {
     sucesso = false;
