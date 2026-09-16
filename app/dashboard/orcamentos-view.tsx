@@ -192,6 +192,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     impostos_percentual: '',
     taxa_marketplace: 'VENDA_DIRETA',
     taxa_percentual: '0',
+    embalagem_valor: '',
+    custos_extras_valor: '',
   });
   const [calculandoNovoItem, setCalculandoNovoItem] = useState(false);
   const [salvandoValorCodigo, setSalvandoValorCodigo] = useState<number | null>(null);
@@ -398,8 +400,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       const markup = parseDecimal(form.markup_percentual) || 0;
       const impostos = parseDecimal(form.impostos_percentual) || 0;
       const taxa = parseDecimal(form.taxa_percentual) || 0;
+      const embalagem = parseDecimal(form.embalagem_valor) || 0;
+      const custosExtras = parseDecimal(form.custos_extras_valor) || 0;
 
-      const custoTotal = materialCost + energiaCost + maoDeObraCost;
+      const custoTotal = materialCost + energiaCost + maoDeObraCost + embalagem + custosExtras;
       const lucro = custoTotal * (markup / 100);
       const precoBase = custoTotal + lucro;
       const percentualFees = (impostos + taxa) / 100;
@@ -730,6 +734,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       impostos_percentual: selecionado.impostos_percentual || '0',
       taxa_marketplace: selecionado.taxa_marketplace || 'VENDA_DIRETA',
       taxa_percentual: selecionado.taxa_percentual || '0',
+      embalagem_valor: selecionado.embalagem_valor || '0',
+      custos_extras_valor: selecionado.custos_extras_valor || '0',
     });
     setItemError('');
     setNovoItemParamsOpen(true);
@@ -748,7 +754,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       const markup = parseDecimal(novoItemParams.markup_percentual) || 0;
       const impostos = parseDecimal(novoItemParams.impostos_percentual) || 0;
       const taxa = parseDecimal(novoItemParams.taxa_percentual) || 0;
-      const custoTotal = materialCost + energiaCost + maoDeObraCost;
+      const embalagem = parseDecimal(novoItemParams.embalagem_valor) || 0;
+      const custosExtras = parseDecimal(novoItemParams.custos_extras_valor) || 0;
+      const custoTotal = materialCost + energiaCost + maoDeObraCost + embalagem + custosExtras;
       const lucro = custoTotal * (markup / 100);
       const precoBase = custoTotal + lucro;
       const percentualFees = (impostos + taxa) / 100;
@@ -1399,11 +1407,31 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   disabled={novoItemParams.taxa_marketplace === 'VENDA_DIRETA'}
                 />
               </div>
+              <div className="field">
+                <label>Embalagem (R$)</label>
+                <div className="input-prefix-group">
+                  <span className="input-prefix">R$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={novoItemParams.embalagem_valor}
+                    onChange={(e) => setNovoItemParams({ ...novoItemParams, embalagem_valor: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label>Custos Extras (R$)</label>
+                <div className="input-prefix-group">
+                  <span className="input-prefix">R$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={novoItemParams.custos_extras_valor}
+                    onChange={(e) => setNovoItemParams({ ...novoItemParams, custos_extras_valor: e.target.value })}
+                  />
+                </div>
+              </div>
             </div>
-            <p className="hint">
-              Embalagem e Custos Extras são aplicados uma única vez sobre o orçamento inteiro — ajuste-os na edição
-              do orçamento e use o botão Raio X para recalcular todos os itens juntos.
-            </p>
             <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
               <button
                 className="btn-primary"
