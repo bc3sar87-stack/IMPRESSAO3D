@@ -1024,6 +1024,7 @@ export default function OrcamentosPage() {
       <ProductPicker
         open={pickerFor !== null}
         produtos={produtos}
+        custoBaseFilamento={custoBaseFilamento}
         onSelect={handlePickProduto}
         onClose={() => setPickerFor(null)}
       />

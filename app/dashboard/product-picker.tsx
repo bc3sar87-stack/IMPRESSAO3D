@@ -4,6 +4,15 @@ import { useState } from 'react';
 import SearchBox from './search-box';
 import { formatSegundos } from './time-input';
 
+export interface ProdutoPickerMaterial {
+  materia_prima_codigo: number;
+  nome: string;
+  cor: string;
+  cor_hex: string;
+  peso: string;
+  valor_custo: string | null;
+}
+
 export interface ProdutoPicker {
   codigo: number;
   descricao: string;
@@ -11,16 +20,19 @@ export interface ProdutoPicker {
   tempo_impressao_segundos: number;
   tempo_mao_obra_segundos: number;
   tem_foto: boolean;
+  materiais: ProdutoPickerMaterial[];
 }
 
 export default function ProductPicker({
   open,
   produtos,
+  custoBaseFilamento,
   onSelect,
   onClose,
 }: {
   open: boolean;
   produtos: ProdutoPicker[];
+  custoBaseFilamento: string;
   onSelect: (produto: ProdutoPicker) => void;
   onClose: () => void;
 }) {
@@ -28,6 +40,7 @@ export default function ProductPicker({
 
   if (!open) return null;
 
+  const custoPadrao = Number(custoBaseFilamento) || 0;
   const filtrados = produtos.filter((p) => p.descricao.toLowerCase().includes(busca.toLowerCase()));
 
   return (
@@ -41,29 +54,51 @@ export default function ProductPicker({
         </div>
         <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por descrição..." />
         <div className="product-picker-list">
-          {filtrados.map((p) => (
-            <button
-              type="button"
-              key={p.codigo}
-              className="product-picker-item"
-              onClick={() => {
-                onSelect(p);
-                onClose();
-              }}
-            >
-              {p.tem_foto ? (
-                <img src={`/api/produtos/${p.codigo}/foto`} alt={p.descricao} className="product-picker-thumb" />
-              ) : (
-                <div className="product-picker-noimg">Sem foto</div>
-              )}
-              <div className="product-picker-info">
-                <strong>{p.descricao}</strong>
-                <span>Qtd por lote: {p.quantidade}</span>
-                <span>Impressão: {formatSegundos(p.tempo_impressao_segundos)}</span>
-                <span>Mão de obra: {formatSegundos(p.tempo_mao_obra_segundos)}</span>
-              </div>
-            </button>
-          ))}
+          {filtrados.map((p) => {
+            const custoMaterial = p.materiais.reduce((soma, m) => {
+              const custoKg = m.valor_custo ? Number(m.valor_custo) : custoPadrao;
+              return soma + (Number(m.peso) / 1000) * custoKg;
+            }, 0);
+
+            return (
+              <button
+                type="button"
+                key={p.codigo}
+                className="product-picker-item"
+                onClick={() => {
+                  onSelect(p);
+                  onClose();
+                }}
+              >
+                {p.tem_foto ? (
+                  <img src={`/api/produtos/${p.codigo}/foto`} alt={p.descricao} className="product-picker-thumb" />
+                ) : (
+                  <div className="product-picker-noimg">Sem foto</div>
+                )}
+                <div className="product-picker-info">
+                  <strong>{p.descricao}</strong>
+                  <span>Qtd por lote: {p.quantidade}</span>
+                  <span>Impressão: {formatSegundos(p.tempo_impressao_segundos)}</span>
+                  <span>Mão de obra: {formatSegundos(p.tempo_mao_obra_segundos)}</span>
+                  {p.materiais.length > 0 ? (
+                    <>
+                      <span className="product-picker-materiais">
+                        {p.materiais.map((m) => (
+                          <span key={m.materia_prima_codigo} className="product-picker-material-tag">
+                            <span className="color-swatch" style={{ backgroundColor: m.cor_hex }} />
+                            {m.nome} ({m.cor})
+                          </span>
+                        ))}
+                      </span>
+                      <span>Custo material: R$ {custoMaterial.toFixed(2)}</span>
+                    </>
+                  ) : (
+                    <span>Sem material cadastrado</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
           {filtrados.length === 0 && <p className="hint">Nenhum produto encontrado.</p>}
         </div>
       </div>
