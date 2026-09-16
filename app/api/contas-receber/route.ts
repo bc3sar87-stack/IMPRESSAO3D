@@ -13,9 +13,11 @@ export async function GET() {
 
   const { rows } = await pool.query(
     `SELECT cr.codigo, cr.orcamento_codigo, cr.cliente_codigo, c.nome AS cliente_nome,
-            cr.descricao, cr.valor, cr.data_vencimento, cr.data_recebimento, cr.status
+            cr.descricao, cr.valor, cr.data_vencimento, cr.data_recebimento, cr.status,
+            cr.banco_codigo, b.codigo_banco, b.agencia, b.num_conta, b.descricao AS banco_descricao
      FROM contas_receber cr
      LEFT JOIN clientes c ON c.codigo = cr.cliente_codigo
+     LEFT JOIN bancos b ON b.codigo = cr.banco_codigo
      WHERE cr.empresa_codigo = $1
      ORDER BY cr.data_vencimento, cr.codigo`,
     [session.empresa_codigo]

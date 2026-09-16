@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { codigo } = await params;
-  const { descricao, valor, data_vencimento, data_recebimento, status } = await request
+  const { descricao, valor, data_vencimento, data_recebimento, status, banco_codigo } = await request
     .json()
     .catch(() => ({}));
 
@@ -25,13 +25,38 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (Number(valor) <= 0) {
     return NextResponse.json({ error: 'Valor deve ser maior que zero.' }, { status: 400 });
   }
+  if (status === 'RECEBIDO' && !banco_codigo) {
+    return NextResponse.json(
+      { error: 'Selecione o banco em que o título será baixado.' },
+      { status: 400 }
+    );
+  }
+
+  if (banco_codigo) {
+    const { rows: bancoRows } = await pool.query(
+      `SELECT 1 FROM bancos WHERE codigo=$1 AND empresa_codigo=$2`,
+      [banco_codigo, session.empresa_codigo]
+    );
+    if (bancoRows.length === 0) {
+      return NextResponse.json({ error: 'Banco inválido.' }, { status: 400 });
+    }
+  }
 
   const { rows } = await pool.query(
     `UPDATE contas_receber
-     SET descricao=$1, valor=$2, data_vencimento=$3, data_recebimento=$4, status=$5
-     WHERE codigo=$6 AND empresa_codigo=$7
+     SET descricao=$1, valor=$2, data_vencimento=$3, data_recebimento=$4, status=$5, banco_codigo=$6
+     WHERE codigo=$7 AND empresa_codigo=$8
      RETURNING codigo`,
-    [descricao, valor, data_vencimento, data_recebimento || null, status, codigo, session.empresa_codigo]
+    [
+      descricao,
+      valor,
+      data_vencimento,
+      data_recebimento || null,
+      status,
+      banco_codigo || null,
+      codigo,
+      session.empresa_codigo,
+    ]
   );
   if (rows.length === 0) {
     return NextResponse.json({ error: 'Registro não encontrado.' }, { status: 404 });

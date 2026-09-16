@@ -14,11 +14,24 @@ interface ContaReceber {
   data_vencimento: string;
   data_recebimento: string | null;
   status: 'ABERTO' | 'RECEBIDO' | 'CANCELADO';
+  banco_codigo: number | null;
+  codigo_banco: string | null;
+  agencia: string | null;
+  num_conta: string | null;
+  banco_descricao: string | null;
 }
 
 interface Cliente {
   codigo: number;
   nome: string;
+}
+
+interface Banco {
+  codigo: number;
+  codigo_banco: string;
+  agencia: string;
+  num_conta: string;
+  descricao: string | null;
 }
 
 const STATUS_LABELS: Record<ContaReceber['status'], string> = {
@@ -40,6 +53,7 @@ const emptyForm = {
   data_vencimento: '',
   data_recebimento: '',
   status: 'ABERTO' as ContaReceber['status'],
+  banco_codigo: '',
 };
 
 function hoje() {
@@ -50,15 +64,25 @@ function parseDecimal(value: string): number {
   return Number(String(value).trim().replace(',', '.'));
 }
 
+function bancoLabel(b: Banco) {
+  return `${b.codigo_banco} — Ag. ${b.agencia} / CC ${b.num_conta}${b.descricao ? ` (${b.descricao})` : ''}`;
+}
+
 export default function ContasReceberPage() {
   const [contas, setContas] = useState<ContaReceber[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [bancos, setBancos] = useState<Banco[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
+
+  const [baixaConta, setBaixaConta] = useState<ContaReceber | null>(null);
+  const [bancoBaixa, setBancoBaixa] = useState('');
+  const [baixaErro, setBaixaErro] = useState('');
+  const [baixando, setBaixando] = useState(false);
 
   const contasFiltradas = contas.filter((c) => {
     const q = busca.toLowerCase();
@@ -72,9 +96,14 @@ export default function ContasReceberPage() {
     .reduce((soma, c) => soma + Number(c.valor), 0);
 
   async function load() {
-    const [contasRes, cliRes] = await Promise.all([fetch('/api/contas-receber'), fetch('/api/clientes')]);
+    const [contasRes, cliRes, bancosRes] = await Promise.all([
+      fetch('/api/contas-receber'),
+      fetch('/api/clientes'),
+      fetch('/api/bancos'),
+    ]);
     if (contasRes.ok) setContas(await contasRes.json());
     if (cliRes.ok) setClientes(await cliRes.json());
+    if (bancosRes.ok) setBancos(await bancosRes.json());
   }
 
   useEffect(() => {
@@ -97,6 +126,7 @@ export default function ContasReceberPage() {
       data_vencimento: c.data_vencimento.slice(0, 10),
       data_recebimento: c.data_recebimento ? c.data_recebimento.slice(0, 10) : '',
       status: c.status,
+      banco_codigo: c.banco_codigo ? String(c.banco_codigo) : '',
     });
     setError('');
     setModalOpen(true);
@@ -118,6 +148,10 @@ export default function ContasReceberPage() {
       setError('Informe um valor válido.');
       return;
     }
+    if (form.status === 'RECEBIDO' && !form.banco_codigo) {
+      setError('Selecione o banco em que o título foi baixado.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -133,6 +167,7 @@ export default function ContasReceberPage() {
           data_vencimento: form.data_vencimento || hoje(),
           data_recebimento: form.data_recebimento || null,
           status: form.status,
+          banco_codigo: form.banco_codigo || null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -147,24 +182,48 @@ export default function ContasReceberPage() {
     }
   }
 
-  async function handleMarcarRecebido(c: ContaReceber) {
-    const res = await fetch(`/api/contas-receber/${c.codigo}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        descricao: c.descricao,
-        valor: c.valor,
-        data_vencimento: c.data_vencimento.slice(0, 10),
-        data_recebimento: hoje(),
-        status: 'RECEBIDO',
-      }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Não foi possível marcar como recebido.');
+  function abrirBaixa(c: ContaReceber) {
+    setBaixaConta(c);
+    setBancoBaixa('');
+    setBaixaErro('');
+  }
+
+  function fecharBaixa() {
+    setBaixaConta(null);
+    setBancoBaixa('');
+    setBaixaErro('');
+  }
+
+  async function handleConfirmarBaixa() {
+    if (!baixaConta) return;
+    if (!bancoBaixa) {
+      setBaixaErro('Selecione o banco em que o título será baixado.');
       return;
     }
-    load();
+    setBaixando(true);
+    try {
+      const res = await fetch(`/api/contas-receber/${baixaConta.codigo}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          descricao: baixaConta.descricao,
+          valor: baixaConta.valor,
+          data_vencimento: baixaConta.data_vencimento.slice(0, 10),
+          data_recebimento: hoje(),
+          status: 'RECEBIDO',
+          banco_codigo: bancoBaixa,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setBaixaErro(data.error || 'Não foi possível marcar como recebido.');
+        return;
+      }
+      fecharBaixa();
+      load();
+    } finally {
+      setBaixando(false);
+    }
   }
 
   async function handleDelete(codigo: number) {
@@ -204,6 +263,7 @@ export default function ContasReceberPage() {
               <th>Valor</th>
               <th>Vencimento</th>
               <th>Recebimento</th>
+              <th>Banco</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -222,6 +282,7 @@ export default function ContasReceberPage() {
                     ? new Date(c.data_recebimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
                     : '-'}
                 </td>
+                <td>{c.codigo_banco ? `${c.codigo_banco} — Ag. ${c.agencia}` : '-'}</td>
                 <td>
                   <span className={`status-badge ${STATUS_BADGE_CLASS[c.status]}`}>
                     {STATUS_LABELS[c.status]}
@@ -233,11 +294,7 @@ export default function ContasReceberPage() {
                       <IconEdit />
                     </button>
                     {c.status === 'ABERTO' && (
-                      <button
-                        className="icon-btn"
-                        title="Marcar como Recebido"
-                        onClick={() => handleMarcarRecebido(c)}
-                      >
+                      <button className="icon-btn" title="Marcar como Recebido" onClick={() => abrirBaixa(c)}>
                         <IconCheck />
                       </button>
                     )}
@@ -250,7 +307,7 @@ export default function ContasReceberPage() {
             ))}
             {contasFiltradas.length === 0 && (
               <tr>
-                <td colSpan={9}>Nenhum título encontrado.</td>
+                <td colSpan={10}>Nenhum título encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -334,6 +391,28 @@ export default function ContasReceberPage() {
                         <option value="CANCELADO">Cancelado</option>
                       </select>
                     </div>
+                    {form.status === 'RECEBIDO' && (
+                      <div className="field">
+                        <label>Banco da Baixa</label>
+                        <select
+                          value={form.banco_codigo}
+                          onChange={(e) => setForm({ ...form, banco_codigo: e.target.value })}
+                          required
+                        >
+                          <option value="" disabled>
+                            Selecione...
+                          </option>
+                          {bancos.map((b) => (
+                            <option key={b.codigo} value={b.codigo}>
+                              {bancoLabel(b)}
+                            </option>
+                          ))}
+                        </select>
+                        {bancos.length === 0 && (
+                          <p className="hint">Cadastre um banco em Configurações → Cadastro de Banco.</p>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -346,6 +425,53 @@ export default function ContasReceberPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {baixaConta && (
+        <div className="modal-overlay" onClick={fecharBaixa}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h3>Baixar Título</h3>
+              <button type="button" className="modal-close" onClick={fecharBaixa} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+            <p className="hint" style={{ marginTop: -8 }}>
+              {baixaConta.descricao} — R$ {baixaConta.valor}
+            </p>
+            {baixaErro && <div className="error-msg">{baixaErro}</div>}
+            <div className="field">
+              <label>Banco em que será baixado</label>
+              <select value={bancoBaixa} onChange={(e) => setBancoBaixa(e.target.value)} required>
+                <option value="" disabled>
+                  Selecione...
+                </option>
+                {bancos.map((b) => (
+                  <option key={b.codigo} value={b.codigo}>
+                    {bancoLabel(b)}
+                  </option>
+                ))}
+              </select>
+              {bancos.length === 0 && (
+                <p className="hint">Cadastre um banco em Configurações → Cadastro de Banco.</p>
+              )}
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={baixando}
+                onClick={handleConfirmarBaixa}
+                style={{ width: 'auto', padding: '10px 20px' }}
+              >
+                {baixando ? 'Baixando...' : 'Confirmar Baixa'}
+              </button>
+              <button type="button" className="btn-small" onClick={fecharBaixa}>
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
