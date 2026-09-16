@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
+import { IconTrash } from '../icons';
 
 interface ItemEstoque {
   codigo: number;
@@ -242,10 +243,11 @@ export default function EstoquePage() {
                     <td>{mov.observacao || '-'}</td>
                     <td>
                       <button
-                        className="btn-small danger"
+                        className="icon-btn danger"
+                        title="Excluir"
                         onClick={() => handleDeleteMovimentacao(mov.codigo)}
                       >
-                        Excluir
+                        <IconTrash />
                       </button>
                     </td>
                   </tr>

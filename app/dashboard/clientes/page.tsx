@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { maskCNPJ, maskCPF, maskTelefone } from '@/lib/masks';
 import SearchBox from '../search-box';
+import { IconEdit, IconCopy, IconTrash } from '../icons';
 
 interface Cliente {
   codigo: number;
@@ -171,15 +172,17 @@ export default function ClientesPage() {
                 <td>{c.telefone ? maskTelefone(c.telefone) : '-'}</td>
                 <td>{c.email || '-'}</td>
                 <td>
-                  <button className="btn-small" onClick={() => startEdit(c)}>
-                    Editar
-                  </button>
-                  <button className="btn-small" onClick={() => startCopy(c)}>
-                    Copiar
-                  </button>
-                  <button className="btn-small danger" onClick={() => handleDelete(c.codigo)}>
-                    Excluir
-                  </button>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => startEdit(c)}>
+                      <IconEdit />
+                    </button>
+                    <button className="icon-btn" title="Copiar" onClick={() => startCopy(c)}>
+                      <IconCopy />
+                    </button>
+                    <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(c.codigo)}>
+                      <IconTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

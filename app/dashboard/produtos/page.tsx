@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
 import TimeInput, { formatSegundos } from '../time-input';
+import { IconEdit, IconCopy, IconTrash, IconList } from '../icons';
 
 interface Produto {
   codigo: number;
@@ -344,18 +345,20 @@ export default function ProdutosPage() {
                   {!p.stl_nome && !p.link_stl && '-'}
                 </td>
                 <td>
-                  <button className="btn-small" onClick={() => startEdit(p)}>
-                    Editar
-                  </button>
-                  <button className="btn-small" onClick={() => startCopy(p)}>
-                    Copiar
-                  </button>
-                  <button className="btn-small" onClick={() => abrirMateriais(p)}>
-                    Materiais
-                  </button>
-                  <button className="btn-small danger" onClick={() => handleDelete(p.codigo)}>
-                    Excluir
-                  </button>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => startEdit(p)}>
+                      <IconEdit />
+                    </button>
+                    <button className="icon-btn" title="Copiar" onClick={() => startCopy(p)}>
+                      <IconCopy />
+                    </button>
+                    <button className="icon-btn" title="Materiais" onClick={() => abrirMateriais(p)}>
+                      <IconList />
+                    </button>
+                    <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(p.codigo)}>
+                      <IconTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

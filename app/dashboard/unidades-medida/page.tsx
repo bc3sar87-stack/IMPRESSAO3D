@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
+import { IconEdit, IconCopy, IconTrash } from '../icons';
 
 interface Unidade {
   codigo: number;
@@ -125,15 +126,17 @@ export default function UnidadesMedidaPage() {
                 <td>{u.sigla}</td>
                 <td>{u.nome}</td>
                 <td>
-                  <button className="btn-small" onClick={() => startEdit(u)}>
-                    Editar
-                  </button>
-                  <button className="btn-small" onClick={() => startCopy(u)}>
-                    Copiar
-                  </button>
-                  <button className="btn-small danger" onClick={() => handleDelete(u.codigo)}>
-                    Excluir
-                  </button>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => startEdit(u)}>
+                      <IconEdit />
+                    </button>
+                    <button className="icon-btn" title="Copiar" onClick={() => startCopy(u)}>
+                      <IconCopy />
+                    </button>
+                    <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(u.codigo)}>
+                      <IconTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

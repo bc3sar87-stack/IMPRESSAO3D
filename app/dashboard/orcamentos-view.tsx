@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from './search-box';
 import ProductPicker, { ProdutoPicker } from './product-picker';
+import { IconEdit, IconCopy, IconList, IconCalculator, IconTrash } from './icons';
 
 export type OrcamentoStatus = 'ABERTO' | 'APROVADO' | 'REJEITADO' | 'EM_PRODUCAO' | 'FINALIZADO';
 
@@ -12,6 +13,14 @@ const STATUS_LABELS: Record<OrcamentoStatus, string> = {
   REJEITADO: 'Reprovado',
   EM_PRODUCAO: 'Em Produção',
   FINALIZADO: 'Finalizado',
+};
+
+const STATUS_SELECT_CLASS: Record<OrcamentoStatus, string> = {
+  ABERTO: 'status-select-blue',
+  APROVADO: 'status-select-green',
+  REJEITADO: 'status-select-red',
+  EM_PRODUCAO: 'status-select-orange',
+  FINALIZADO: 'status-select-gray',
 };
 
 interface Orcamento {
@@ -570,6 +579,35 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     load();
   }
 
+  async function handleStatusChange(o: Orcamento, novoStatus: OrcamentoStatus) {
+    setOrcamentos((atual) => atual.map((item) => (item.codigo === o.codigo ? { ...item, status: novoStatus } : item)));
+    const res = await fetch(`/api/orcamentos/${o.codigo}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_codigo: o.cliente_codigo,
+        data: o.data.slice(0, 10),
+        data_entrega: o.data_entrega ? o.data_entrega.slice(0, 10) : '',
+        status: novoStatus,
+        observacoes: o.observacoes || '',
+        equipamento_codigo: o.equipamento_codigo || '',
+        markup_percentual: o.markup_percentual,
+        impostos_percentual: o.impostos_percentual,
+        taxa_marketplace: o.taxa_marketplace,
+        taxa_percentual: o.taxa_percentual,
+        embalagem_valor: o.embalagem_valor,
+        custos_extras_valor: o.custos_extras_valor,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Não foi possível alterar o status.');
+      load();
+      return;
+    }
+    load();
+  }
+
   async function abrirItens(o: Orcamento) {
     setSelecionado(o);
     setItemError('');
@@ -677,28 +715,43 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 <td>
                   {o.equipamento_fabricante ? `${o.equipamento_fabricante} ${o.equipamento_modelo}` : '-'}
                 </td>
-                <td>{STATUS_LABELS[o.status]}</td>
+                <td>
+                  <select
+                    className={`status-select ${STATUS_SELECT_CLASS[o.status]}`}
+                    value={o.status}
+                    onChange={(e) => handleStatusChange(o, e.target.value as OrcamentoStatus)}
+                  >
+                    <option value="ABERTO">{STATUS_LABELS.ABERTO}</option>
+                    <option value="APROVADO">{STATUS_LABELS.APROVADO}</option>
+                    <option value="REJEITADO">{STATUS_LABELS.REJEITADO}</option>
+                    <option value="EM_PRODUCAO">{STATUS_LABELS.EM_PRODUCAO}</option>
+                    <option value="FINALIZADO">{STATUS_LABELS.FINALIZADO}</option>
+                  </select>
+                </td>
                 <td>R$ {o.valor_total}</td>
                 <td>
-                  <button className="btn-small" onClick={() => startEdit(o)}>
-                    Editar
-                  </button>
-                  <button className="btn-small" onClick={() => startCopy(o)}>
-                    Copiar
-                  </button>
-                  <button className="btn-small" onClick={() => abrirItens(o)}>
-                    Itens
-                  </button>
-                  <button
-                    className="btn-small"
-                    onClick={() => handleRecalcularSalvo(o)}
-                    disabled={recalculandoCodigo === o.codigo}
-                  >
-                    {recalculandoCodigo === o.codigo ? 'Calculando...' : 'Raio X'}
-                  </button>
-                  <button className="btn-small danger" onClick={() => handleDelete(o.codigo)}>
-                    Excluir
-                  </button>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => startEdit(o)}>
+                      <IconEdit />
+                    </button>
+                    <button className="icon-btn" title="Copiar" onClick={() => startCopy(o)}>
+                      <IconCopy />
+                    </button>
+                    <button className="icon-btn" title="Itens" onClick={() => abrirItens(o)}>
+                      <IconList />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      title="Raio X do Preço"
+                      onClick={() => handleRecalcularSalvo(o)}
+                      disabled={recalculandoCodigo === o.codigo}
+                    >
+                      <IconCalculator />
+                    </button>
+                    <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(o.codigo)}>
+                      <IconTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -904,10 +957,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                               <td>
                                 <button
                                   type="button"
-                                  className="btn-small danger"
+                                  className="icon-btn danger"
+                                  title="Remover"
                                   onClick={() => handleRemoveItemLocal(index)}
                                 >
-                                  Remover
+                                  <IconTrash />
                                 </button>
                               </td>
                             </tr>
@@ -1147,8 +1201,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <td>R$ {item.valor_unitario}</td>
                     <td>R$ {item.subtotal}</td>
                     <td>
-                      <button className="btn-small danger" onClick={() => handleDeleteItem(item.codigo)}>
-                        Remover
+                      <button className="icon-btn danger" title="Remover" onClick={() => handleDeleteItem(item.codigo)}>
+                        <IconTrash />
                       </button>
                     </td>
                   </tr>

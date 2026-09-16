@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
+import { IconEdit, IconCopy, IconTrash } from '../icons';
 
 interface Tipo {
   codigo: number;
@@ -117,15 +118,17 @@ export default function TiposMateriaPrimaPage() {
                 <td>{tipo.codigo}</td>
                 <td>{tipo.nome}</td>
                 <td>
-                  <button className="btn-small" onClick={() => startEdit(tipo)}>
-                    Editar
-                  </button>
-                  <button className="btn-small" onClick={() => startCopy(tipo)}>
-                    Copiar
-                  </button>
-                  <button className="btn-small danger" onClick={() => handleDelete(tipo.codigo)}>
-                    Excluir
-                  </button>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => startEdit(tipo)}>
+                      <IconEdit />
+                    </button>
+                    <button className="icon-btn" title="Copiar" onClick={() => startCopy(tipo)}>
+                      <IconCopy />
+                    </button>
+                    <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(tipo.codigo)}>
+                      <IconTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

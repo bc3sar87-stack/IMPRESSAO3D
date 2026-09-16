@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { maskCNPJ, maskCPF } from '@/lib/masks';
 import SearchBox from '../search-box';
+import { IconEdit, IconCopy, IconTrash } from '../icons';
 
 interface Empresa {
   codigo: number;
@@ -144,15 +145,17 @@ export default function EmpresasPage() {
                 <td>{emp.tipo_pessoa === 'PJ' ? maskCNPJ(emp.documento) : maskCPF(emp.documento)}</td>
                 <td>{emp.razao_social}</td>
                 <td>
-                  <button className="btn-small" onClick={() => startEdit(emp)}>
-                    Editar
-                  </button>
-                  <button className="btn-small" onClick={() => startCopy(emp)}>
-                    Copiar
-                  </button>
-                  <button className="btn-small danger" onClick={() => handleDelete(emp.codigo)}>
-                    Excluir
-                  </button>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => startEdit(emp)}>
+                      <IconEdit />
+                    </button>
+                    <button className="icon-btn" title="Copiar" onClick={() => startCopy(emp)}>
+                      <IconCopy />
+                    </button>
+                    <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(emp.codigo)}>
+                      <IconTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { maskCPF } from '@/lib/masks';
 import SearchBox from '../search-box';
+import { IconEdit, IconCopy, IconTrash, IconCheck, IconMail } from '../icons';
 
 interface Usuario {
   codigo: number;
@@ -206,35 +207,43 @@ export default function UsuariosPage() {
                 <td>{maskCPF(u.cpf)}</td>
                 <td>{u.nivel}</td>
                 <td>{u.tem_senha ? 'Definida' : 'Pendente'}</td>
-                <td>{u.ativo ? 'Ativo' : 'Aguardando aprovação'}</td>
                 <td>
-                  <button className="btn-small" onClick={() => startEdit(u)}>
-                    Editar
-                  </button>
-                  <button className="btn-small" onClick={() => startCopy(u)}>
-                    Copiar
-                  </button>
-                  {!u.ativo && (
-                    <button
-                      className="btn-small"
-                      onClick={() => handleAprovar(u.codigo)}
-                      disabled={aprovandoCodigo === u.codigo}
-                    >
-                      {aprovandoCodigo === u.codigo ? 'Aprovando...' : 'Aprovar'}
+                  <span className={`status-badge ${u.ativo ? 'status-badge-green' : 'status-badge-orange'}`}>
+                    {u.ativo ? 'Ativo' : 'Aguardando aprovação'}
+                  </span>
+                </td>
+                <td>
+                  <div className="row-actions">
+                    <button className="icon-btn" title="Editar" onClick={() => startEdit(u)}>
+                      <IconEdit />
                     </button>
-                  )}
-                  {!u.tem_senha && (
-                    <button
-                      className="btn-small"
-                      onClick={() => handleResend(u.codigo)}
-                      disabled={resendingCodigo === u.codigo}
-                    >
-                      {resendingCodigo === u.codigo ? 'Enviando...' : 'Reenviar convite'}
+                    <button className="icon-btn" title="Copiar" onClick={() => startCopy(u)}>
+                      <IconCopy />
                     </button>
-                  )}
-                  <button className="btn-small danger" onClick={() => handleDelete(u.codigo)}>
-                    Excluir
-                  </button>
+                    {!u.ativo && (
+                      <button
+                        className="icon-btn"
+                        title="Aprovar"
+                        onClick={() => handleAprovar(u.codigo)}
+                        disabled={aprovandoCodigo === u.codigo}
+                      >
+                        <IconCheck />
+                      </button>
+                    )}
+                    {!u.tem_senha && (
+                      <button
+                        className="icon-btn"
+                        title="Reenviar convite"
+                        onClick={() => handleResend(u.codigo)}
+                        disabled={resendingCodigo === u.codigo}
+                      >
+                        <IconMail />
+                      </button>
+                    )}
+                    <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(u.codigo)}>
+                      <IconTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
