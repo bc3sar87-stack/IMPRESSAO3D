@@ -80,6 +80,7 @@ export default function OrcamentosPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+  const [markupPadrao, setMarkupPadrao] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [editingCodigo, setEditingCodigo] = useState<number | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -106,16 +107,21 @@ export default function OrcamentosPage() {
   );
 
   async function load() {
-    const [orcRes, cliRes, prodRes, eqRes] = await Promise.all([
+    const [orcRes, cliRes, prodRes, eqRes, markupRes] = await Promise.all([
       fetch('/api/orcamentos'),
       fetch('/api/clientes'),
       fetch('/api/produtos'),
       fetch('/api/equipamentos'),
+      fetch('/api/markup-padrao'),
     ]);
     if (orcRes.ok) setOrcamentos(await orcRes.json());
     if (cliRes.ok) setClientes(await cliRes.json());
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (eqRes.ok) setEquipamentos(await eqRes.json());
+    if (markupRes.ok) {
+      const data = await markupRes.json();
+      setMarkupPadrao(data.valor_percentual !== null ? Number(data.valor_percentual).toFixed(2) : '');
+    }
   }
 
   useEffect(() => {
@@ -124,7 +130,7 @@ export default function OrcamentosPage() {
 
   function startNew() {
     setEditingCodigo(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, markup_percentual: markupPadrao });
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
     setError('');
@@ -220,6 +226,24 @@ export default function OrcamentosPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+
+    const numericFields = [
+      'markup_percentual',
+      'impostos_percentual',
+      'taxa_percentual',
+      'embalagem_valor',
+      'custos_extras_valor',
+    ] as const;
+    const sanitized = { ...form };
+    for (const field of numericFields) {
+      const raw = sanitized[field];
+      sanitized[field] = raw === '' ? '0' : String(raw).replace(',', '.');
+      if (Number.isNaN(Number(sanitized[field]))) {
+        setError('Informe valores numéricos válidos na precificação (use ponto ou vírgula para decimais).');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const url = editingCodigo ? `/api/orcamentos/${editingCodigo}` : '/api/orcamentos';
@@ -227,7 +251,7 @@ export default function OrcamentosPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, data: form.data || hoje() }),
+        body: JSON.stringify({ ...sanitized, data: sanitized.data || hoje() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -480,9 +504,8 @@ export default function OrcamentosPage() {
             <div className="field">
               <label>Markup (%)</label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 value={form.markup_percentual}
                 onChange={(e) => setForm({ ...form, markup_percentual: e.target.value })}
               />
@@ -490,9 +513,8 @@ export default function OrcamentosPage() {
             <div className="field">
               <label>Impostos (DAS) (%)</label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 value={form.impostos_percentual}
                 onChange={(e) => setForm({ ...form, impostos_percentual: e.target.value })}
               />
@@ -509,9 +531,8 @@ export default function OrcamentosPage() {
             <div className="field">
               <label>% Taxa</label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 value={form.taxa_percentual}
                 onChange={(e) => setForm({ ...form, taxa_percentual: e.target.value })}
               />
@@ -521,9 +542,8 @@ export default function OrcamentosPage() {
               <div className="input-prefix-group">
                 <span className="input-prefix">R$</span>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={form.embalagem_valor}
                   onChange={(e) => setForm({ ...form, embalagem_valor: e.target.value })}
                 />
@@ -534,9 +554,8 @@ export default function OrcamentosPage() {
               <div className="input-prefix-group">
                 <span className="input-prefix">R$</span>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={form.custos_extras_valor}
                   onChange={(e) => setForm({ ...form, custos_extras_valor: e.target.value })}
                 />
