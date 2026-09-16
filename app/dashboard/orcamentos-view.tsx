@@ -185,6 +185,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
   const [novoItem, setNovoItem] = useState(emptyNovoItem);
   const [itemError, setItemError] = useState('');
+  const [custosItens, setCustosItens] = useState<Record<number, number>>({});
   const [novoItemParamsOpen, setNovoItemParamsOpen] = useState(false);
   const [novoItemParams, setNovoItemParams] = useState({
     equipamento_codigo: '',
@@ -703,17 +704,38 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     }
   }
 
+  async function calcularCustosItens(itensList: ItemOrcamento[], equipamentoCodigo: string) {
+    const novoMapa: Record<number, number> = {};
+    await Promise.all(
+      itensList.map(async (item) => {
+        const produto = produtos.find((p) => p.codigo === item.produto_codigo);
+        if (!produto) return;
+        const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(produto, equipamentoCodigo);
+        const custoTotal = materialCost + energiaCost + maoDeObraCost;
+        const quantidade = Number(item.quantidade) || 1;
+        novoMapa[item.codigo] = quantidade > 0 ? custoTotal / quantidade : custoTotal;
+      })
+    );
+    setCustosItens(novoMapa);
+  }
+
   async function abrirItens(o: Orcamento) {
     setSelecionado(o);
     setItemError('');
     setNovoItem(emptyNovoItem);
+    setCustosItens({});
     const res = await fetch(`/api/orcamentos/${o.codigo}/itens`);
-    if (res.ok) setItens(await res.json());
+    if (res.ok) {
+      const lista: ItemOrcamento[] = await res.json();
+      setItens(lista);
+      await calcularCustosItens(lista, o.equipamento_codigo ? String(o.equipamento_codigo) : '');
+    }
   }
 
   function fecharItens() {
     setSelecionado(null);
     setItens([]);
+    setCustosItens({});
   }
 
   async function refreshItens(codigo: number) {
@@ -721,13 +743,22 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       fetch(`/api/orcamentos/${codigo}/itens`),
       fetch('/api/orcamentos'),
     ]);
-    if (itensRes.ok) setItens(await itensRes.json());
-    if (orcRes.ok) {
-      const lista: Orcamento[] = await orcRes.json();
-      setOrcamentos(lista);
-      const atual = lista.find((o) => o.codigo === codigo);
-      if (atual) setSelecionado(atual);
+    let lista: ItemOrcamento[] = [];
+    if (itensRes.ok) {
+      lista = await itensRes.json();
+      setItens(lista);
     }
+    let equipamentoCodigo = selecionado?.equipamento_codigo ? String(selecionado.equipamento_codigo) : '';
+    if (orcRes.ok) {
+      const listaOrc: Orcamento[] = await orcRes.json();
+      setOrcamentos(listaOrc);
+      const atual = listaOrc.find((o) => o.codigo === codigo);
+      if (atual) {
+        setSelecionado(atual);
+        equipamentoCodigo = atual.equipamento_codigo ? String(atual.equipamento_codigo) : '';
+      }
+    }
+    if (lista.length > 0) await calcularCustosItens(lista, equipamentoCodigo);
   }
 
   function abrirParametrosNovoItem() {
@@ -1534,6 +1565,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 <tr>
                   <th>Produto</th>
                   <th>Quantidade</th>
+                  <th>Valor Custo</th>
                   <th>Valor Unitário</th>
                   <th>Subtotal</th>
                   <th></th>
@@ -1544,6 +1576,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   <tr key={item.codigo}>
                     <td>{item.produto_descricao}</td>
                     <td>{item.quantidade}</td>
+                    <td>
+                      {custosItens[item.codigo] !== undefined ? `R$ ${custosItens[item.codigo].toFixed(2)}` : '-'}
+                    </td>
                     <td>
                       <div className="input-prefix-group" style={{ minWidth: 140 }}>
                         <span className="input-prefix">R$</span>
@@ -1575,7 +1610,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 ))}
                 {itens.length === 0 && (
                   <tr>
-                    <td colSpan={5}>Nenhum item adicionado.</td>
+                    <td colSpan={6}>Nenhum item adicionado.</td>
                   </tr>
                 )}
               </tbody>
