@@ -344,6 +344,14 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     equipamentoCodigo: string,
     materiaisMap?: Map<number, MaterialAgregado>
   ) {
+    if (produto.tipo === 'REVENDA') {
+      return {
+        materialCost: Number(produto.valor_custo) || 0,
+        energiaCost: 0,
+        maoDeObraCost: 0,
+      };
+    }
+
     const equipamentoSelecionado = equipamentos.find((eq) => String(eq.codigo) === equipamentoCodigo);
     const consumoWHora = equipamentoSelecionado ? Number(equipamentoSelecionado.consumo_w_hora) : 0;
     const custoKgPadrao = parseDecimal(custoBaseFilamento) || 0;

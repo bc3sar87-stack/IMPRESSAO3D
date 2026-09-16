@@ -14,6 +14,8 @@ interface Produto {
   quantidade: number;
   tempo_impressao_segundos: number;
   tempo_mao_obra_segundos: number;
+  tipo: 'IMPRESSAO' | 'REVENDA';
+  valor_custo: string | null;
 }
 
 interface MateriaPrima {
@@ -45,6 +47,8 @@ const emptyForm = {
   quantidade: 1,
   tempoImpressaoSegundos: 0,
   tempoMaoObraSegundos: 0,
+  tipo: 'IMPRESSAO' as Produto['tipo'],
+  valorCusto: '',
 };
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -109,6 +113,8 @@ export default function ProdutosPage() {
       quantidade: p.quantidade,
       tempoImpressaoSegundos: p.tempo_impressao_segundos,
       tempoMaoObraSegundos: p.tempo_mao_obra_segundos,
+      tipo: p.tipo,
+      valorCusto: p.valor_custo || '',
     });
     setStlFile(null);
     setError('');
@@ -142,6 +148,8 @@ export default function ProdutosPage() {
       quantidade: p.quantidade,
       tempoImpressaoSegundos: p.tempo_impressao_segundos,
       tempoMaoObraSegundos: p.tempo_mao_obra_segundos,
+      tipo: p.tipo,
+      valorCusto: p.valor_custo || '',
     });
 
     setStlFile(null);
@@ -210,6 +218,8 @@ export default function ProdutosPage() {
           quantidade: form.quantidade,
           tempo_impressao_segundos: form.tempoImpressaoSegundos,
           tempo_mao_obra_segundos: form.tempoMaoObraSegundos,
+          tipo: form.tipo,
+          valor_custo: form.valorCusto.replace(',', '.'),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -305,10 +315,12 @@ export default function ProdutosPage() {
             <tr>
               <th>Foto</th>
               <th>Código</th>
+              <th>Tipo</th>
               <th>Descrição</th>
               <th>Qtd</th>
               <th>Tempo Impressão</th>
               <th>Tempo Mão de Obra</th>
+              <th>Valor Custo</th>
               <th>STL</th>
               <th></th>
             </tr>
@@ -328,10 +340,18 @@ export default function ProdutosPage() {
                   )}
                 </td>
                 <td>{p.codigo}</td>
+                <td>
+                  <span
+                    className={`status-badge ${p.tipo === 'REVENDA' ? 'status-badge-purple' : 'status-badge-blue'}`}
+                  >
+                    {p.tipo === 'REVENDA' ? 'Revenda' : 'Impressão'}
+                  </span>
+                </td>
                 <td>{p.descricao}</td>
                 <td>{p.quantidade}</td>
-                <td>{formatSegundos(p.tempo_impressao_segundos)}</td>
-                <td>{formatSegundos(p.tempo_mao_obra_segundos)}</td>
+                <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_impressao_segundos)}</td>
+                <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_mao_obra_segundos)}</td>
+                <td>{p.tipo === 'REVENDA' ? `R$ ${p.valor_custo || '0.00'}` : '-'}</td>
                 <td>
                   {p.stl_nome && (
                     <a href={`/api/produtos/${p.codigo}/stl`}>{p.stl_nome}</a>
@@ -352,9 +372,11 @@ export default function ProdutosPage() {
                     <button className="icon-btn" title="Copiar" onClick={() => startCopy(p)}>
                       <IconCopy />
                     </button>
-                    <button className="icon-btn" title="Materiais" onClick={() => abrirMateriais(p)}>
-                      <IconList />
-                    </button>
+                    {p.tipo === 'IMPRESSAO' && (
+                      <button className="icon-btn" title="Materiais" onClick={() => abrirMateriais(p)}>
+                        <IconList />
+                      </button>
+                    )}
                     <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(p.codigo)}>
                       <IconTrash />
                     </button>
@@ -364,7 +386,7 @@ export default function ProdutosPage() {
             ))}
             {produtosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={8}>Nenhum produto encontrado.</td>
+                <td colSpan={10}>Nenhum produto encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -384,6 +406,16 @@ export default function ProdutosPage() {
             <form onSubmit={handleSubmit}>
               <div className="form-grid">
                 <div className="field">
+                  <label>Tipo de Produto</label>
+                  <select
+                    value={form.tipo}
+                    onChange={(e) => setForm({ ...form, tipo: e.target.value as Produto['tipo'] })}
+                  >
+                    <option value="IMPRESSAO">Impressão 3D</option>
+                    <option value="REVENDA">Revenda (não impresso)</option>
+                  </select>
+                </div>
+                <div className="field">
                   <label>Descrição</label>
                   <input
                     value={form.descricao}
@@ -401,29 +433,50 @@ export default function ProdutosPage() {
                     onChange={(e) => setForm({ ...form, quantidade: Number(e.target.value) })}
                     required
                   />
+                  <p className="hint">Quantas unidades este cadastro representa (ex: kit com 2 itens).</p>
                 </div>
-                <div className="field">
-                  <label>Link do STL (se houver)</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={form.link_stl}
-                    onChange={(e) => setForm({ ...form, link_stl: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>Arquivo STL da impressão</label>
-                  <input
-                    type="file"
-                    accept=".stl"
-                    onChange={(e) => setStlFile(e.target.files?.[0] || null)}
-                  />
-                  {form.stlNomeAtual && !stlFile && (
-                    <p className="hint">Arquivo atual: {form.stlNomeAtual}</p>
-                  )}
-                  {stlFile && <p className="hint">Arquivo selecionado: {stlFile.name}</p>}
-                  <p className="hint">Máximo 50MB.</p>
-                </div>
+                {form.tipo === 'REVENDA' && (
+                  <div className="field">
+                    <label>Valor de Custo (R$)</label>
+                    <div className="input-prefix-group">
+                      <span className="input-prefix">R$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={form.valorCusto}
+                        onChange={(e) => setForm({ ...form, valorCusto: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <p className="hint">Custo de compra da quantidade informada acima.</p>
+                  </div>
+                )}
+                {form.tipo === 'IMPRESSAO' && (
+                  <>
+                    <div className="field">
+                      <label>Link do STL (se houver)</label>
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        value={form.link_stl}
+                        onChange={(e) => setForm({ ...form, link_stl: e.target.value })}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Arquivo STL da impressão</label>
+                      <input
+                        type="file"
+                        accept=".stl"
+                        onChange={(e) => setStlFile(e.target.files?.[0] || null)}
+                      />
+                      {form.stlNomeAtual && !stlFile && (
+                        <p className="hint">Arquivo atual: {form.stlNomeAtual}</p>
+                      )}
+                      {stlFile && <p className="hint">Arquivo selecionado: {stlFile.name}</p>}
+                      <p className="hint">Máximo 50MB.</p>
+                    </div>
+                  </>
+                )}
                 <div className="field">
                   <label>Foto</label>
                   <div className="paste-zone" tabIndex={0} onPaste={handleFotoPaste}>
@@ -444,22 +497,24 @@ export default function ProdutosPage() {
                 </div>
               </div>
 
-              <div className="form-grid" style={{ marginTop: 16 }}>
-                <div className="field">
-                  <label>Tempo de Impressão</label>
-                  <TimeInput
-                    value={form.tempoImpressaoSegundos}
-                    onChange={(segundos) => setForm({ ...form, tempoImpressaoSegundos: segundos })}
-                  />
+              {form.tipo === 'IMPRESSAO' && (
+                <div className="form-grid" style={{ marginTop: 16 }}>
+                  <div className="field">
+                    <label>Tempo de Impressão</label>
+                    <TimeInput
+                      value={form.tempoImpressaoSegundos}
+                      onChange={(segundos) => setForm({ ...form, tempoImpressaoSegundos: segundos })}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Tempo Mão de Obra</label>
+                    <TimeInput
+                      value={form.tempoMaoObraSegundos}
+                      onChange={(segundos) => setForm({ ...form, tempoMaoObraSegundos: segundos })}
+                    />
+                  </div>
                 </div>
-                <div className="field">
-                  <label>Tempo Mão de Obra</label>
-                  <TimeInput
-                    value={form.tempoMaoObraSegundos}
-                    onChange={(segundos) => setForm({ ...form, tempoMaoObraSegundos: segundos })}
-                  />
-                </div>
-              </div>
+              )}
 
               <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
                 <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>

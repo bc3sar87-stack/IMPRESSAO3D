@@ -22,6 +22,8 @@ export interface ProdutoPicker {
   tempo_mao_obra_segundos: number;
   tem_foto: boolean;
   materiais: ProdutoPickerMaterial[];
+  tipo: 'IMPRESSAO' | 'REVENDA';
+  valor_custo: string | null;
 }
 
 export default function ProductPicker({
@@ -78,23 +80,35 @@ export default function ProductPicker({
                 )}
                 <div className="product-picker-info">
                   <strong>{p.descricao}</strong>
-                  <span>Qtd por lote: {p.quantidade}</span>
-                  <span>Impressão: {formatSegundos(p.tempo_impressao_segundos)}</span>
-                  <span>Mão de obra: {formatSegundos(p.tempo_mao_obra_segundos)}</span>
-                  {p.materiais.length > 0 ? (
+                  {p.tipo === 'REVENDA' ? (
                     <>
-                      <span className="product-picker-materiais">
-                        {p.materiais.map((m) => (
-                          <span key={m.materia_prima_codigo} className="product-picker-material-tag">
-                            <span className="color-swatch" style={{ backgroundColor: m.cor_hex }} />
-                            {m.nome} ({m.cor}) — {Number(m.peso).toFixed(1)} {m.unidade_medida_sigla}
-                          </span>
-                        ))}
+                      <span>
+                        <span className="status-badge status-badge-purple">Revenda</span>
                       </span>
-                      <span>Custo material: R$ {custoMaterial.toFixed(2)}</span>
+                      <span>Qtd por lote: {p.quantidade}</span>
+                      <span>Custo: R$ {Number(p.valor_custo || 0).toFixed(2)}</span>
                     </>
                   ) : (
-                    <span>Sem material cadastrado</span>
+                    <>
+                      <span>Qtd por lote: {p.quantidade}</span>
+                      <span>Impressão: {formatSegundos(p.tempo_impressao_segundos)}</span>
+                      <span>Mão de obra: {formatSegundos(p.tempo_mao_obra_segundos)}</span>
+                      {p.materiais.length > 0 ? (
+                        <>
+                          <span className="product-picker-materiais">
+                            {p.materiais.map((m) => (
+                              <span key={m.materia_prima_codigo} className="product-picker-material-tag">
+                                <span className="color-swatch" style={{ backgroundColor: m.cor_hex }} />
+                                {m.nome} ({m.cor}) — {Number(m.peso).toFixed(1)} {m.unidade_medida_sigla}
+                              </span>
+                            ))}
+                          </span>
+                          <span>Custo material: R$ {custoMaterial.toFixed(2)}</span>
+                        </>
+                      ) : (
+                        <span>Sem material cadastrado</span>
+                      )}
+                    </>
                   )}
                 </div>
               </button>

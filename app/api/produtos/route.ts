@@ -14,6 +14,7 @@ export async function GET() {
   const { rows } = await pool.query(
     `SELECT p.codigo, p.descricao, p.link_stl, p.stl_nome, (p.foto IS NOT NULL) AS tem_foto,
             p.quantidade, p.tempo_impressao_segundos, p.tempo_mao_obra_segundos,
+            p.tipo, p.valor_custo,
             COALESCE(
               (SELECT json_agg(json_build_object(
                  'materia_prima_codigo', mp.codigo,
@@ -54,17 +55,23 @@ export async function POST(request: NextRequest) {
     quantidade,
     tempo_impressao_segundos,
     tempo_mao_obra_segundos,
+    tipo,
+    valor_custo,
   } = await request.json().catch(() => ({}));
 
   if (!descricao) {
     return NextResponse.json({ error: 'Informe a descrição.' }, { status: 400 });
   }
 
+  const tipoProduto = tipo === 'REVENDA' ? 'REVENDA' : 'IMPRESSAO';
   const foto = foto_base64 ? Buffer.from(foto_base64, 'base64') : null;
 
   const { rows } = await pool.query(
-    `INSERT INTO produtos (descricao, link_stl, foto, foto_tipo, quantidade, tempo_impressao_segundos, tempo_mao_obra_segundos, empresa_codigo)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO produtos (
+       descricao, link_stl, foto, foto_tipo, quantidade, tempo_impressao_segundos,
+       tempo_mao_obra_segundos, tipo, valor_custo, empresa_codigo
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING codigo`,
     [
       descricao,
@@ -72,8 +79,10 @@ export async function POST(request: NextRequest) {
       foto,
       foto ? foto_tipo : null,
       quantidade || 1,
-      tempo_impressao_segundos || 0,
-      tempo_mao_obra_segundos || 0,
+      tipoProduto === 'IMPRESSAO' ? tempo_impressao_segundos || 0 : 0,
+      tipoProduto === 'IMPRESSAO' ? tempo_mao_obra_segundos || 0 : 0,
+      tipoProduto,
+      tipoProduto === 'REVENDA' ? valor_custo || 0 : null,
       session.empresa_codigo,
     ]
   );
