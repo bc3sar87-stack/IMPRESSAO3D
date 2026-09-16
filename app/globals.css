@@ -181,12 +181,13 @@ body {
 }
 
 .sidebar-empresa-logo {
-  max-height: 36px;
-  max-width: 160px;
+  max-height: 72px;
+  width: 100%;
+  max-width: 220px;
   object-fit: contain;
   background: #fff;
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 8px;
+  padding: 8px 12px;
 }
 
 .sidebar-nav {
