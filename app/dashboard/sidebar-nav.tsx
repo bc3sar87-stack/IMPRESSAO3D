@@ -44,7 +44,10 @@ const groups: NavGroup[] = [
   },
   {
     title: 'Financeiro',
-    links: [{ href: '/dashboard/contas-receber', label: 'Contas a Receber' }],
+    links: [
+      { href: '/dashboard/contas-receber', label: 'Contas a Receber' },
+      { href: '/dashboard/contas-pagar', label: 'Contas a Pagar' },
+    ],
   },
   {
     title: 'Configurações',
