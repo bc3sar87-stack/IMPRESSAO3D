@@ -104,8 +104,8 @@ const emptyForm = {
   equipamento_codigo: '',
   markup_percentual: '',
   impostos_percentual: '',
-  taxa_marketplace: 'MANUAL',
-  taxa_percentual: '',
+  taxa_marketplace: 'VENDA_DIRETA',
+  taxa_percentual: '0',
   embalagem_valor: '',
   custos_extras_valor: '',
 };
@@ -728,8 +728,16 @@ export default function OrcamentosPage() {
                   <label>Taxa Marketplace</label>
                   <select
                     value={form.taxa_marketplace}
-                    onChange={(e) => setForm({ ...form, taxa_marketplace: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setForm({
+                        ...form,
+                        taxa_marketplace: value,
+                        taxa_percentual: value === 'VENDA_DIRETA' ? '0' : form.taxa_percentual,
+                      });
+                    }}
                   >
+                    <option value="VENDA_DIRETA">Venda Direta (0%)</option>
                     <option value="MANUAL">Manual</option>
                   </select>
                 </div>
@@ -740,6 +748,7 @@ export default function OrcamentosPage() {
                     inputMode="decimal"
                     value={form.taxa_percentual}
                     onChange={(e) => setForm({ ...form, taxa_percentual: e.target.value })}
+                    disabled={form.taxa_marketplace === 'VENDA_DIRETA'}
                   />
                 </div>
                 <div className="field">
