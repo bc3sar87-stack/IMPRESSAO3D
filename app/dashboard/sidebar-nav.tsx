@@ -38,8 +38,7 @@ const groups: NavGroup[] = [
     title: 'Configurações',
     links: [
       { href: '/dashboard/equipamentos', label: 'Cadastro de Equipamentos' },
-      { href: '/dashboard/valor-consumo-hora', label: 'Valor Consumo Hora' },
-      { href: '/dashboard/custo-base-filamento', label: 'Custo Base de Filamento' },
+      { href: '/dashboard/parametros-custo', label: 'Parâmetros de Custo' },
     ],
   },
 ];
