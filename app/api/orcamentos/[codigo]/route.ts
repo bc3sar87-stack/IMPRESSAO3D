@@ -2,6 +2,38 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 });
+  }
+  if (!session.empresa_codigo) {
+    return NextResponse.json({ error: 'Selecione uma empresa.' }, { status: 400 });
+  }
+
+  const { codigo } = await params;
+  const { rows } = await pool.query(
+    `SELECT o.codigo, o.data, o.data_entrega, o.status, o.observacoes, o.valor_total, o.valor_sugerido, o.custo_total,
+            o.markup_percentual, o.impostos_percentual, o.taxa_marketplace, o.taxa_percentual,
+            o.embalagem_valor, o.custos_extras_valor,
+            c.codigo AS cliente_codigo, c.nome AS cliente_nome, c.documento AS cliente_documento,
+            c.tipo_pessoa AS cliente_tipo_pessoa, c.telefone AS cliente_telefone, c.email AS cliente_email,
+            c.endereco AS cliente_endereco,
+            e.razao_social AS empresa_razao_social, e.documento AS empresa_documento, e.tipo_pessoa AS empresa_tipo_pessoa,
+            eq.fabricante AS equipamento_fabricante, eq.modelo AS equipamento_modelo
+     FROM orcamentos o
+     JOIN clientes c ON c.codigo = o.cliente_codigo
+     JOIN empresa e ON e.codigo = o.empresa_codigo
+     LEFT JOIN equipamentos eq ON eq.codigo = o.equipamento_codigo
+     WHERE o.codigo = $1 AND o.empresa_codigo = $2`,
+    [codigo, session.empresa_codigo]
+  );
+  if (rows.length === 0) {
+    return NextResponse.json({ error: 'Orçamento não encontrado.' }, { status: 404 });
+  }
+  return NextResponse.json(rows[0]);
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
   const session = await requireAdmin();
   if (!session) {

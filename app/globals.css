@@ -1020,3 +1020,34 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+
+@media print {
+  .no-print,
+  .sidebar,
+  .app-header {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block !important;
+  }
+
+  .main {
+    margin: 0 !important;
+  }
+
+  .dashboard-content {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}

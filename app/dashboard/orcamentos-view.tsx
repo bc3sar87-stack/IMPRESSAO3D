@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from './search-box';
 import ProductPicker, { ProdutoPicker } from './product-picker';
-import { IconEdit, IconCopy, IconList, IconCalculator, IconTrash, IconCheck } from './icons';
+import { IconEdit, IconCopy, IconList, IconCalculator, IconTrash, IconCheck, IconMail, IconFileText } from './icons';
 
 export type OrcamentoStatus =
   | 'ABERTO'
@@ -59,6 +59,15 @@ interface Orcamento {
 interface Cliente {
   codigo: number;
   nome: string;
+  email: string | null;
+}
+
+interface EnvioLog {
+  codigo: number;
+  destinatario: string;
+  sucesso: boolean;
+  erro_mensagem: string | null;
+  enviado_em: string;
 }
 
 interface Equipamento {
@@ -187,6 +196,13 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [novoItem, setNovoItem] = useState(emptyNovoItem);
   const [itemError, setItemError] = useState('');
   const [custosItens, setCustosItens] = useState<Record<number, number>>({});
+  const [emailOrcamento, setEmailOrcamento] = useState<Orcamento | null>(null);
+  const [emailDestinatario, setEmailDestinatario] = useState('');
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [emailErro, setEmailErro] = useState('');
+  const [emailSucesso, setEmailSucesso] = useState('');
+  const [emailLog, setEmailLog] = useState<EnvioLog[]>([]);
+  const [carregandoLog, setCarregandoLog] = useState(false);
   const [novoItemParamsOpen, setNovoItemParamsOpen] = useState(false);
   const [novoItemParams, setNovoItemParams] = useState({
     equipamento_codigo: '',
@@ -667,6 +683,65 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     load();
   }
 
+  function abrirPdf(o: Orcamento) {
+    window.open(`/dashboard/orcamento-pdf/${o.codigo}`, '_blank');
+  }
+
+  async function carregarLogEnvio(codigoOrcamento: number) {
+    setCarregandoLog(true);
+    try {
+      const res = await fetch(`/api/orcamentos/${codigoOrcamento}/enviar-email`);
+      if (res.ok) setEmailLog(await res.json());
+    } finally {
+      setCarregandoLog(false);
+    }
+  }
+
+  function abrirEnvioEmail(o: Orcamento) {
+    const cliente = clientes.find((c) => c.codigo === o.cliente_codigo);
+    setEmailOrcamento(o);
+    setEmailDestinatario(cliente?.email || '');
+    setEmailErro('');
+    setEmailSucesso('');
+    setEmailLog([]);
+    carregarLogEnvio(o.codigo);
+  }
+
+  function fecharEnvioEmail() {
+    setEmailOrcamento(null);
+    setEmailDestinatario('');
+    setEmailErro('');
+    setEmailSucesso('');
+    setEmailLog([]);
+  }
+
+  async function handleEnviarEmail() {
+    if (!emailOrcamento) return;
+    if (!emailDestinatario) {
+      setEmailErro('Informe um e-mail de destino.');
+      return;
+    }
+    setEnviandoEmail(true);
+    setEmailErro('');
+    setEmailSucesso('');
+    try {
+      const res = await fetch(`/api/orcamentos/${emailOrcamento.codigo}/enviar-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinatario: emailDestinatario }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setEmailErro(data.error || 'Não foi possível enviar o e-mail.');
+      } else {
+        setEmailSucesso(`Orçamento enviado para ${data.destinatario}.`);
+      }
+      await carregarLogEnvio(emailOrcamento.codigo);
+    } finally {
+      setEnviandoEmail(false);
+    }
+  }
+
   async function handleStatusChange(o: Orcamento, novoStatus: OrcamentoStatus) {
     setOrcamentos((atual) => atual.map((item) => (item.codigo === o.codigo ? { ...item, status: novoStatus } : item)));
     const res = await fetch(`/api/orcamentos/${o.codigo}`, {
@@ -1010,6 +1085,12 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                       disabled={recalculandoCodigo === o.codigo}
                     >
                       <IconCalculator />
+                    </button>
+                    <button className="icon-btn" title="Abrir PDF" onClick={() => abrirPdf(o)}>
+                      <IconFileText />
+                    </button>
+                    <button className="icon-btn" title="Enviar por E-mail" onClick={() => abrirEnvioEmail(o)}>
+                      <IconMail />
                     </button>
                     <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(o.codigo)}>
                       <IconTrash />
@@ -1624,6 +1705,88 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {emailOrcamento && (
+        <div className="modal-overlay" onClick={fecharEnvioEmail}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <h3>Enviar Orçamento por E-mail</h3>
+              <button type="button" className="modal-close" onClick={fecharEnvioEmail} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+            <p className="hint" style={{ marginTop: -8 }}>
+              Orçamento #{emailOrcamento.codigo} — {emailOrcamento.cliente_nome}
+            </p>
+            {emailErro && <div className="error-msg">{emailErro}</div>}
+            {emailSucesso && <div className="success-msg">{emailSucesso}</div>}
+            <div className="field">
+              <label>E-mail de destino</label>
+              <input
+                type="email"
+                value={emailDestinatario}
+                onChange={(e) => setEmailDestinatario(e.target.value)}
+                placeholder="cliente@exemplo.com"
+                required
+              />
+            </div>
+            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={enviandoEmail}
+                onClick={handleEnviarEmail}
+                style={{ width: 'auto', padding: '10px 20px' }}
+              >
+                {enviandoEmail ? 'Enviando...' : 'Enviar'}
+              </button>
+              <button type="button" className="btn-small" onClick={fecharEnvioEmail}>
+                Fechar
+              </button>
+            </div>
+
+            <h4 style={{ marginTop: 20, marginBottom: 8 }}>Log de Envio</h4>
+            {carregandoLog ? (
+              <p className="hint">Carregando...</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Data/Hora</th>
+                      <th>Destinatário</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {emailLog.map((log) => (
+                      <tr key={log.codigo}>
+                        <td>{new Date(log.enviado_em).toLocaleString('pt-BR')}</td>
+                        <td>{log.destinatario}</td>
+                        <td>
+                          <span className={`status-badge ${log.sucesso ? 'status-badge-green' : 'status-badge-red'}`}>
+                            {log.sucesso ? 'Enviado' : 'Falhou'}
+                          </span>
+                          {!log.sucesso && log.erro_mensagem && (
+                            <div className="hint" style={{ marginTop: 4 }}>
+                              {log.erro_mensagem}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {emailLog.length === 0 && (
+                      <tr>
+                        <td colSpan={3}>Nenhum envio registrado.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
