@@ -1025,6 +1025,33 @@ body {
   font-weight: 700;
 }
 
+.fin-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.fin-summary-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.fin-summary-item span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.fin-summary-item strong {
+  font-size: 20px;
+}
+
 .raiox-stat-label {
   font-size: 10px;
   color: #dbeafe;

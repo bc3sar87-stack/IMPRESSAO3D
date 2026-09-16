@@ -12,21 +12,31 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { codigo } = await params;
-  const { fornecedor, descricao, valor, data_vencimento, data_pagamento, status, banco_codigo } =
-    await request.json().catch(() => ({}));
+  const { tipo, descricao, valor, data_movimento, banco_codigo } = await request.json().catch(() => ({}));
 
-  if (!descricao || valor === undefined || valor === '' || !data_vencimento || !status) {
+  if (!tipo || !['ENTRADA', 'SAIDA'].includes(tipo)) {
+    return NextResponse.json({ error: 'Informe o tipo (Entrada ou Saída).' }, { status: 400 });
+  }
+  if (!descricao || valor === undefined || valor === '' || !data_movimento) {
     return NextResponse.json(
-      { error: 'Informe descrição, valor, vencimento e status.' },
+      { error: 'Informe descrição, valor e data do movimento.' },
       { status: 400 }
     );
   }
   if (Number(valor) <= 0) {
     return NextResponse.json({ error: 'Valor deve ser maior que zero.' }, { status: 400 });
   }
-  if (status === 'PAGO' && !banco_codigo) {
+
+  const { rows: existentes } = await pool.query(
+    `SELECT origem FROM movimentacoes_financeiras WHERE codigo=$1 AND empresa_codigo=$2`,
+    [codigo, session.empresa_codigo]
+  );
+  if (existentes.length === 0) {
+    return NextResponse.json({ error: 'Registro não encontrado.' }, { status: 404 });
+  }
+  if (existentes[0].origem !== 'MANUAL') {
     return NextResponse.json(
-      { error: 'Selecione o banco em que o título será baixado.' },
+      { error: 'Este lançamento foi gerado automaticamente e só pode ser alterado pela tela de origem (Contas a Receber/Pagar).' },
       { status: 400 }
     );
   }
@@ -42,41 +52,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { rows } = await pool.query(
-    `UPDATE contas_pagar
-     SET fornecedor=$1, descricao=$2, valor=$3, data_vencimento=$4, data_pagamento=$5, status=$6, banco_codigo=$7
-     WHERE codigo=$8 AND empresa_codigo=$9
+    `UPDATE movimentacoes_financeiras
+     SET tipo=$1, descricao=$2, valor=$3, data_movimento=$4, banco_codigo=$5
+     WHERE codigo=$6 AND empresa_codigo=$7 AND origem='MANUAL'
      RETURNING codigo`,
-    [
-      fornecedor || null,
-      descricao,
-      valor,
-      data_vencimento,
-      data_pagamento || null,
-      status,
-      banco_codigo || null,
-      codigo,
-      session.empresa_codigo,
-    ]
+    [tipo, descricao, valor, data_movimento, banco_codigo || null, codigo, session.empresa_codigo]
   );
   if (rows.length === 0) {
     return NextResponse.json({ error: 'Registro não encontrado.' }, { status: 404 });
   }
-
-  if (status === 'PAGO') {
-    await pool.query(
-      `INSERT INTO movimentacoes_financeiras (tipo, descricao, valor, data_movimento, banco_codigo, origem, referencia_codigo, empresa_codigo)
-       VALUES ('SAIDA', $1, $2, $3, $4, 'CONTA_PAGAR', $5, $6)
-       ON CONFLICT (origem, referencia_codigo) WHERE origem <> 'MANUAL'
-       DO UPDATE SET descricao=EXCLUDED.descricao, valor=EXCLUDED.valor, data_movimento=EXCLUDED.data_movimento, banco_codigo=EXCLUDED.banco_codigo`,
-      [descricao, valor, data_pagamento || data_vencimento, banco_codigo, codigo, session.empresa_codigo]
-    );
-  } else {
-    await pool.query(
-      `DELETE FROM movimentacoes_financeiras WHERE origem='CONTA_PAGAR' AND referencia_codigo=$1 AND empresa_codigo=$2`,
-      [codigo, session.empresa_codigo]
-    );
-  }
-
   return NextResponse.json({ codigo: rows[0].codigo });
 }
 
@@ -90,11 +74,21 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   }
 
   const { codigo } = await params;
-  await pool.query(
-    `DELETE FROM movimentacoes_financeiras WHERE origem='CONTA_PAGAR' AND referencia_codigo=$1 AND empresa_codigo=$2`,
+  const { rows: existentes } = await pool.query(
+    `SELECT origem FROM movimentacoes_financeiras WHERE codigo=$1 AND empresa_codigo=$2`,
     [codigo, session.empresa_codigo]
   );
-  await pool.query(`DELETE FROM contas_pagar WHERE codigo=$1 AND empresa_codigo=$2`, [
+  if (existentes.length === 0) {
+    return NextResponse.json({ ok: true });
+  }
+  if (existentes[0].origem !== 'MANUAL') {
+    return NextResponse.json(
+      { error: 'Este lançamento foi gerado automaticamente e só pode ser removido pela tela de origem (Contas a Receber/Pagar).' },
+      { status: 400 }
+    );
+  }
+
+  await pool.query(`DELETE FROM movimentacoes_financeiras WHERE codigo=$1 AND empresa_codigo=$2 AND origem='MANUAL'`, [
     codigo,
     session.empresa_codigo,
   ]);
