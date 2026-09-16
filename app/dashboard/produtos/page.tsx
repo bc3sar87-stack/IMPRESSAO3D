@@ -72,6 +72,7 @@ export default function ProdutosPage() {
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
   const [fotoAmpliadaAberta, setFotoAmpliadaAberta] = useState(false);
+  const [fotoTabelaAmpliada, setFotoTabelaAmpliada] = useState<Produto | null>(null);
 
   const [selecionado, setSelecionado] = useState<Produto | null>(null);
   const [itensMaterial, setItensMaterial] = useState<ItemMaterial[]>([]);
@@ -342,7 +343,9 @@ export default function ProdutosPage() {
                     <img
                       src={`/api/produtos/${p.codigo}/foto`}
                       alt={p.descricao}
-                      style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }}
+                      style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }}
+                      title="Clique para ampliar"
+                      onClick={() => setFotoTabelaAmpliada(p)}
                     />
                   ) : (
                     '-'
@@ -573,6 +576,33 @@ export default function ProdutosPage() {
             <img
               src={form.fotoPreview}
               alt="Foto ampliada"
+              style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }}
+            />
+          </div>
+        </div>
+      )}
+
+      {fotoTabelaAmpliada && (
+        <div className="modal-overlay" onClick={() => setFotoTabelaAmpliada(null)}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 720, padding: 12, background: 'transparent', boxShadow: 'none' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                type="button"
+                className="modal-close"
+                style={{ background: '#fff', borderRadius: 8 }}
+                onClick={() => setFotoTabelaAmpliada(null)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <img
+              src={`/api/produtos/${fotoTabelaAmpliada.codigo}/foto`}
+              alt={fotoTabelaAmpliada.descricao}
               style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }}
             />
           </div>
