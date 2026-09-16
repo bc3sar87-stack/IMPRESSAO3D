@@ -141,6 +141,7 @@ export default function OrcamentosPage() {
   const [pickerFor, setPickerFor] = useState<'pendente' | 'existente' | null>(null);
 
   const [calculando, setCalculando] = useState(false);
+  const [addingItem, setAddingItem] = useState(false);
   const [calcError, setCalcError] = useState('');
   const [raioX, setRaioX] = useState<RaioXData | null>(null);
   const [raioXOpen, setRaioXOpen] = useState(false);
@@ -291,24 +292,82 @@ export default function OrcamentosPage() {
     }
   }
 
-  function handleAddItemLocal() {
+  async function calcularCustoProduto(produto: Produto, materiaisMap?: Map<number, MaterialAgregado>) {
+    const equipamentoSelecionado = equipamentos.find((eq) => String(eq.codigo) === form.equipamento_codigo);
+    const consumoWHora = equipamentoSelecionado ? Number(equipamentoSelecionado.consumo_w_hora) : 0;
+    const custoKgPadrao = parseDecimal(custoBaseFilamento) || 0;
+    const valorHoraEnergia = parseDecimal(valorConsumoHora) || 0;
+    const valorHoraMaoObra = parseDecimal(custoMaoObraHora) || 0;
+
+    const res = await fetch(`/api/produtos/${produto.codigo}/materiais`);
+    const materiais: ItemMaterial[] = res.ok ? await res.json() : [];
+
+    let materialCost = 0;
+    for (const m of materiais) {
+      const mp = materiasPrimas.find((x) => x.codigo === m.materia_prima_codigo);
+      const custoKg = mp?.valor_custo ? Number(mp.valor_custo) : custoKgPadrao;
+      const pesoNum = Number(m.peso) || 0;
+      materialCost += (pesoNum / 1000) * custoKg;
+
+      if (materiaisMap) {
+        const existente = materiaisMap.get(m.materia_prima_codigo);
+        if (existente) {
+          existente.pesoTotal += pesoNum;
+        } else {
+          materiaisMap.set(m.materia_prima_codigo, {
+            materia_prima_codigo: m.materia_prima_codigo,
+            nome: `${m.tipo_nome} — ${m.marca} (${m.cor})`,
+            cor_hex: m.cor_hex || '#cbd5e1',
+            pesoTotal: pesoNum,
+            unidade: m.unidade_medida_sigla,
+          });
+        }
+      }
+    }
+
+    const horasImpressao = (produto.tempo_impressao_segundos || 0) / 3600;
+    const horasMaoObra = (produto.tempo_mao_obra_segundos || 0) / 3600;
+    const energiaCost = (consumoWHora / 1000) * horasImpressao * valorHoraEnergia;
+    const maoDeObraCost = horasMaoObra * valorHoraMaoObra;
+
+    return { materialCost, energiaCost, maoDeObraCost };
+  }
+
+  async function handleAddItemLocal() {
     setError('');
     const produto = produtos.find((p) => String(p.codigo) === novoItemLocal.produto_codigo);
     if (!produto) {
       setError('Selecione um produto.');
       return;
     }
-    setItensPendentes([
-      ...itensPendentes,
-      {
-        produto_codigo: novoItemLocal.produto_codigo,
-        produto_descricao: produto.descricao,
-        quantidade: novoItemLocal.quantidade || String(produto.quantidade),
-        valor_unitario: (novoItemLocal.valor_unitario || '0').replace(',', '.'),
-      },
-    ]);
-    setNovoItemLocal(emptyNovoItem);
-    setRaioX(null);
+    setAddingItem(true);
+    try {
+      const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(produto);
+      const markup = parseDecimal(form.markup_percentual) || 0;
+      const impostos = parseDecimal(form.impostos_percentual) || 0;
+      const taxa = parseDecimal(form.taxa_percentual) || 0;
+
+      const custoTotal = materialCost + energiaCost + maoDeObraCost;
+      const lucro = custoTotal * (markup / 100);
+      const precoBase = custoTotal + lucro;
+      const percentualFees = (impostos + taxa) / 100;
+      const precoVenda = percentualFees < 1 ? precoBase / (1 - percentualFees) : precoBase;
+      const valorUnitario = produto.quantidade > 0 ? precoVenda / produto.quantidade : precoVenda;
+
+      setItensPendentes([
+        ...itensPendentes,
+        {
+          produto_codigo: novoItemLocal.produto_codigo,
+          produto_descricao: produto.descricao,
+          quantidade: String(produto.quantidade),
+          valor_unitario: valorUnitario.toFixed(2),
+        },
+      ]);
+      setNovoItemLocal(emptyNovoItem);
+      setRaioX(null);
+    } finally {
+      setAddingItem(false);
+    }
   }
 
   function handleRemoveItemLocal(index: number) {
@@ -324,47 +383,16 @@ export default function OrcamentosPage() {
     }
     setCalculando(true);
     try {
-      const equipamentoSelecionado = equipamentos.find((eq) => String(eq.codigo) === form.equipamento_codigo);
-      const consumoWHora = equipamentoSelecionado ? Number(equipamentoSelecionado.consumo_w_hora) : 0;
-      const custoKgPadrao = parseDecimal(custoBaseFilamento) || 0;
-      const valorHoraEnergia = parseDecimal(valorConsumoHora) || 0;
-      const valorHoraMaoObra = parseDecimal(custoMaoObraHora) || 0;
-
       const materiaisMap = new Map<number, MaterialAgregado>();
 
       const itensCalculados = await Promise.all(
         itensPendentes.map(async (item) => {
           const produto = produtos.find((p) => String(p.codigo) === item.produto_codigo);
           const quantidade = produto?.quantidade || Number(item.quantidade) || 1;
-          const res = await fetch(`/api/produtos/${item.produto_codigo}/materiais`);
-          const materiais: ItemMaterial[] = res.ok ? await res.json() : [];
-
-          let materialCost = 0;
-          for (const m of materiais) {
-            const mp = materiasPrimas.find((x) => x.codigo === m.materia_prima_codigo);
-            const custoKg = mp?.valor_custo ? Number(mp.valor_custo) : custoKgPadrao;
-            const pesoNum = Number(m.peso) || 0;
-            materialCost += (pesoNum / 1000) * custoKg;
-
-            const existente = materiaisMap.get(m.materia_prima_codigo);
-            if (existente) {
-              existente.pesoTotal += pesoNum;
-            } else {
-              materiaisMap.set(m.materia_prima_codigo, {
-                materia_prima_codigo: m.materia_prima_codigo,
-                nome: `${m.tipo_nome} — ${m.marca} (${m.cor})`,
-                cor_hex: m.cor_hex || '#cbd5e1',
-                pesoTotal: pesoNum,
-                unidade: m.unidade_medida_sigla,
-              });
-            }
+          if (!produto) {
+            return { item, quantidade, materialCost: 0, energiaCost: 0, maoDeObraCost: 0 };
           }
-
-          const horasImpressao = (produto?.tempo_impressao_segundos || 0) / 3600;
-          const horasMaoObra = (produto?.tempo_mao_obra_segundos || 0) / 3600;
-          const energiaCost = (consumoWHora / 1000) * horasImpressao * valorHoraEnergia;
-          const maoDeObraCost = horasMaoObra * valorHoraMaoObra;
-
+          const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(produto, materiaisMap);
           return { item, quantidade, materialCost, energiaCost, maoDeObraCost };
         })
       );
@@ -844,20 +872,13 @@ export default function OrcamentosPage() {
                       <label>Quantidade (do cadastro do produto)</label>
                       <input value={novoItemLocal.quantidade} disabled />
                     </div>
-                    <div className="field">
-                      <label>Valor Unitário (R$)</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Use Calcular Preço para sugestão"
-                        value={novoItemLocal.valor_unitario}
-                        onChange={(e) => setNovoItemLocal({ ...novoItemLocal, valor_unitario: e.target.value })}
-                      />
-                    </div>
                   </div>
+                  <p className="hint" style={{ marginTop: -4 }}>
+                    Custo e valor de venda são calculados automaticamente ao adicionar o item.
+                  </p>
                   <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                    <button type="button" className="btn-small" onClick={handleAddItemLocal}>
-                      Adicionar item à lista
+                    <button type="button" className="btn-small" onClick={handleAddItemLocal} disabled={addingItem}>
+                      {addingItem ? 'Calculando...' : 'Adicionar item à lista'}
                     </button>
                     {itensPendentes.length > 0 && (
                       <button
@@ -866,7 +887,7 @@ export default function OrcamentosPage() {
                         onClick={handleCalcular}
                         disabled={calculando}
                       >
-                        {calculando ? 'Calculando...' : 'Calcular Preço'}
+                        {calculando ? 'Calculando...' : 'Recalcular Preço'}
                       </button>
                     )}
                   </div>
