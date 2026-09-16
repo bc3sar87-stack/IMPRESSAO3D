@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { rows: orcRows } = await pool.query(
     `SELECT o.codigo, o.data, o.data_entrega, o.status, o.observacoes, o.valor_total,
             c.nome AS cliente_nome, c.email AS cliente_email,
-            e.razao_social AS empresa_razao_social,
+            e.razao_social AS empresa_razao_social, e.logo_imagem, e.logo_tipo,
             eq.fabricante AS equipamento_fabricante, eq.modelo AS equipamento_modelo
      FROM orcamentos o
      JOIN clientes c ON c.codigo = o.cliente_codigo
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+      ${orcamento.logo_imagem ? `<img src="cid:logoempresa" alt="${orcamento.empresa_razao_social}" style="max-height:60px;max-width:200px;object-fit:contain;margin-bottom:12px;" />` : ''}
       <h2 style="color:#1e293b;">Orçamento #${orcamento.codigo} — ${orcamento.empresa_razao_social}</h2>
       <p>Olá, ${orcamento.cliente_nome}!</p>
       <p>Segue abaixo o orçamento solicitado:</p>
@@ -145,6 +146,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     </div>
   `;
 
+  const attachments: { filename: string; content: Buffer; cid: string; contentType: string }[] = [];
+  if (orcamento.logo_imagem) {
+    attachments.push({
+      filename: 'logo-empresa.png',
+      content: orcamento.logo_imagem,
+      cid: 'logoempresa',
+      contentType: orcamento.logo_tipo || 'image/png',
+    });
+  }
+  if (pix?.qrcode_imagem) {
+    attachments.push({
+      filename: 'pix-qrcode.png',
+      content: pix.qrcode_imagem,
+      cid: 'pixqrcode',
+      contentType: pix.qrcode_tipo || 'image/png',
+    });
+  }
+
   let sucesso = true;
   let erroMensagem: string | null = null;
   try {
@@ -153,16 +172,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       subject: `Orçamento #${orcamento.codigo} — ${orcamento.empresa_razao_social}`,
       text: `Olá, ${orcamento.cliente_nome}! Segue o orçamento #${orcamento.codigo}. Valor total: R$ ${Number(orcamento.valor_total).toFixed(2)}.`,
       html,
-      attachments: pix?.qrcode_imagem
-        ? [
-            {
-              filename: 'pix-qrcode.png',
-              content: pix.qrcode_imagem,
-              cid: 'pixqrcode',
-              contentType: pix.qrcode_tipo || 'image/png',
-            },
-          ]
-        : undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
   } catch (err) {
     sucesso = false;

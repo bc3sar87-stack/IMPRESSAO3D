@@ -13,11 +13,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   let empresaNome: string | null = null;
+  let empresaTemLogo = false;
   if (session.empresa_codigo) {
-    const { rows } = await pool.query(`SELECT razao_social FROM empresa WHERE codigo = $1`, [
-      session.empresa_codigo,
-    ]);
+    const { rows } = await pool.query(
+      `SELECT razao_social, (logo_imagem IS NOT NULL) AS tem_logo FROM empresa WHERE codigo = $1`,
+      [session.empresa_codigo]
+    );
     empresaNome = rows[0]?.razao_social ?? null;
+    empresaTemLogo = rows[0]?.tem_logo ?? false;
   }
 
   return (
@@ -25,6 +28,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <aside className="sidebar">
         <div className="sidebar-title">
           <img src="/logo-full-light.svg" alt="3D Print Control" height={40} />
+          {empresaTemLogo && (
+            <img
+              src="/api/logo-empresa/imagem"
+              alt={empresaNome || 'Logo da empresa'}
+              className="sidebar-empresa-logo"
+            />
+          )}
         </div>
         <SidebarNav isAdmin={session.nivel === 'ADMINISTRADOR'} />
       </aside>

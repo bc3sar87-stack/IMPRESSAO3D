@@ -37,13 +37,15 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
   const [erro, setErro] = useState('');
   const [chavePix, setChavePix] = useState('');
   const [temQrcodePix, setTemQrcodePix] = useState(false);
+  const [temLogoEmpresa, setTemLogoEmpresa] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const [orcRes, itensRes, pixRes] = await Promise.all([
+      const [orcRes, itensRes, pixRes, logoRes] = await Promise.all([
         fetch(`/api/orcamentos/${codigo}`),
         fetch(`/api/orcamentos/${codigo}/itens`),
         fetch('/api/configuracao-pix'),
+        fetch('/api/logo-empresa'),
       ]);
       if (!orcRes.ok) {
         const data = await orcRes.json().catch(() => ({}));
@@ -56,6 +58,10 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
         const pix = await pixRes.json();
         setChavePix(pix.chave_pix || '');
         setTemQrcodePix(pix.tem_qrcode);
+      }
+      if (logoRes.ok) {
+        const logo = await logoRes.json();
+        setTemLogoEmpresa(logo.tem_logo);
       }
     }
     load();
@@ -83,11 +89,20 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
 
       <div className="card" style={{ maxWidth: 800, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h2 style={{ margin: 0 }}>{orcamento.empresa_razao_social}</h2>
-            <p className="hint" style={{ margin: '4px 0 0' }}>
-              {orcamento.empresa_tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: {orcamento.empresa_documento}
-            </p>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {temLogoEmpresa && (
+              <img
+                src="/api/logo-empresa/imagem"
+                alt={orcamento.empresa_razao_social}
+                style={{ maxHeight: 56, maxWidth: 120, objectFit: 'contain' }}
+              />
+            )}
+            <div>
+              <h2 style={{ margin: 0 }}>{orcamento.empresa_razao_social}</h2>
+              <p className="hint" style={{ margin: '4px 0 0' }}>
+                {orcamento.empresa_tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: {orcamento.empresa_documento}
+              </p>
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <h3 style={{ margin: 0 }}>Orçamento #{orcamento.codigo}</h3>
