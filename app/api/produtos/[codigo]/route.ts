@@ -22,6 +22,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     tempo_mao_obra_segundos,
     tipo,
     valor_custo,
+    remover_foto,
   } = await request.json().catch(() => ({}));
 
   if (!descricao) {
@@ -53,23 +54,42 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           session.empresa_codigo,
         ]
       )
-    : await pool.query(
-        `UPDATE produtos SET descricao=$1, link_stl=$2, quantidade=$3,
-                tempo_impressao_segundos=$4, tempo_mao_obra_segundos=$5, tipo=$6, valor_custo=$7
-         WHERE codigo=$8 AND empresa_codigo=$9
-         RETURNING codigo`,
-        [
-          descricao,
-          link_stl || null,
-          quantidade || 1,
-          tempoImpressao,
-          tempoMaoObra,
-          tipoProduto,
-          valorCusto,
-          codigo,
-          session.empresa_codigo,
-        ]
-      );
+    : remover_foto
+      ? await pool.query(
+          `UPDATE produtos SET descricao=$1, link_stl=$2, quantidade=$3,
+                  tempo_impressao_segundos=$4, tempo_mao_obra_segundos=$5, tipo=$6, valor_custo=$7,
+                  foto=NULL, foto_tipo=NULL
+           WHERE codigo=$8 AND empresa_codigo=$9
+           RETURNING codigo`,
+          [
+            descricao,
+            link_stl || null,
+            quantidade || 1,
+            tempoImpressao,
+            tempoMaoObra,
+            tipoProduto,
+            valorCusto,
+            codigo,
+            session.empresa_codigo,
+          ]
+        )
+      : await pool.query(
+          `UPDATE produtos SET descricao=$1, link_stl=$2, quantidade=$3,
+                  tempo_impressao_segundos=$4, tempo_mao_obra_segundos=$5, tipo=$6, valor_custo=$7
+           WHERE codigo=$8 AND empresa_codigo=$9
+           RETURNING codigo`,
+          [
+            descricao,
+            link_stl || null,
+            quantidade || 1,
+            tempoImpressao,
+            tempoMaoObra,
+            tipoProduto,
+            valorCusto,
+            codigo,
+            session.empresa_codigo,
+          ]
+        );
 
   if (rows.length === 0) {
     return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });

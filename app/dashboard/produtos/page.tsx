@@ -49,6 +49,7 @@ const emptyForm = {
   tempoMaoObraSegundos: 0,
   tipo: 'IMPRESSAO' as Produto['tipo'],
   valorCusto: '',
+  removerFoto: false,
 };
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -70,6 +71,7 @@ export default function ProdutosPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
+  const [fotoAmpliadaAberta, setFotoAmpliadaAberta] = useState(false);
 
   const [selecionado, setSelecionado] = useState<Produto | null>(null);
   const [itensMaterial, setItensMaterial] = useState<ItemMaterial[]>([]);
@@ -115,6 +117,7 @@ export default function ProdutosPage() {
       tempoMaoObraSegundos: p.tempo_mao_obra_segundos,
       tipo: p.tipo,
       valorCusto: p.valor_custo || '',
+      removerFoto: false,
     });
     setStlFile(null);
     setError('');
@@ -150,6 +153,7 @@ export default function ProdutosPage() {
       tempoMaoObraSegundos: p.tempo_mao_obra_segundos,
       tipo: p.tipo,
       valorCusto: p.valor_custo || '',
+      removerFoto: false,
     });
 
     setStlFile(null);
@@ -187,7 +191,7 @@ export default function ProdutosPage() {
     reader.onload = () => {
       const dataUrl = reader.result as string;
       const [, base64] = dataUrl.split(',');
-      setForm((f) => ({ ...f, fotoBase64: base64, fotoTipo: file.type, fotoPreview: dataUrl }));
+      setForm((f) => ({ ...f, fotoBase64: base64, fotoTipo: file.type, fotoPreview: dataUrl, removerFoto: false }));
     };
     reader.readAsDataURL(file);
   }
@@ -198,6 +202,10 @@ export default function ProdutosPage() {
       e.preventDefault();
       handleFotoChange(item.getAsFile());
     }
+  }
+
+  function handleRemoverFoto() {
+    setForm((f) => ({ ...f, fotoBase64: '', fotoTipo: '', fotoPreview: '', removerFoto: true }));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -215,6 +223,7 @@ export default function ProdutosPage() {
           link_stl: form.link_stl,
           foto_base64: form.fotoBase64 || undefined,
           foto_tipo: form.fotoTipo || undefined,
+          remover_foto: form.removerFoto,
           quantidade: form.quantidade,
           tempo_impressao_segundos: form.tempoImpressaoSegundos,
           tempo_mao_obra_segundos: form.tempoMaoObraSegundos,
@@ -481,18 +490,32 @@ export default function ProdutosPage() {
                   <label>Foto</label>
                   <div className="paste-zone" tabIndex={0} onPaste={handleFotoPaste}>
                     {form.fotoPreview ? (
-                      <img src={form.fotoPreview} alt="Prévia" className="paste-zone-preview" />
+                      <img
+                        src={form.fotoPreview}
+                        alt="Prévia"
+                        className="paste-zone-preview"
+                        style={{ cursor: 'zoom-in' }}
+                        onClick={() => setFotoAmpliadaAberta(true)}
+                        title="Clique para ampliar"
+                      />
                     ) : (
                       <span className="hint" style={{ margin: 0 }}>
                         Clique aqui e pressione Ctrl+V para colar uma imagem
                       </span>
                     )}
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFotoChange(e.target.files?.[0] || null)}
-                  />
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFotoChange(e.target.files?.[0] || null)}
+                    />
+                    {form.fotoPreview && (
+                      <button type="button" className="btn-small danger" onClick={handleRemoverFoto}>
+                        Remover foto
+                      </button>
+                    )}
+                  </div>
                   <p className="hint">Máximo 4MB. Deixe em branco para manter a foto atual.</p>
                 </div>
               </div>
@@ -525,6 +548,33 @@ export default function ProdutosPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {fotoAmpliadaAberta && form.fotoPreview && (
+        <div className="modal-overlay" onClick={() => setFotoAmpliadaAberta(false)}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 720, padding: 12, background: 'transparent', boxShadow: 'none' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                type="button"
+                className="modal-close"
+                style={{ background: '#fff', borderRadius: 8 }}
+                onClick={() => setFotoAmpliadaAberta(false)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <img
+              src={form.fotoPreview}
+              alt="Foto ampliada"
+              style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }}
+            />
           </div>
         </div>
       )}
