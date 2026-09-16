@@ -43,6 +43,7 @@ interface Orcamento {
   status: OrcamentoStatus;
   observacoes: string | null;
   valor_total: string;
+  valor_sugerido: string | null;
   equipamento_codigo: number | null;
   equipamento_fabricante: string | null;
   equipamento_modelo: string | null;
@@ -490,6 +491,26 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         });
       }
 
+      await fetch(`/api/orcamentos/${o.codigo}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cliente_codigo: o.cliente_codigo,
+          data: o.data.slice(0, 10),
+          data_entrega: o.data_entrega ? o.data_entrega.slice(0, 10) : '',
+          status: o.status,
+          observacoes: o.observacoes || '',
+          equipamento_codigo: o.equipamento_codigo || '',
+          markup_percentual: o.markup_percentual,
+          impostos_percentual: o.impostos_percentual,
+          taxa_marketplace: o.taxa_marketplace,
+          taxa_percentual: o.taxa_percentual,
+          embalagem_valor: o.embalagem_valor,
+          custos_extras_valor: o.custos_extras_valor,
+          valor_sugerido: precoVenda.toFixed(2),
+        }),
+      });
+
       setRaioX({
         materialTotal,
         energiaTotal,
@@ -542,10 +563,15 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     try {
       const url = editingCodigo ? `/api/orcamentos/${editingCodigo}` : '/api/orcamentos';
       const method = editingCodigo ? 'PUT' : 'POST';
+      const valorSugeridoInicial = !editingCodigo && itensPendentes.length > 0 ? totalPendente.toFixed(2) : undefined;
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...sanitized, data: sanitized.data || hoje() }),
+        body: JSON.stringify({
+          ...sanitized,
+          data: sanitized.data || hoje(),
+          valor_sugerido: valorSugeridoInicial,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -716,6 +742,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const custoPct = raioX && raioX.precoVenda > 0 ? (raioX.custoIndustrial / raioX.precoVenda) * 100 : 0;
   const taxaPct = raioX && raioX.precoVenda > 0 ? (raioX.taxasValor / raioX.precoVenda) * 100 : 0;
   const lucroPct = raioX && raioX.precoVenda > 0 ? (raioX.lucro / raioX.precoVenda) * 100 : 0;
+  const roiPct = raioX && raioX.custoIndustrial > 0 ? (raioX.lucro / raioX.custoIndustrial) * 100 : 0;
 
   return (
     <div>
@@ -744,7 +771,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <th>Entrega</th>
               <th>Equipamento</th>
               <th>Status</th>
-              <th>Total</th>
+              <th>Valor Sugerido</th>
+              <th>Valor Escolhido</th>
               <th></th>
             </tr>
           </thead>
@@ -777,6 +805,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <option value="ENTREGUE">{STATUS_LABELS.ENTREGUE}</option>
                   </select>
                 </td>
+                <td>{o.valor_sugerido ? `R$ ${o.valor_sugerido}` : '-'}</td>
                 <td>R$ {o.valor_total}</td>
                 <td>
                   <div className="row-actions">
@@ -806,7 +835,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
             ))}
             {orcamentosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={8}>Nenhum orçamento encontrado.</td>
+                <td colSpan={9}>Nenhum orçamento encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -1191,9 +1220,23 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <div className="raiox-line-value">R$ {((raioX.precoVenda * raioX.taxa) / 100).toFixed(2)}</div>
             </div>
 
-            <div className="raiox-total">
-              <span>Preço de Venda Sugerido</span>
-              <span>R$ {raioX.precoVenda.toFixed(2)}</span>
+            <div className="raiox-summary">
+              <div className="raiox-summary-label">Preço de Venda Sugerido</div>
+              <div className="raiox-summary-price">R$ {raioX.precoVenda.toFixed(2)}</div>
+              <div className="raiox-summary-stats">
+                <div className="raiox-stat">
+                  <div className="raiox-stat-value">R$ {raioX.lucro.toFixed(2)}</div>
+                  <div className="raiox-stat-label">Lucro Líquido</div>
+                </div>
+                <div className="raiox-stat">
+                  <div className="raiox-stat-value">{roiPct.toFixed(1)}%</div>
+                  <div className="raiox-stat-label">ROI</div>
+                </div>
+                <div className="raiox-stat">
+                  <div className="raiox-stat-value">{lucroPct.toFixed(1)}%</div>
+                  <div className="raiox-stat-label">Margem Real</div>
+                </div>
+              </div>
             </div>
 
             <button
