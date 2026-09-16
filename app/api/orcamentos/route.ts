@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT o.codigo, o.data, o.data_entrega, o.status, o.observacoes, o.valor_total, o.valor_sugerido,
+    `SELECT o.codigo, o.data, o.data_entrega, o.status, o.observacoes, o.valor_total, o.valor_sugerido, o.custo_total,
             o.cliente_codigo, c.nome AS cliente_nome,
             o.equipamento_codigo, eq.fabricante AS equipamento_fabricante, eq.modelo AS equipamento_modelo,
             o.markup_percentual, o.impostos_percentual, o.taxa_marketplace, o.taxa_percentual,
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     embalagem_valor,
     custos_extras_valor,
     valor_sugerido,
+    custo_total,
   } = await request.json().catch(() => ({}));
 
   if (!cliente_codigo) {
@@ -78,9 +79,9 @@ export async function POST(request: NextRequest) {
     `INSERT INTO orcamentos (
        cliente_codigo, data, data_entrega, status, observacoes, equipamento_codigo,
        markup_percentual, impostos_percentual, taxa_marketplace, taxa_percentual,
-       embalagem_valor, custos_extras_valor, valor_sugerido, empresa_codigo
+       embalagem_valor, custos_extras_valor, valor_sugerido, custo_total, empresa_codigo
      )
-     VALUES ($1, COALESCE($2, CURRENT_DATE), $3, COALESCE($4, 'ABERTO'), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     VALUES ($1, COALESCE($2, CURRENT_DATE), $3, COALESCE($4, 'ABERTO'), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      RETURNING codigo`,
     [
       cliente_codigo,
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
       embalagem_valor || 0,
       custos_extras_valor || 0,
       valor_sugerido || null,
+      custo_total || null,
       session.empresa_codigo,
     ]
   );

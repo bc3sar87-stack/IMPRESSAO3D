@@ -26,6 +26,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     embalagem_valor,
     custos_extras_valor,
     valor_sugerido,
+    custo_total,
   } = await request.json().catch(() => ({}));
 
   if (!cliente_codigo || !data || !status) {
@@ -54,8 +55,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     `UPDATE orcamentos SET cliente_codigo=$1, data=$2, data_entrega=$3, status=$4, observacoes=$5,
             equipamento_codigo=$6, markup_percentual=$7, impostos_percentual=$8, taxa_marketplace=$9,
             taxa_percentual=$10, embalagem_valor=$11, custos_extras_valor=$12,
-            valor_sugerido=COALESCE($13, valor_sugerido)
-     WHERE codigo=$14 AND empresa_codigo=$15
+            valor_sugerido=COALESCE($13, valor_sugerido), custo_total=COALESCE($14, custo_total)
+     WHERE codigo=$15 AND empresa_codigo=$16
      RETURNING codigo`,
     [
       cliente_codigo,
@@ -71,6 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       embalagem_valor || 0,
       custos_extras_valor || 0,
       valor_sugerido || null,
+      custo_total || null,
       codigo,
       session.empresa_codigo,
     ]

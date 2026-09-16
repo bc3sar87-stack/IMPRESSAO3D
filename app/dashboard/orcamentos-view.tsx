@@ -44,6 +44,7 @@ interface Orcamento {
   observacoes: string | null;
   valor_total: string;
   valor_sugerido: string | null;
+  custo_total: string | null;
   equipamento_codigo: number | null;
   equipamento_fabricante: string | null;
   equipamento_modelo: string | null;
@@ -531,8 +532,20 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           embalagem_valor: o.embalagem_valor,
           custos_extras_valor: o.custos_extras_valor,
           valor_sugerido: precoVenda.toFixed(2),
+          custo_total: custoIndustrial.toFixed(2),
         }),
       });
+
+      const novoMapaCustos: Record<number, number> = {};
+      for (const { item, quantidade, materialCost, energiaCost, maoDeObraCost } of itensCalculados) {
+        novoMapaCustos[item.codigo] = quantidade > 0 ? (materialCost + energiaCost + maoDeObraCost) / quantidade : 0;
+      }
+      setCustosItens(novoMapaCustos);
+      setOrcamentos((atual) =>
+        atual.map((item) =>
+          item.codigo === o.codigo ? { ...item, custo_total: custoIndustrial.toFixed(2) } : item
+        )
+      );
 
       setRaioX({
         materialTotal,
@@ -587,6 +600,17 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       const url = editingCodigo ? `/api/orcamentos/${editingCodigo}` : '/api/orcamentos';
       const method = editingCodigo ? 'PUT' : 'POST';
       const valorSugeridoInicial = !editingCodigo && itensPendentes.length > 0 ? totalPendente.toFixed(2) : undefined;
+      const custoTotalInicial =
+        !editingCodigo && itensPendentes.length > 0
+          ? (
+              itensPendentes.reduce(
+                (s, item) => s + Number(item.custo_unitario || 0) * Number(item.quantidade || 0),
+                0
+              ) +
+              (parseDecimal(sanitized.embalagem_valor) || 0) +
+              (parseDecimal(sanitized.custos_extras_valor) || 0)
+            ).toFixed(2)
+          : undefined;
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -594,6 +618,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           ...sanitized,
           data: sanitized.data || hoje(),
           valor_sugerido: valorSugeridoInicial,
+          custo_total: custoTotalInicial,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -704,7 +729,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     }
   }
 
-  async function calcularCustosItens(itensList: ItemOrcamento[], equipamentoCodigo: string) {
+  async function calcularCustosItens(itensList: ItemOrcamento[], equipamentoCodigo: string, orcamento?: Orcamento) {
     const novoMapa: Record<number, number> = {};
     await Promise.all(
       itensList.map(async (item) => {
@@ -717,6 +742,40 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       })
     );
     setCustosItens(novoMapa);
+
+    if (orcamento) {
+      const embalagem = Number(orcamento.embalagem_valor) || 0;
+      const custosExtras = Number(orcamento.custos_extras_valor) || 0;
+      const custoTotalOrcamento =
+        itensList.reduce((s, item) => s + (novoMapa[item.codigo] || 0) * (Number(item.quantidade) || 0), 0) +
+        embalagem +
+        custosExtras;
+
+      await fetch(`/api/orcamentos/${orcamento.codigo}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cliente_codigo: orcamento.cliente_codigo,
+          data: orcamento.data.slice(0, 10),
+          data_entrega: orcamento.data_entrega ? orcamento.data_entrega.slice(0, 10) : '',
+          status: orcamento.status,
+          observacoes: orcamento.observacoes || '',
+          equipamento_codigo: orcamento.equipamento_codigo || '',
+          markup_percentual: orcamento.markup_percentual,
+          impostos_percentual: orcamento.impostos_percentual,
+          taxa_marketplace: orcamento.taxa_marketplace,
+          taxa_percentual: orcamento.taxa_percentual,
+          embalagem_valor: orcamento.embalagem_valor,
+          custos_extras_valor: orcamento.custos_extras_valor,
+          custo_total: custoTotalOrcamento.toFixed(2),
+        }),
+      });
+      setOrcamentos((atual) =>
+        atual.map((item) =>
+          item.codigo === orcamento.codigo ? { ...item, custo_total: custoTotalOrcamento.toFixed(2) } : item
+        )
+      );
+    }
   }
 
   async function abrirItens(o: Orcamento) {
@@ -728,7 +787,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     if (res.ok) {
       const lista: ItemOrcamento[] = await res.json();
       setItens(lista);
-      await calcularCustosItens(lista, o.equipamento_codigo ? String(o.equipamento_codigo) : '');
+      await calcularCustosItens(lista, o.equipamento_codigo ? String(o.equipamento_codigo) : '', o);
     }
   }
 
@@ -749,6 +808,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       setItens(lista);
     }
     let equipamentoCodigo = selecionado?.equipamento_codigo ? String(selecionado.equipamento_codigo) : '';
+    let orcamentoAtual: Orcamento | undefined = selecionado || undefined;
     if (orcRes.ok) {
       const listaOrc: Orcamento[] = await orcRes.json();
       setOrcamentos(listaOrc);
@@ -756,9 +816,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       if (atual) {
         setSelecionado(atual);
         equipamentoCodigo = atual.equipamento_codigo ? String(atual.equipamento_codigo) : '';
+        orcamentoAtual = atual;
       }
     }
-    if (lista.length > 0) await calcularCustosItens(lista, equipamentoCodigo);
+    if (lista.length > 0) await calcularCustosItens(lista, equipamentoCodigo, orcamentoAtual);
   }
 
   function abrirParametrosNovoItem() {
@@ -891,6 +952,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <th>Status</th>
               <th>Valor Sugerido</th>
               <th>Valor Escolhido</th>
+              <th>Lucro</th>
               <th></th>
             </tr>
           </thead>
@@ -926,6 +988,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 <td>{o.valor_sugerido ? `R$ ${o.valor_sugerido}` : '-'}</td>
                 <td>R$ {o.valor_total}</td>
                 <td>
+                  {o.custo_total !== null && o.custo_total !== undefined
+                    ? `R$ ${(Number(o.valor_total) - Number(o.custo_total)).toFixed(2)}`
+                    : '-'}
+                </td>
+                <td>
                   <div className="row-actions">
                     <button className="icon-btn" title="Editar" onClick={() => startEdit(o)}>
                       <IconEdit />
@@ -953,7 +1020,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
             ))}
             {orcamentosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={9}>Nenhum orçamento encontrado.</td>
+                <td colSpan={10}>Nenhum orçamento encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -1131,44 +1198,63 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                             <th>Valor Custo</th>
                             <th>Valor Unitário</th>
                             <th>Subtotal</th>
+                            <th>Lucro</th>
                             <th></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {itensPendentes.map((item, index) => (
-                            <tr key={index}>
-                              <td>{item.produto_descricao}</td>
-                              <td>{item.quantidade}</td>
-                              <td>R$ {Number(item.custo_unitario || 0).toFixed(2)}</td>
-                              <td>
-                                <div className="input-prefix-group" style={{ minWidth: 140 }}>
-                                  <span className="input-prefix">R$</span>
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={item.valor_unitario}
-                                    onChange={(e) => handleValorUnitarioChange(index, e.target.value)}
-                                  />
-                                </div>
-                              </td>
-                              <td>R$ {(Number(item.quantidade) * Number(String(item.valor_unitario).replace(',', '.'))).toFixed(2)}</td>
-                              <td>
-                                <button
-                                  type="button"
-                                  className="icon-btn danger"
-                                  title="Remover"
-                                  onClick={() => handleRemoveItemLocal(index)}
-                                >
-                                  <IconTrash />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {itensPendentes.map((item, index) => {
+                            const qtd = Number(item.quantidade) || 0;
+                            const valorUnit = Number(String(item.valor_unitario).replace(',', '.')) || 0;
+                            const custoUnit = Number(item.custo_unitario || 0);
+                            const lucroItem = (valorUnit - custoUnit) * qtd;
+                            return (
+                              <tr key={index}>
+                                <td>{item.produto_descricao}</td>
+                                <td>{item.quantidade}</td>
+                                <td>R$ {custoUnit.toFixed(2)}</td>
+                                <td>
+                                  <div className="input-prefix-group" style={{ minWidth: 140 }}>
+                                    <span className="input-prefix">R$</span>
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={item.valor_unitario}
+                                      onChange={(e) => handleValorUnitarioChange(index, e.target.value)}
+                                    />
+                                  </div>
+                                </td>
+                                <td>R$ {(qtd * valorUnit).toFixed(2)}</td>
+                                <td>R$ {lucroItem.toFixed(2)}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="icon-btn danger"
+                                    title="Remover"
+                                    onClick={() => handleRemoveItemLocal(index)}
+                                  >
+                                    <IconTrash />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                           <tr>
                             <td colSpan={4} style={{ textAlign: 'right', fontWeight: 600 }}>
                               Total
                             </td>
                             <td style={{ fontWeight: 600 }}>R$ {totalPendente.toFixed(2)}</td>
+                            <td style={{ fontWeight: 600 }}>
+                              R${' '}
+                              {itensPendentes
+                                .reduce((s, item) => {
+                                  const qtd = Number(item.quantidade) || 0;
+                                  const valorUnit = Number(String(item.valor_unitario).replace(',', '.')) || 0;
+                                  const custoUnit = Number(item.custo_unitario || 0);
+                                  return s + (valorUnit - custoUnit) * qtd;
+                                }, 0)
+                                .toFixed(2)}
+                            </td>
                             <td></td>
                           </tr>
                         </tbody>
@@ -1568,49 +1654,56 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   <th>Valor Custo</th>
                   <th>Valor Unitário</th>
                   <th>Subtotal</th>
+                  <th>Lucro</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {itens.map((item) => (
-                  <tr key={item.codigo}>
-                    <td>{item.produto_descricao}</td>
-                    <td>{item.quantidade}</td>
-                    <td>
-                      {custosItens[item.codigo] !== undefined ? `R$ ${custosItens[item.codigo].toFixed(2)}` : '-'}
-                    </td>
-                    <td>
-                      <div className="input-prefix-group" style={{ minWidth: 140 }}>
-                        <span className="input-prefix">R$</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={item.valor_unitario}
-                          onChange={(e) => handleItemValorChange(item.codigo, e.target.value)}
-                        />
-                      </div>
-                    </td>
-                    <td>R$ {item.subtotal}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          className="icon-btn"
-                          title="Salvar valor unitário"
-                          onClick={() => handleSalvarValorItem(item)}
-                          disabled={salvandoValorCodigo === item.codigo}
-                        >
-                          <IconCheck />
-                        </button>
-                        <button className="icon-btn danger" title="Remover" onClick={() => handleDeleteItem(item.codigo)}>
-                          <IconTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {itens.map((item) => {
+                  const custoUnit = custosItens[item.codigo];
+                  const lucroItem =
+                    custoUnit !== undefined
+                      ? (Number(item.valor_unitario) - custoUnit) * (Number(item.quantidade) || 0)
+                      : undefined;
+                  return (
+                    <tr key={item.codigo}>
+                      <td>{item.produto_descricao}</td>
+                      <td>{item.quantidade}</td>
+                      <td>{custoUnit !== undefined ? `R$ ${custoUnit.toFixed(2)}` : '-'}</td>
+                      <td>
+                        <div className="input-prefix-group" style={{ minWidth: 140 }}>
+                          <span className="input-prefix">R$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={item.valor_unitario}
+                            onChange={(e) => handleItemValorChange(item.codigo, e.target.value)}
+                          />
+                        </div>
+                      </td>
+                      <td>R$ {item.subtotal}</td>
+                      <td>{lucroItem !== undefined ? `R$ ${lucroItem.toFixed(2)}` : '-'}</td>
+                      <td>
+                        <div className="row-actions">
+                          <button
+                            className="icon-btn"
+                            title="Salvar valor unitário"
+                            onClick={() => handleSalvarValorItem(item)}
+                            disabled={salvandoValorCodigo === item.codigo}
+                          >
+                            <IconCheck />
+                          </button>
+                          <button className="icon-btn danger" title="Remover" onClick={() => handleDeleteItem(item.codigo)}>
+                            <IconTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {itens.length === 0 && (
                   <tr>
-                    <td colSpan={6}>Nenhum item adicionado.</td>
+                    <td colSpan={7}>Nenhum item adicionado.</td>
                   </tr>
                 )}
               </tbody>
