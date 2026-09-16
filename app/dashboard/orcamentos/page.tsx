@@ -68,6 +68,7 @@ interface ItemPendente {
   produto_descricao: string;
   quantidade: string;
   valor_unitario: string;
+  custo_unitario: string;
 }
 
 interface MaterialAgregado {
@@ -157,7 +158,8 @@ export default function OrcamentosPage() {
   });
 
   const totalPendente = itensPendentes.reduce(
-    (soma, item) => soma + Number(item.quantidade || 0) * Number(item.valor_unitario || 0),
+    (soma, item) =>
+      soma + Number(item.quantidade || 0) * (Number(String(item.valor_unitario || 0).replace(',', '.')) || 0),
     0
   );
 
@@ -264,6 +266,7 @@ export default function OrcamentosPage() {
           produto_descricao: item.produto_descricao,
           quantidade: item.quantidade,
           valor_unitario: item.valor_unitario,
+          custo_unitario: '0',
         }))
       );
     } else {
@@ -352,6 +355,7 @@ export default function OrcamentosPage() {
       const precoBase = custoTotal + lucro;
       const percentualFees = (impostos + taxa) / 100;
       const precoVenda = percentualFees < 1 ? precoBase / (1 - percentualFees) : precoBase;
+      const custoUnitario = produto.quantidade > 0 ? custoTotal / produto.quantidade : custoTotal;
       const valorUnitario = produto.quantidade > 0 ? precoVenda / produto.quantidade : precoVenda;
 
       setItensPendentes([
@@ -361,6 +365,7 @@ export default function OrcamentosPage() {
           produto_descricao: produto.descricao,
           quantidade: String(produto.quantidade),
           valor_unitario: valorUnitario.toFixed(2),
+          custo_unitario: custoUnitario.toFixed(2),
         },
       ]);
       setNovoItemLocal(emptyNovoItem);
@@ -373,6 +378,12 @@ export default function OrcamentosPage() {
   function handleRemoveItemLocal(index: number) {
     setItensPendentes(itensPendentes.filter((_, i) => i !== index));
     setRaioX(null);
+  }
+
+  function handleValorUnitarioChange(index: number, value: string) {
+    setItensPendentes(
+      itensPendentes.map((item, i) => (i === index ? { ...item, valor_unitario: value } : item))
+    );
   }
 
   async function handleCalcular() {
@@ -419,7 +430,13 @@ export default function OrcamentosPage() {
         const proporcao = somaBaseItens > 0 ? baseItem / somaBaseItens : 1 / itensCalculados.length;
         const precoItem = precoVenda * proporcao;
         const valorUnitario = quantidade > 0 ? precoItem / quantidade : precoItem;
-        return { ...item, quantidade: String(quantidade), valor_unitario: valorUnitario.toFixed(2) };
+        const custoUnitario = quantidade > 0 ? baseItem / quantidade : baseItem;
+        return {
+          ...item,
+          quantidade: String(quantidade),
+          valor_unitario: valorUnitario.toFixed(2),
+          custo_unitario: custoUnitario.toFixed(2),
+        };
       });
 
       setItensPendentes(itensAtualizados);
@@ -487,7 +504,10 @@ export default function OrcamentosPage() {
           const itemRes = await fetch(`/api/orcamentos/${codigo}/itens`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item),
+            body: JSON.stringify({
+              ...item,
+              valor_unitario: String(item.valor_unitario).replace(',', '.'),
+            }),
           });
           if (!itemRes.ok) {
             const itemData = await itemRes.json().catch(() => ({}));
@@ -816,6 +836,7 @@ export default function OrcamentosPage() {
                           <tr>
                             <th>Produto</th>
                             <th>Quantidade</th>
+                            <th>Valor Custo</th>
                             <th>Valor Unitário</th>
                             <th>Subtotal</th>
                             <th></th>
@@ -826,8 +847,19 @@ export default function OrcamentosPage() {
                             <tr key={index}>
                               <td>{item.produto_descricao}</td>
                               <td>{item.quantidade}</td>
-                              <td>R$ {Number(item.valor_unitario).toFixed(2)}</td>
-                              <td>R$ {(Number(item.quantidade) * Number(item.valor_unitario)).toFixed(2)}</td>
+                              <td>R$ {Number(item.custo_unitario || 0).toFixed(2)}</td>
+                              <td>
+                                <div className="input-prefix-group" style={{ maxWidth: 140 }}>
+                                  <span className="input-prefix">R$</span>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={item.valor_unitario}
+                                    onChange={(e) => handleValorUnitarioChange(index, e.target.value)}
+                                  />
+                                </div>
+                              </td>
+                              <td>R$ {(Number(item.quantidade) * Number(String(item.valor_unitario).replace(',', '.'))).toFixed(2)}</td>
                               <td>
                                 <button
                                   type="button"
@@ -840,7 +872,7 @@ export default function OrcamentosPage() {
                             </tr>
                           ))}
                           <tr>
-                            <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600 }}>
+                            <td colSpan={4} style={{ textAlign: 'right', fontWeight: 600 }}>
                               Total
                             </td>
                             <td style={{ fontWeight: 600 }}>R$ {totalPendente.toFixed(2)}</td>
