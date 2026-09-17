@@ -253,7 +253,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   );
 
   async function load() {
-    const [orcRes, cliRes, prodRes, eqRes, markupRes, mpRes, consumoRes, filamentoRes, maoObraRes] =
+    const [orcRes, cliRes, prodRes, eqRes, markupRes, mpRes, estoqueRes, consumoRes, filamentoRes, maoObraRes] =
       await Promise.all([
         fetch('/api/orcamentos'),
         fetch('/api/clientes'),
@@ -261,6 +261,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         fetch('/api/equipamentos'),
         fetch('/api/markup-padrao'),
         fetch('/api/materia-prima'),
+        fetch('/api/estoque'),
         fetch('/api/valor-consumo-hora'),
         fetch('/api/custo-base-filamento'),
         fetch('/api/custo-mao-obra-hora'),
@@ -270,9 +271,13 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (eqRes.ok) setEquipamentos(await eqRes.json());
     if (mpRes.ok) {
-      const mpData = await mpRes.json();
+      const mpData: MateriaPrimaPickerItem[] = await mpRes.json();
       setMateriasPrimas(mpData);
-      setMateriasPrimasCompletas(mpData);
+      const estoqueData: { codigo: number; saldo: string }[] = estoqueRes.ok ? await estoqueRes.json() : [];
+      const saldoPorCodigo = new Map(estoqueData.map((e) => [e.codigo, e.saldo]));
+      setMateriasPrimasCompletas(
+        mpData.map((m) => ({ ...m, estoque: saldoPorCodigo.get(m.codigo) ?? null }))
+      );
     }
     if (markupRes.ok) {
       const data = await markupRes.json();

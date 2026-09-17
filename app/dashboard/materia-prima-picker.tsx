@@ -12,6 +12,7 @@ export interface MateriaPrimaPickerItem {
   unidade_medida_sigla: string;
   valor_custo: string | null;
   fornecedor?: string | null;
+  estoque?: string | number | null;
 }
 
 export default function MateriaPrimaPicker({
@@ -76,6 +77,11 @@ export default function MateriaPrimaPicker({
                     ? `R$ ${Number(m.valor_custo).toFixed(2)} / ${m.unidade_medida_sigla}`
                     : 'Não informado'}
                 </span>
+                {m.estoque !== undefined && m.estoque !== null && (
+                  <span style={{ color: Number(m.estoque) <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
+                    Estoque: {Number(m.estoque).toLocaleString('pt-BR')} {m.unidade_medida_sigla}
+                  </span>
+                )}
                 {m.fornecedor && <span>Fornecedor: {m.fornecedor}</span>}
               </div>
             </button>
