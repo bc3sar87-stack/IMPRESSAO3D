@@ -269,7 +269,7 @@ export default function MateriaPrimaPage() {
                   <label>Marca</label>
                   <input
                     value={form.marca}
-                    onChange={(e) => setForm({ ...form, marca: e.target.value })}
+                    onChange={(e) => setForm({ ...form, marca: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>
@@ -284,7 +284,7 @@ export default function MateriaPrimaPage() {
                     />
                     <input
                       value={form.cor}
-                      onChange={(e) => setForm({ ...form, cor: e.target.value })}
+                      onChange={(e) => setForm({ ...form, cor: e.target.value.toUpperCase() })}
                       placeholder="Nome da cor"
                       required
                     />
@@ -294,7 +294,7 @@ export default function MateriaPrimaPage() {
                   <label>Descrição</label>
                   <input
                     value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                    onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>
@@ -319,7 +319,7 @@ export default function MateriaPrimaPage() {
                   <label>Fornecedor</label>
                   <input
                     value={form.fornecedor}
-                    onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
+                    onChange={(e) => setForm({ ...form, fornecedor: e.target.value.toUpperCase() })}
                   />
                 </div>
                 <div className="field">

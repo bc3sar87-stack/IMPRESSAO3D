@@ -1412,7 +1412,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   <label>Observações</label>
                   <input
                     value={form.observacoes}
-                    onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                    onChange={(e) => setForm({ ...form, observacoes: e.target.value.toUpperCase() })}
                   />
                 </div>
               </div>

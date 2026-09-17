@@ -277,7 +277,7 @@ export default function UsuariosPage() {
                   <label>Nome</label>
                   <input
                     value={form.nome}
-                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    onChange={(e) => setForm({ ...form, nome: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>

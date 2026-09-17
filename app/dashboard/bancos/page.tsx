@@ -211,7 +211,7 @@ export default function BancosPage() {
                   <label>Descrição</label>
                   <input
                     value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                    onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
                     placeholder="Conta corrente principal..."
                   />
                 </div>

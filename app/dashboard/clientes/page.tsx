@@ -230,7 +230,7 @@ export default function ClientesPage() {
                   <label>Nome</label>
                   <input
                     value={form.nome}
-                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    onChange={(e) => setForm({ ...form, nome: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>
@@ -254,7 +254,7 @@ export default function ClientesPage() {
                   <label>Endereço</label>
                   <input
                     value={form.endereco}
-                    onChange={(e) => setForm({ ...form, endereco: e.target.value })}
+                    onChange={(e) => setForm({ ...form, endereco: e.target.value.toUpperCase() })}
                   />
                 </div>
               </div>

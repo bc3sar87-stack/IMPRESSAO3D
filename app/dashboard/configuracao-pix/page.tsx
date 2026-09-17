@@ -171,7 +171,7 @@ export default function ConfiguracaoPixPage() {
               <label>Nome do Recebedor</label>
               <input
                 value={nomeRecebedor}
-                onChange={(e) => setNomeRecebedor(e.target.value)}
+                onChange={(e) => setNomeRecebedor(e.target.value.toUpperCase())}
                 maxLength={25}
                 placeholder="Nome completo ou razão social"
               />
@@ -181,7 +181,7 @@ export default function ConfiguracaoPixPage() {
               <label>Cidade</label>
               <input
                 value={cidade}
-                onChange={(e) => setCidade(e.target.value)}
+                onChange={(e) => setCidade(e.target.value.toUpperCase())}
                 maxLength={15}
                 placeholder="Cidade da agência"
               />

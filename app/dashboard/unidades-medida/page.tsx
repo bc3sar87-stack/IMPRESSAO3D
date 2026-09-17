@@ -166,7 +166,7 @@ export default function UnidadesMedidaPage() {
                   <input
                     placeholder="UN, G, KG, M, L..."
                     value={form.sigla}
-                    onChange={(e) => setForm({ ...form, sigla: e.target.value })}
+                    onChange={(e) => setForm({ ...form, sigla: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>
@@ -175,7 +175,7 @@ export default function UnidadesMedidaPage() {
                   <input
                     placeholder="Unitário, Gramas, Quilograma..."
                     value={form.nome}
-                    onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                    onChange={(e) => setForm({ ...form, nome: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>

@@ -157,7 +157,7 @@ export default function TiposMateriaPrimaPage() {
                 <input
                   placeholder="PLA, ABS, PETG..."
                   value={nome}
-                  onChange={(e) => setNome(e.target.value)}
+                  onChange={(e) => setNome(e.target.value.toUpperCase())}
                   required
                 />
               </div>

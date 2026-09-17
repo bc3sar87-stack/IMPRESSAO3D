@@ -436,7 +436,7 @@ export default function ProdutosPage() {
                   <label>Descrição</label>
                   <input
                     value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                    onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>

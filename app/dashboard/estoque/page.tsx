@@ -331,7 +331,7 @@ export default function EstoquePage() {
                   <label>Fornecedor</label>
                   <input
                     value={novoLoteForm.fornecedor}
-                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, fornecedor: e.target.value })}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, fornecedor: e.target.value.toUpperCase() })}
                   />
                 </div>
                 <div className="field">
@@ -369,7 +369,7 @@ export default function EstoquePage() {
                   <label>Observação</label>
                   <input
                     value={novoLoteForm.observacao}
-                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, observacao: e.target.value })}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, observacao: e.target.value.toUpperCase() })}
                     placeholder="Nº da nota fiscal, etc."
                   />
                 </div>
@@ -443,7 +443,7 @@ export default function EstoquePage() {
                   <label>Observação</label>
                   <input
                     value={movForm.observacao}
-                    onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })}
+                    onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value.toUpperCase() })}
                   />
                 </div>
               </div>

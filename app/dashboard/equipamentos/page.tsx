@@ -168,7 +168,7 @@ export default function EquipamentosPage() {
                   <label>Fabricante</label>
                   <input
                     value={form.fabricante}
-                    onChange={(e) => setForm({ ...form, fabricante: e.target.value })}
+                    onChange={(e) => setForm({ ...form, fabricante: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>
@@ -176,7 +176,7 @@ export default function EquipamentosPage() {
                   <label>Modelo</label>
                   <input
                     value={form.modelo}
-                    onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+                    onChange={(e) => setForm({ ...form, modelo: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>

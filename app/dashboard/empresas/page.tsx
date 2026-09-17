@@ -203,7 +203,7 @@ export default function EmpresasPage() {
                   <label>{isPJ ? 'Razão Social' : 'Nome'}</label>
                   <input
                     value={form.razao_social}
-                    onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
+                    onChange={(e) => setForm({ ...form, razao_social: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>

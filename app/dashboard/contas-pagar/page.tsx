@@ -413,7 +413,7 @@ export default function ContasPagarPage() {
                   <label>Fornecedor</label>
                   <input
                     value={form.fornecedor}
-                    onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
+                    onChange={(e) => setForm({ ...form, fornecedor: e.target.value.toUpperCase() })}
                     placeholder="Nome do fornecedor/favorecido"
                   />
                 </div>
@@ -421,7 +421,7 @@ export default function ContasPagarPage() {
                   <label>Descrição</label>
                   <input
                     value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                    onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
                     required
                   />
                 </div>
