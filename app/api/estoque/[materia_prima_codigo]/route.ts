@@ -18,6 +18,7 @@ export async function GET(
 
   const { rows } = await pool.query(
     `SELECT l.codigo, l.fornecedor, l.valor_custo, l.data_compra, l.observacao, l.criado_em,
+            l.temp_mesa_min, l.temp_mesa_max, l.temp_impressao_min, l.temp_impressao_max,
             COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo,
             COALESCE((
               SELECT SUM(oim.peso * oi.quantidade)
@@ -49,15 +50,29 @@ export async function POST(
   }
 
   const { materia_prima_codigo } = await params;
-  const { fornecedor, valor_custo, quantidade_inicial, data_compra, observacao } = await request
-    .json()
-    .catch(() => ({}));
+  const {
+    fornecedor,
+    valor_custo,
+    quantidade_inicial,
+    data_compra,
+    observacao,
+    temp_mesa_min,
+    temp_mesa_max,
+    temp_impressao_min,
+    temp_impressao_max,
+  } = await request.json().catch(() => ({}));
 
   if (!quantidade_inicial || Number(quantidade_inicial) <= 0) {
     return NextResponse.json({ error: 'Informe a quantidade inicial do lote.' }, { status: 400 });
   }
   if (valor_custo !== undefined && valor_custo !== null && valor_custo !== '' && Number.isNaN(Number(valor_custo))) {
     return NextResponse.json({ error: 'Custo inválido.' }, { status: 400 });
+  }
+  const temperaturas = { temp_mesa_min, temp_mesa_max, temp_impressao_min, temp_impressao_max };
+  for (const [campo, valor] of Object.entries(temperaturas)) {
+    if (valor !== undefined && valor !== null && valor !== '' && Number.isNaN(Number(valor))) {
+      return NextResponse.json({ error: `Temperatura inválida em "${campo}".` }, { status: 400 });
+    }
   }
 
   const { rows: mpRows } = await pool.query(
@@ -72,8 +87,11 @@ export async function POST(
   try {
     await client.query('BEGIN');
     const { rows: loteRows } = await client.query(
-      `INSERT INTO materia_prima_lotes (materia_prima_codigo, fornecedor, valor_custo, data_compra, observacao, empresa_codigo)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO materia_prima_lotes (
+         materia_prima_codigo, fornecedor, valor_custo, data_compra, observacao,
+         temp_mesa_min, temp_mesa_max, temp_impressao_min, temp_impressao_max, empresa_codigo
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING codigo`,
       [
         materia_prima_codigo,
@@ -81,6 +99,10 @@ export async function POST(
         valor_custo || null,
         data_compra || null,
         observacao || null,
+        temp_mesa_min || null,
+        temp_mesa_max || null,
+        temp_impressao_min || null,
+        temp_impressao_max || null,
         session.empresa_codigo,
       ]
     );

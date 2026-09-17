@@ -25,6 +25,10 @@ interface Lote {
   criado_em: string;
   saldo: string;
   reservado: string;
+  temp_mesa_min: number | null;
+  temp_mesa_max: number | null;
+  temp_impressao_min: number | null;
+  temp_impressao_max: number | null;
 }
 
 interface Movimentacao {
@@ -35,7 +39,17 @@ interface Movimentacao {
   criado_em: string;
 }
 
-const emptyNovoLote = { fornecedor: '', valor_custo: '', quantidade_inicial: '', data_compra: '', observacao: '' };
+const emptyNovoLote = {
+  fornecedor: '',
+  valor_custo: '',
+  quantidade_inicial: '',
+  data_compra: '',
+  observacao: '',
+  temp_mesa_min: '',
+  temp_mesa_max: '',
+  temp_impressao_min: '',
+  temp_impressao_max: '',
+};
 const emptyMovForm = { tipo: 'ENTRADA' as 'ENTRADA' | 'SAIDA', quantidade: '', observacao: '' };
 
 function hoje() {
@@ -278,6 +292,8 @@ export default function EstoquePage() {
                   <th>Saldo Físico</th>
                   <th>Reservado</th>
                   <th>Disponível</th>
+                  <th>Temp. Mesa</th>
+                  <th>Temp. Impressão</th>
                   <th>Observação</th>
                   <th></th>
                 </tr>
@@ -301,6 +317,16 @@ export default function EstoquePage() {
                       <td style={{ color: disponivel <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
                         {disponivel.toFixed(2)} {selecionado.unidade_medida_sigla}
                       </td>
+                      <td>
+                        {lote.temp_mesa_min !== null || lote.temp_mesa_max !== null
+                          ? `${lote.temp_mesa_min ?? '?'}–${lote.temp_mesa_max ?? '?'} °C`
+                          : '-'}
+                      </td>
+                      <td>
+                        {lote.temp_impressao_min !== null || lote.temp_impressao_max !== null
+                          ? `${lote.temp_impressao_min ?? '?'}–${lote.temp_impressao_max ?? '?'} °C`
+                          : '-'}
+                      </td>
                       <td>{lote.observacao || '-'}</td>
                       <td>
                         <button className="btn-small" onClick={() => abrirLote(lote)}>
@@ -312,7 +338,7 @@ export default function EstoquePage() {
                 })}
                 {lotes.length === 0 && (
                   <tr>
-                    <td colSpan={8}>Nenhum lote cadastrado.</td>
+                    <td colSpan={10}>Nenhum lote cadastrado.</td>
                   </tr>
                 )}
               </tbody>
@@ -371,6 +397,38 @@ export default function EstoquePage() {
                     value={novoLoteForm.observacao}
                     onChange={(e) => setNovoLoteForm({ ...novoLoteForm, observacao: e.target.value.toUpperCase() })}
                     placeholder="Nº da nota fiscal, etc."
+                  />
+                </div>
+                <div className="field">
+                  <label>Temp. Mesa Mínimo (°C)</label>
+                  <input
+                    type="number"
+                    value={novoLoteForm.temp_mesa_min}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, temp_mesa_min: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Temp. Mesa Máximo (°C)</label>
+                  <input
+                    type="number"
+                    value={novoLoteForm.temp_mesa_max}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, temp_mesa_max: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Temp. Impressão Mínimo (°C)</label>
+                  <input
+                    type="number"
+                    value={novoLoteForm.temp_impressao_min}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, temp_impressao_min: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Temp. Impressão Máximo (°C)</label>
+                  <input
+                    type="number"
+                    value={novoLoteForm.temp_impressao_max}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, temp_impressao_max: e.target.value })}
                   />
                 </div>
               </div>
