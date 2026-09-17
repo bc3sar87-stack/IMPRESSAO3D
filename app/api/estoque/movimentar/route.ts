@@ -11,9 +11,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Selecione uma empresa.' }, { status: 400 });
   }
 
-  const { materia_prima_codigo, tipo, quantidade, observacao } = await request.json().catch(() => ({}));
+  const { lote_codigo, tipo, quantidade, observacao } = await request.json().catch(() => ({}));
 
-  if (!materia_prima_codigo || !tipo || !quantidade) {
+  if (!lote_codigo || !tipo || !quantidade) {
     return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
   }
   if (tipo !== 'ENTRADA' && tipo !== 'SAIDA') {
@@ -23,31 +23,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Quantidade deve ser maior que zero.' }, { status: 400 });
   }
 
-  const { rows: mpRows } = await pool.query(
-    `SELECT
+  const { rows: loteRows } = await pool.query(
+    `SELECT l.materia_prima_codigo,
        COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo
-     FROM materia_prima mp
-     LEFT JOIN movimentacoes_estoque me ON me.materia_prima_codigo = mp.codigo
-     WHERE mp.codigo = $1 AND mp.empresa_codigo = $2
-     GROUP BY mp.codigo`,
-    [materia_prima_codigo, session.empresa_codigo]
+     FROM materia_prima_lotes l
+     LEFT JOIN movimentacoes_estoque me ON me.lote_codigo = l.codigo
+     WHERE l.codigo = $1 AND l.empresa_codigo = $2
+     GROUP BY l.codigo`,
+    [lote_codigo, session.empresa_codigo]
   );
 
-  if (mpRows.length === 0) {
-    return NextResponse.json({ error: 'Matéria prima não encontrada.' }, { status: 404 });
+  if (loteRows.length === 0) {
+    return NextResponse.json({ error: 'Lote não encontrado.' }, { status: 404 });
   }
 
-  if (tipo === 'SAIDA' && Number(mpRows[0].saldo) < Number(quantidade)) {
+  if (tipo === 'SAIDA' && Number(loteRows[0].saldo) < Number(quantidade)) {
     return NextResponse.json(
-      { error: `Estoque insuficiente. Saldo atual: ${mpRows[0].saldo}.` },
+      { error: `Estoque insuficiente neste lote. Saldo atual: ${loteRows[0].saldo}.` },
       { status: 400 }
     );
   }
 
   await pool.query(
-    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, tipo, quantidade, observacao, empresa_codigo)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [materia_prima_codigo, tipo, quantidade, observacao || null, session.empresa_codigo]
+    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, lote_codigo, tipo, quantidade, observacao, empresa_codigo)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [loteRows[0].materia_prima_codigo, lote_codigo, tipo, quantidade, observacao || null, session.empresa_codigo]
   );
 
   return NextResponse.json({ ok: true }, { status: 201 });

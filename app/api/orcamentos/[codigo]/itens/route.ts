@@ -14,16 +14,24 @@ async function recalcularTotal(orcamentoCodigo: string, empresaCodigo: number) {
 
 async function salvarMateriaisItem(
   itemCodigo: number,
-  materiais: { materia_prima_codigo: number | string; peso: number | string }[],
+  materiais: { materia_prima_codigo: number | string; peso: number | string; lote_codigo?: number | string | null }[],
   empresaCodigo: number
 ) {
   await pool.query(`DELETE FROM orcamento_item_materiais WHERE orcamento_item_codigo = $1`, [itemCodigo]);
   for (const m of materiais) {
     if (!m.materia_prima_codigo || !m.peso) continue;
+    let loteCodigo: number | null = null;
+    if (m.lote_codigo) {
+      const { rows: loteRows } = await pool.query(
+        `SELECT 1 FROM materia_prima_lotes WHERE codigo=$1 AND materia_prima_codigo=$2 AND empresa_codigo=$3`,
+        [m.lote_codigo, m.materia_prima_codigo, empresaCodigo]
+      );
+      if (loteRows.length > 0) loteCodigo = Number(m.lote_codigo);
+    }
     await pool.query(
-      `INSERT INTO orcamento_item_materiais (orcamento_item_codigo, materia_prima_codigo, peso, empresa_codigo)
-       VALUES ($1, $2, $3, $4)`,
-      [itemCodigo, m.materia_prima_codigo, m.peso, empresaCodigo]
+      `INSERT INTO orcamento_item_materiais (orcamento_item_codigo, materia_prima_codigo, peso, lote_codigo, empresa_codigo)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [itemCodigo, m.materia_prima_codigo, m.peso, loteCodigo, empresaCodigo]
     );
   }
 }
@@ -37,12 +45,15 @@ const MATERIAIS_JSON_SUBQUERY = `
         'cor', mp.cor,
         'cor_hex', mp.cor_hex,
         'peso', oim.peso,
-        'unidade_medida_sigla', u.sigla
+        'unidade_medida_sigla', u.sigla,
+        'lote_codigo', oim.lote_codigo,
+        'lote_fornecedor', l.fornecedor
       ) ORDER BY oim.codigo)
      FROM orcamento_item_materiais oim
      JOIN materia_prima mp ON mp.codigo = oim.materia_prima_codigo
      JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
      JOIN unidades_medida u ON u.codigo = mp.unidade_medida_codigo
+     LEFT JOIN materia_prima_lotes l ON l.codigo = oim.lote_codigo
      WHERE oim.orcamento_item_codigo = oi.codigo),
     '[]'
   ) AS materiais

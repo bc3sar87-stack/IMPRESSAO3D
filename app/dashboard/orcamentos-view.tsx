@@ -104,6 +104,16 @@ interface ItemMaterial {
   cor_hex: string;
   unidade_medida_sigla: string;
   peso: string;
+  lote_codigo?: number | null;
+}
+
+interface LoteEstoque {
+  codigo: number;
+  fornecedor: string | null;
+  valor_custo: string | null;
+  data_compra: string | null;
+  observacao: string | null;
+  saldo: string;
 }
 
 interface ItemOrcamento {
@@ -240,6 +250,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [materiaisEdicaoItem, setMateriaisEdicaoItem] = useState<ItemMaterial[]>([]);
   const [salvandoCoresItem, setSalvandoCoresItem] = useState(false);
   const [fotoAmpliada, setFotoAmpliada] = useState<Produto | null>(null);
+  const [lotesPorMateriaPrima, setLotesPorMateriaPrima] = useState<Record<number, LoteEstoque[]>>({});
 
   const orcamentosFiltrados = orcamentos.filter((o) => {
     const q = busca.toLowerCase();
@@ -386,9 +397,22 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setModalOpen(false);
   }
 
+  async function carregarLotesMateriaPrima(materiaPrimaCodigo: number): Promise<LoteEstoque[]> {
+    const res = await fetch(`/api/estoque/${materiaPrimaCodigo}`);
+    const lotes: LoteEstoque[] = res.ok ? await res.json() : [];
+    setLotesPorMateriaPrima((prev) => ({ ...prev, [materiaPrimaCodigo]: lotes }));
+    return lotes;
+  }
+
   async function carregarMateriaisProduto(produtoCodigo: number): Promise<ItemMaterial[]> {
     const res = await fetch(`/api/produtos/${produtoCodigo}/materiais`);
-    return res.ok ? await res.json() : [];
+    const materiais: ItemMaterial[] = res.ok ? await res.json() : [];
+    return Promise.all(
+      materiais.map(async (m) => {
+        const lotes = await carregarLotesMateriaPrima(m.materia_prima_codigo);
+        return { ...m, lote_codigo: lotes.length === 1 ? lotes[0].codigo : null };
+      })
+    );
   }
 
   async function handlePickProduto(p: ProdutoPicker) {
@@ -401,9 +425,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     }
   }
 
-  function trocarMaterialCor(mp: MateriaPrimaPickerItem) {
+  async function trocarMaterialCor(mp: MateriaPrimaPickerItem) {
     if (!trocarMaterialAlvo) return;
     const { contexto, index } = trocarMaterialAlvo;
+    const lotes = await carregarLotesMateriaPrima(mp.codigo);
     const atualizar = (lista: ItemMaterial[]) =>
       lista.map((m, i) =>
         i === index
@@ -415,6 +440,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               cor: mp.cor,
               cor_hex: mp.cor_hex,
               unidade_medida_sigla: mp.unidade_medida_sigla,
+              lote_codigo: lotes.length === 1 ? lotes[0].codigo : null,
             }
           : m
       );
@@ -424,36 +450,76 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setTrocarMaterialAlvo(null);
   }
 
+  function handleLoteMaterialChange(contexto: 'pendente' | 'existente' | 'salvo', index: number, loteCodigo: string) {
+    const valor = loteCodigo ? Number(loteCodigo) : null;
+    const atualizar = (lista: ItemMaterial[]) =>
+      lista.map((m, i) => (i === index ? { ...m, lote_codigo: valor } : m));
+    if (contexto === 'pendente') setMateriaisPendente((prev) => atualizar(prev));
+    else if (contexto === 'existente') setMateriaisExistente((prev) => atualizar(prev));
+    else setMateriaisEdicaoItem((prev) => atualizar(prev));
+  }
+
   function renderMateriaisEditor(materiais: ItemMaterial[], contexto: 'pendente' | 'existente' | 'salvo') {
     if (materiais.length === 0) return null;
     return (
       <div className="field" style={{ gridColumn: '1 / -1' }}>
         <label>Materiais / Cores (do cadastro do produto — pode alterar)</label>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {materiais.map((m, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 4,
-                  backgroundColor: m.cor_hex,
-                  border: '1px solid #e2e8f0',
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 13 }}>
-                {m.tipo_nome} — {m.marca} ({m.cor}) · {m.peso} {m.unidade_medida_sigla}
-              </span>
-              <button
-                type="button"
-                className="btn-small"
-                onClick={() => setTrocarMaterialAlvo({ contexto, index: i })}
-              >
-                Trocar cor
-              </button>
-            </div>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {materiais.map((m, i) => {
+            const lotes = lotesPorMateriaPrima[m.materia_prima_codigo] || [];
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 4,
+                      backgroundColor: m.cor_hex,
+                      border: '1px solid #e2e8f0',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontSize: 13 }}>
+                    {m.tipo_nome} — {m.marca} ({m.cor}) · {m.peso} {m.unidade_medida_sigla}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-small"
+                    onClick={() => setTrocarMaterialAlvo({ contexto, index: i })}
+                  >
+                    Trocar cor
+                  </button>
+                </div>
+                <div style={{ marginLeft: 26, fontSize: 12 }}>
+                  {lotes.length === 0 && (
+                    <span style={{ color: '#dc2626' }}>Sem lote em estoque cadastrado para esta cor.</span>
+                  )}
+                  {lotes.length === 1 && (
+                    <span style={{ color: '#64748b' }}>
+                      Lote: {lotes[0].fornecedor || 'sem fornecedor'} — saldo {lotes[0].saldo}{' '}
+                      {m.unidade_medida_sigla}
+                    </span>
+                  )}
+                  {lotes.length > 1 && (
+                    <select
+                      value={m.lote_codigo ?? ''}
+                      onChange={(e) => handleLoteMaterialChange(contexto, i, e.target.value)}
+                      style={{ fontSize: 12, padding: '4px 6px' }}
+                    >
+                      <option value="">Selecione o lote...</option>
+                      {lotes.map((l) => (
+                        <option key={l.codigo} value={l.codigo}>
+                          {l.fornecedor || 'Sem fornecedor'} — saldo {l.saldo} {m.unidade_medida_sigla}
+                          {l.valor_custo ? ` — R$ ${Number(l.valor_custo).toFixed(2)}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -978,9 +1044,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setMateriaisExistente([]);
   }
 
-  function abrirEdicaoCores(item: ItemOrcamento) {
+  async function abrirEdicaoCores(item: ItemOrcamento) {
     setEditandoCoresItem(item);
     setMateriaisEdicaoItem(item.materiais);
+    await Promise.all(item.materiais.map((m) => carregarLotesMateriaPrima(m.materia_prima_codigo)));
   }
 
   function fecharEdicaoCores() {
@@ -1001,6 +1068,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
             materiais: materiaisEdicaoItem.map((m) => ({
               materia_prima_codigo: m.materia_prima_codigo,
               peso: m.peso,
+              lote_codigo: m.lote_codigo || null,
             })),
           }),
         }
@@ -1093,6 +1161,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           materiais: materiaisExistente.map((m) => ({
             materia_prima_codigo: m.materia_prima_codigo,
             peso: m.peso,
+            lote_codigo: m.lote_codigo || null,
           })),
         }),
       });

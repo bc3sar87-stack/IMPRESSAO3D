@@ -10,9 +10,19 @@ interface ItemEstoque {
   marca: string;
   cor: string;
   cor_hex: string;
-  fornecedor: string | null;
   saldo: string;
   unidade_medida_sigla: string;
+  total_lotes: string;
+}
+
+interface Lote {
+  codigo: number;
+  fornecedor: string | null;
+  valor_custo: string | null;
+  data_compra: string | null;
+  observacao: string | null;
+  criado_em: string;
+  saldo: string;
 }
 
 interface Movimentacao {
@@ -23,16 +33,29 @@ interface Movimentacao {
   criado_em: string;
 }
 
-const emptyForm = { tipo: 'ENTRADA' as 'ENTRADA' | 'SAIDA', quantidade: '', observacao: '' };
+const emptyNovoLote = { fornecedor: '', valor_custo: '', quantidade_inicial: '', data_compra: '', observacao: '' };
+const emptyMovForm = { tipo: 'ENTRADA' as 'ENTRADA' | 'SAIDA', quantidade: '', observacao: '' };
+
+function hoje() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function EstoquePage() {
   const [itens, setItens] = useState<ItemEstoque[]>([]);
   const [selecionado, setSelecionado] = useState<ItemEstoque | null>(null);
-  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
-  const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [lotes, setLotes] = useState<Lote[]>([]);
   const [busca, setBusca] = useState('');
+  const [error, setError] = useState('');
+
+  const [novoLoteOpen, setNovoLoteOpen] = useState(false);
+  const [novoLoteForm, setNovoLoteForm] = useState(emptyNovoLote);
+  const [salvandoLote, setSalvandoLote] = useState(false);
+
+  const [loteSelecionado, setLoteSelecionado] = useState<Lote | null>(null);
+  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
+  const [movForm, setMovForm] = useState(emptyMovForm);
+  const [salvandoMov, setSalvandoMov] = useState(false);
+  const [movError, setMovError] = useState('');
 
   const itensFiltrados = itens.filter((item) => {
     const q = busca.toLowerCase();
@@ -52,67 +75,117 @@ export default function EstoquePage() {
     load();
   }, []);
 
-  async function abrirItem(item: ItemEstoque) {
+  async function carregarLotes(codigo: number) {
+    const res = await fetch(`/api/estoque/${codigo}`);
+    if (res.ok) setLotes(await res.json());
+  }
+
+  async function abrirCor(item: ItemEstoque) {
     setSelecionado(item);
-    setForm(emptyForm);
     setError('');
-    const res = await fetch(`/api/estoque/${item.codigo}`);
-    if (res.ok) setMovimentacoes(await res.json());
+    setNovoLoteOpen(false);
+    setNovoLoteForm(emptyNovoLote);
+    await carregarLotes(item.codigo);
   }
 
-  function fechar() {
+  function fecharCor() {
     setSelecionado(null);
-    setMovimentacoes([]);
+    setLotes([]);
+    setNovoLoteOpen(false);
   }
 
-  async function handleSubmit(e: FormEvent) {
+  async function atualizarTudo() {
+    await load();
+    if (selecionado) {
+      const atualizado = (await (await fetch('/api/estoque')).json()) as ItemEstoque[];
+      const item = atualizado.find((i) => i.codigo === selecionado.codigo);
+      if (item) setSelecionado(item);
+      await carregarLotes(selecionado.codigo);
+    }
+  }
+
+  async function handleCriarLote(e: FormEvent) {
     e.preventDefault();
     if (!selecionado) return;
     setError('');
-    setLoading(true);
+    setSalvandoLote(true);
+    try {
+      const res = await fetch(`/api/estoque/${selecionado.codigo}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoLoteForm),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Não foi possível criar o lote.');
+        return;
+      }
+      setNovoLoteForm(emptyNovoLote);
+      setNovoLoteOpen(false);
+      await atualizarTudo();
+    } finally {
+      setSalvandoLote(false);
+    }
+  }
+
+  async function abrirLote(lote: Lote) {
+    setLoteSelecionado(lote);
+    setMovForm(emptyMovForm);
+    setMovError('');
+    const res = await fetch(`/api/estoque/lotes/${lote.codigo}`);
+    if (res.ok) setMovimentacoes(await res.json());
+  }
+
+  function fecharLote() {
+    setLoteSelecionado(null);
+    setMovimentacoes([]);
+  }
+
+  async function handleMovimentar(e: FormEvent) {
+    e.preventDefault();
+    if (!loteSelecionado) return;
+    setMovError('');
+    setSalvandoMov(true);
     try {
       const res = await fetch('/api/estoque/movimentar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          materia_prima_codigo: selecionado.codigo,
-          tipo: form.tipo,
-          quantidade: form.quantidade,
-          observacao: form.observacao,
+          lote_codigo: loteSelecionado.codigo,
+          tipo: movForm.tipo,
+          quantidade: movForm.quantidade,
+          observacao: movForm.observacao,
         }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Não foi possível registrar a movimentação.');
+        setMovError(data.error || 'Não foi possível registrar a movimentação.');
         return;
       }
-      setForm(emptyForm);
-      await load();
-      const atualizado = (await (await fetch('/api/estoque')).json()) as ItemEstoque[];
-      const item = atualizado.find((i) => i.codigo === selecionado.codigo);
-      if (item) setSelecionado(item);
-      const res2 = await fetch(`/api/estoque/${selecionado.codigo}`);
+      setMovForm(emptyMovForm);
+      await atualizarTudo();
+      const lotesAtualizados = await (await fetch(`/api/estoque/${selecionado!.codigo}`)).json();
+      const loteAtual = lotesAtualizados.find((l: Lote) => l.codigo === loteSelecionado.codigo);
+      if (loteAtual) setLoteSelecionado(loteAtual);
+      const res2 = await fetch(`/api/estoque/lotes/${loteSelecionado.codigo}`);
       if (res2.ok) setMovimentacoes(await res2.json());
     } finally {
-      setLoading(false);
+      setSalvandoMov(false);
     }
   }
 
   async function handleDeleteMovimentacao(movCodigo: number) {
-    if (!selecionado) return;
+    if (!loteSelecionado) return;
     if (!confirm('Deseja realmente excluir esta movimentação?')) return;
-    setError('');
+    setMovError('');
     const res = await fetch(`/api/estoque/movimentacao/${movCodigo}`, { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error || 'Não foi possível excluir a movimentação.');
+      setMovError(data.error || 'Não foi possível excluir a movimentação.');
       return;
     }
-    await load();
-    const atualizado = (await (await fetch('/api/estoque')).json()) as ItemEstoque[];
-    const item = atualizado.find((i) => i.codigo === selecionado.codigo);
-    if (item) setSelecionado(item);
-    const res2 = await fetch(`/api/estoque/${selecionado.codigo}`);
+    await atualizarTudo();
+    const res2 = await fetch(`/api/estoque/lotes/${loteSelecionado.codigo}`);
     if (res2.ok) setMovimentacoes(await res2.json());
   }
 
@@ -132,9 +205,9 @@ export default function EstoquePage() {
               <th>Tipo</th>
               <th>Marca</th>
               <th>Cor</th>
-              <th>Fornecedor</th>
               <th>Saldo</th>
               <th>Unidade</th>
+              <th>Lotes</th>
               <th></th>
             </tr>
           </thead>
@@ -148,12 +221,14 @@ export default function EstoquePage() {
                   <span className="color-swatch" style={{ backgroundColor: item.cor_hex }} />
                   {item.cor}
                 </td>
-                <td>{item.fornecedor || '-'}</td>
-                <td>{item.saldo}</td>
+                <td style={{ color: Number(item.saldo) <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
+                  {item.saldo}
+                </td>
                 <td>{item.unidade_medida_sigla}</td>
+                <td>{item.total_lotes}</td>
                 <td>
-                  <button className="btn-small" onClick={() => abrirItem(item)}>
-                    Movimentar
+                  <button className="btn-small" onClick={() => abrirCor(item)}>
+                    Ver Lotes
                   </button>
                 </td>
               </tr>
@@ -174,91 +249,233 @@ export default function EstoquePage() {
               {selecionado.tipo_nome} — {selecionado.marca} ({selecionado.cor})
               <br />
               <small style={{ color: '#64748b', fontWeight: 400 }}>
-                Saldo atual: {selecionado.saldo} {selecionado.unidade_medida_sigla}
+                Saldo total: {selecionado.saldo} {selecionado.unidade_medida_sigla}
               </small>
             </h3>
-            <button className="btn-small" onClick={fechar}>
+            <button className="btn-small" onClick={fecharCor}>
               Fechar
             </button>
           </div>
 
           {error && <div className="error-msg">{error}</div>}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-grid">
-              <div className="field">
-                <label>Tipo</label>
-                <select
-                  value={form.tipo}
-                  onChange={(e) => setForm({ ...form, tipo: e.target.value as 'ENTRADA' | 'SAIDA' })}
-                >
-                  <option value="ENTRADA">Entrada</option>
-                  <option value="SAIDA">Saída</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Quantidade ({selecionado.unidade_medida_sigla})</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={form.quantidade}
-                  onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label>Observação</label>
-                <input
-                  value={form.observacao}
-                  onChange={(e) => setForm({ ...form, observacao: e.target.value })}
-                />
-              </div>
-            </div>
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px', marginTop: 16 }}>
-              {loading ? 'Salvando...' : 'Registrar'}
-            </button>
-          </form>
-
-          <h4 style={{ marginTop: 24 }}>Histórico</h4>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Data</th>
-                  <th>Tipo</th>
-                  <th>Quantidade</th>
+                  <th>Fornecedor</th>
+                  <th>Custo</th>
+                  <th>Data da Compra</th>
+                  <th>Saldo</th>
                   <th>Observação</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {movimentacoes.map((mov) => (
-                  <tr key={mov.codigo}>
-                    <td>{new Date(mov.criado_em).toLocaleString('pt-BR')}</td>
-                    <td>{mov.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
+                {lotes.map((lote) => (
+                  <tr key={lote.codigo}>
+                    <td>{lote.fornecedor || '-'}</td>
+                    <td>{lote.valor_custo ? `R$ ${Number(lote.valor_custo).toFixed(2)}` : '-'}</td>
                     <td>
-                      {mov.quantidade} {selecionado.unidade_medida_sigla}
+                      {lote.data_compra
+                        ? new Date(lote.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                        : '-'}
                     </td>
-                    <td>{mov.observacao || '-'}</td>
+                    <td style={{ color: Number(lote.saldo) <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
+                      {lote.saldo} {selecionado.unidade_medida_sigla}
+                    </td>
+                    <td>{lote.observacao || '-'}</td>
                     <td>
-                      <button
-                        className="icon-btn danger"
-                        title="Excluir"
-                        onClick={() => handleDeleteMovimentacao(mov.codigo)}
-                      >
-                        <IconTrash />
+                      <button className="btn-small" onClick={() => abrirLote(lote)}>
+                        Movimentar
                       </button>
                     </td>
                   </tr>
                 ))}
-                {movimentacoes.length === 0 && (
+                {lotes.length === 0 && (
                   <tr>
-                    <td colSpan={5}>Nenhuma movimentação registrada.</td>
+                    <td colSpan={6}>Nenhum lote cadastrado.</td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+
+          {!novoLoteOpen ? (
+            <button type="button" className="btn-small" style={{ marginTop: 8 }} onClick={() => setNovoLoteOpen(true)}>
+              + Novo Lote
+            </button>
+          ) : (
+            <form onSubmit={handleCriarLote} style={{ marginTop: 12 }}>
+              <h4 style={{ marginBottom: 8 }}>Novo Lote</h4>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Fornecedor</label>
+                  <input
+                    value={novoLoteForm.fornecedor}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, fornecedor: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Custo (R$/{selecionado.unidade_medida_sigla})</label>
+                  <div className="input-prefix-group">
+                    <span className="input-prefix">R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={novoLoteForm.valor_custo}
+                      onChange={(e) => setNovoLoteForm({ ...novoLoteForm, valor_custo: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Quantidade inicial ({selecionado.unidade_medida_sigla})</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={novoLoteForm.quantidade_inicial}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, quantidade_inicial: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Data da Compra</label>
+                  <input
+                    type="date"
+                    value={novoLoteForm.data_compra || hoje()}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, data_compra: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Observação</label>
+                  <input
+                    value={novoLoteForm.observacao}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, observacao: e.target.value })}
+                    placeholder="Nº da nota fiscal, etc."
+                  />
+                </div>
+              </div>
+              <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                <button className="btn-primary" type="submit" disabled={salvandoLote} style={{ width: 'auto', padding: '10px 20px' }}>
+                  {salvandoLote ? 'Salvando...' : 'Criar Lote'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-small"
+                  onClick={() => {
+                    setNovoLoteOpen(false);
+                    setNovoLoteForm(emptyNovoLote);
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      {loteSelecionado && (
+        <div className="modal-overlay" onClick={fecharLote}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                Movimentar Lote #{loteSelecionado.codigo}
+                <br />
+                <small style={{ color: '#64748b', fontWeight: 400 }}>
+                  Saldo: {loteSelecionado.saldo} {selecionado?.unidade_medida_sigla}
+                  {loteSelecionado.fornecedor ? ` · ${loteSelecionado.fornecedor}` : ''}
+                </small>
+              </h3>
+              <button type="button" className="modal-close" onClick={fecharLote} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+
+            {movError && <div className="error-msg">{movError}</div>}
+
+            <form onSubmit={handleMovimentar}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Tipo</label>
+                  <select
+                    value={movForm.tipo}
+                    onChange={(e) => setMovForm({ ...movForm, tipo: e.target.value as 'ENTRADA' | 'SAIDA' })}
+                  >
+                    <option value="ENTRADA">Entrada</option>
+                    <option value="SAIDA">Saída</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Quantidade ({selecionado?.unidade_medida_sigla})</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={movForm.quantidade}
+                    onChange={(e) => setMovForm({ ...movForm, quantidade: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Observação</label>
+                  <input
+                    value={movForm.observacao}
+                    onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })}
+                  />
+                </div>
+              </div>
+              <button
+                className="btn-primary"
+                type="submit"
+                disabled={salvandoMov}
+                style={{ width: 'auto', padding: '10px 20px', marginTop: 8 }}
+              >
+                {salvandoMov ? 'Salvando...' : 'Registrar'}
+              </button>
+            </form>
+
+            <h4 style={{ marginTop: 20 }}>Histórico deste lote</h4>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>Quantidade</th>
+                    <th>Observação</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movimentacoes.map((mov) => (
+                    <tr key={mov.codigo}>
+                      <td>{new Date(mov.criado_em).toLocaleString('pt-BR')}</td>
+                      <td>{mov.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
+                      <td>
+                        {mov.quantidade} {selecionado?.unidade_medida_sigla}
+                      </td>
+                      <td>{mov.observacao || '-'}</td>
+                      <td>
+                        <button
+                          className="icon-btn danger"
+                          title="Excluir"
+                          onClick={() => handleDeleteMovimentacao(mov.codigo)}
+                        >
+                          <IconTrash />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {movimentacoes.length === 0 && (
+                    <tr>
+                      <td colSpan={5}>Nenhuma movimentação registrada.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
