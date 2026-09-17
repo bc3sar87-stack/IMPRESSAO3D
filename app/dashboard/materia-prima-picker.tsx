@@ -68,7 +68,7 @@ export default function MateriaPrimaPicker({
               />
               <div className="product-picker-info">
                 <strong>
-                  {m.tipo_nome} — {m.marca}
+                  #{m.codigo} · {m.tipo_nome} — {m.marca}
                 </strong>
                 <span>Cor: {m.cor}</span>
                 <span>
