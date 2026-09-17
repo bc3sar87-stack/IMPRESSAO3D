@@ -239,6 +239,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [editandoCoresItem, setEditandoCoresItem] = useState<ItemOrcamento | null>(null);
   const [materiaisEdicaoItem, setMateriaisEdicaoItem] = useState<ItemMaterial[]>([]);
   const [salvandoCoresItem, setSalvandoCoresItem] = useState(false);
+  const [fotoAmpliada, setFotoAmpliada] = useState<Produto | null>(null);
 
   const orcamentosFiltrados = orcamentos.filter((o) => {
     const q = busca.toLowerCase();
@@ -1527,6 +1528,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                             src={`/api/produtos/${produtoSelecionadoPendente.codigo}/foto`}
                             alt={produtoSelecionadoPendente.descricao}
                             className="product-picker-thumb"
+                            style={{ cursor: 'zoom-in' }}
+                            title="Clique para ampliar"
+                            onClick={() => setFotoAmpliada(produtoSelecionadoPendente)}
                           />
                         )}
                       </div>
@@ -2096,6 +2100,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     src={`/api/produtos/${produtoSelecionadoExistente.codigo}/foto`}
                     alt={produtoSelecionadoExistente.descricao}
                     className="product-picker-thumb"
+                    style={{ cursor: 'zoom-in' }}
+                    title="Clique para ampliar"
+                    onClick={() => setFotoAmpliada(produtoSelecionadoExistente)}
                   />
                 )}
               </div>
@@ -2149,6 +2156,33 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         onSelect={trocarMaterialCor}
         onClose={() => setTrocarMaterialAlvo(null)}
       />
+
+      {fotoAmpliada && (
+        <div className="modal-overlay" onClick={() => setFotoAmpliada(null)}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 720, padding: 12, background: 'transparent', boxShadow: 'none' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                type="button"
+                className="modal-close"
+                style={{ background: '#fff', borderRadius: 8 }}
+                onClick={() => setFotoAmpliada(null)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <img
+              src={`/api/produtos/${fotoAmpliada.codigo}/foto`}
+              alt={fotoAmpliada.descricao}
+              style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
