@@ -65,6 +65,7 @@ interface Orcamento {
   taxa_percentual: string;
   embalagem_valor: string;
   custos_extras_valor: string;
+  total_itens: string;
 }
 
 interface Cliente {
@@ -787,6 +788,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       }
     }
 
+    if (!editingCodigo && itensPendentes.length === 0) {
+      setError('Adicione ao menos um item antes de criar o orçamento.');
+      return;
+    }
+
     setLoading(true);
     try {
       const url = editingCodigo ? `/api/orcamentos/${editingCodigo}` : '/api/orcamentos';
@@ -1274,6 +1280,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   <select
                     className={`status-select ${STATUS_SELECT_CLASS[o.status]}`}
                     value={o.status}
+                    disabled={Number(o.total_itens) === 0}
+                    title={Number(o.total_itens) === 0 ? 'Adicione ao menos um item para alterar o status' : undefined}
                     onChange={(e) => handleStatusChange(o, e.target.value as OrcamentoStatus)}
                   >
                     <option value="ABERTO">{STATUS_LABELS.ABERTO}</option>
@@ -1284,6 +1292,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <option value="PENDENTE_ENTREGA">{STATUS_LABELS.PENDENTE_ENTREGA}</option>
                     <option value="ENTREGUE">{STATUS_LABELS.ENTREGUE}</option>
                   </select>
+                  {Number(o.total_itens) === 0 && (
+                    <p className="hint" style={{ margin: '4px 0 0', color: '#dc2626' }}>
+                      Sem item vinculado
+                    </p>
+                  )}
                 </td>
                 <td>{o.valor_sugerido ? `R$ ${o.valor_sugerido}` : '-'}</td>
                 <td>R$ {o.valor_total}</td>

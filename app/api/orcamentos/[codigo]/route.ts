@@ -93,6 +93,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   const statusAnterior = atualRows[0].status;
 
+  if (status !== statusAnterior) {
+    const { rows: itensRows } = await pool.query(
+      `SELECT 1 FROM orcamento_itens WHERE orcamento_codigo=$1 AND empresa_codigo=$2 LIMIT 1`,
+      [codigo, session.empresa_codigo]
+    );
+    if (itensRows.length === 0) {
+      return NextResponse.json(
+        { error: 'Adicione ao menos um item ao orçamento antes de alterar o status.' },
+        { status: 400 }
+      );
+    }
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

@@ -16,11 +16,14 @@ export async function GET() {
             o.cliente_codigo, c.nome AS cliente_nome,
             o.equipamento_codigo, eq.fabricante AS equipamento_fabricante, eq.modelo AS equipamento_modelo,
             o.markup_percentual, o.impostos_percentual, o.taxa_marketplace, o.taxa_percentual,
-            o.embalagem_valor, o.custos_extras_valor
+            o.embalagem_valor, o.custos_extras_valor,
+            COUNT(oi.codigo) AS total_itens
      FROM orcamentos o
      JOIN clientes c ON c.codigo = o.cliente_codigo
      LEFT JOIN equipamentos eq ON eq.codigo = o.equipamento_codigo
+     LEFT JOIN orcamento_itens oi ON oi.orcamento_codigo = o.codigo
      WHERE o.empresa_codigo = $1
+     GROUP BY o.codigo, c.nome, eq.fabricante, eq.modelo
      ORDER BY o.codigo DESC`,
     [session.empresa_codigo]
   );
