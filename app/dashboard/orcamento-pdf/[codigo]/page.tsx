@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface OrcamentoDetalhe {
   codigo: number;
@@ -32,6 +33,7 @@ interface ItemOrcamento {
 
 export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo: string }> }) {
   const { codigo } = use(params);
+  const router = useRouter();
   const [orcamento, setOrcamento] = useState<OrcamentoDetalhe | null>(null);
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
   const [erro, setErro] = useState('');
@@ -72,6 +74,9 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
   if (erro) {
     return (
       <div className="card">
+        <button className="btn-small" style={{ marginBottom: 16 }} onClick={() => router.back()}>
+          ← Voltar
+        </button>
         <div className="error-msg">{erro}</div>
       </div>
     );
@@ -83,7 +88,10 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
 
   return (
     <div id="orcamento-pdf">
-      <div className="no-print" style={{ marginBottom: 16 }}>
+      <div className="no-print" style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+        <button className="btn-small" onClick={() => router.back()}>
+          ← Voltar
+        </button>
         <button className="btn-primary" style={{ width: 'auto', padding: '10px 20px' }} onClick={() => window.print()}>
           Imprimir / Salvar PDF
         </button>
