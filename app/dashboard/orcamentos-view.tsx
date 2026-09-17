@@ -1509,17 +1509,27 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   <div className="form-grid">
                     <div className="field">
                       <label>Produto</label>
-                      <button
-                        type="button"
-                        className="pricing-select-btn"
-                        onClick={() => setPickerFor('pendente')}
-                      >
-                        {produtoSelecionadoPendente ? (
-                          produtoSelecionadoPendente.descricao
-                        ) : (
-                          <span className="pricing-select-placeholder">Selecionar produto...</span>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="pricing-select-btn"
+                          style={{ flex: 1 }}
+                          onClick={() => setPickerFor('pendente')}
+                        >
+                          {produtoSelecionadoPendente ? (
+                            produtoSelecionadoPendente.descricao
+                          ) : (
+                            <span className="pricing-select-placeholder">Selecionar produto...</span>
+                          )}
+                        </button>
+                        {produtoSelecionadoPendente?.tem_foto && (
+                          <img
+                            src={`/api/produtos/${produtoSelecionadoPendente.codigo}/foto`}
+                            alt={produtoSelecionadoPendente.descricao}
+                            className="product-picker-thumb"
+                          />
                         )}
-                      </button>
+                      </div>
                     </div>
                     <div className="field">
                       <label>Quantidade (do cadastro do produto)</label>
@@ -2068,17 +2078,27 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           <div className="form-grid">
             <div className="field">
               <label>Produto</label>
-              <button
-                type="button"
-                className="pricing-select-btn"
-                onClick={() => setPickerFor('existente')}
-              >
-                {produtoSelecionadoExistente ? (
-                  produtoSelecionadoExistente.descricao
-                ) : (
-                  <span className="pricing-select-placeholder">Selecionar produto...</span>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="pricing-select-btn"
+                  style={{ flex: 1 }}
+                  onClick={() => setPickerFor('existente')}
+                >
+                  {produtoSelecionadoExistente ? (
+                    produtoSelecionadoExistente.descricao
+                  ) : (
+                    <span className="pricing-select-placeholder">Selecionar produto...</span>
+                  )}
+                </button>
+                {produtoSelecionadoExistente?.tem_foto && (
+                  <img
+                    src={`/api/produtos/${produtoSelecionadoExistente.codigo}/foto`}
+                    alt={produtoSelecionadoExistente.descricao}
+                    className="product-picker-thumb"
+                  />
                 )}
-              </button>
+              </div>
             </div>
             <div className="field">
               <label>Quantidade (do cadastro do produto)</label>
