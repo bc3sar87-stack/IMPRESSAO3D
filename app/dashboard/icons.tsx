@@ -96,6 +96,17 @@ export function IconFileText() {
   );
 }
 
+export function IconPalette() {
+  return (
+    <svg {...common}>
+      <path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.4 0-1.1.9-2 2-2h2.3c1.9 0 3.5-1.6 3.7-3.5.2-2-1.4-4.7-3.4-6.3A9.9 9.9 0 0 0 12 2Z" />
+      <circle cx="7.5" cy="10.5" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="16.5" cy="10.5" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function IconMove() {
   return (
     <svg {...common}>

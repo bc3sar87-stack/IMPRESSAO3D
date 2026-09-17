@@ -23,12 +23,23 @@ interface OrcamentoDetalhe {
   equipamento_modelo: string | null;
 }
 
+interface ItemMaterial {
+  materia_prima_codigo: number;
+  tipo_nome: string;
+  marca: string;
+  cor: string;
+  cor_hex: string;
+  peso: string;
+  unidade_medida_sigla: string;
+}
+
 interface ItemOrcamento {
   codigo: number;
   produto_descricao: string;
   quantidade: string;
   valor_unitario: string;
   subtotal: string;
+  materiais: ItemMaterial[];
 }
 
 export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo: string }> }) {
@@ -164,6 +175,7 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
           <thead>
             <tr>
               <th>Produto</th>
+              <th>Cor</th>
               <th>Quantidade</th>
               <th>Valor Unitário</th>
               <th>Subtotal</th>
@@ -173,6 +185,26 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
             {itens.map((item) => (
               <tr key={item.codigo}>
                 <td>{item.produto_descricao}</td>
+                <td>
+                  {item.materiais.map((m) => (
+                    <span
+                      key={m.materia_prima_codigo}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginBottom: 2 }}
+                    >
+                      <span
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 3,
+                          backgroundColor: m.cor_hex,
+                          border: '1px solid #cbd5e1',
+                          display: 'inline-block',
+                        }}
+                      />
+                      {m.cor}
+                    </span>
+                  ))}
+                </td>
                 <td>{item.quantidade}</td>
                 <td>R$ {Number(item.valor_unitario).toFixed(2)}</td>
                 <td>R$ {Number(item.subtotal).toFixed(2)}</td>
@@ -180,7 +212,7 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
             ))}
             {itens.length === 0 && (
               <tr>
-                <td colSpan={4}>Nenhum item adicionado.</td>
+                <td colSpan={5}>Nenhum item adicionado.</td>
               </tr>
             )}
           </tbody>

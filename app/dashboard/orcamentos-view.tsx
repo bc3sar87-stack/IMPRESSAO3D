@@ -3,7 +3,18 @@
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from './search-box';
 import ProductPicker, { ProdutoPicker } from './product-picker';
-import { IconEdit, IconCopy, IconList, IconCalculator, IconTrash, IconCheck, IconMail, IconFileText } from './icons';
+import MateriaPrimaPicker, { MateriaPrimaPickerItem } from './materia-prima-picker';
+import {
+  IconEdit,
+  IconCopy,
+  IconList,
+  IconCalculator,
+  IconTrash,
+  IconCheck,
+  IconMail,
+  IconFileText,
+  IconPalette,
+} from './icons';
 
 export type OrcamentoStatus =
   | 'ABERTO'
@@ -85,7 +96,7 @@ interface MateriaPrimaCusto {
 }
 
 interface ItemMaterial {
-  codigo: number;
+  codigo?: number;
   materia_prima_codigo: number;
   tipo_nome: string;
   marca: string;
@@ -102,6 +113,7 @@ interface ItemOrcamento {
   quantidade: string;
   valor_unitario: string;
   subtotal: string;
+  materiais: ItemMaterial[];
 }
 
 interface ItemPendente {
@@ -110,6 +122,7 @@ interface ItemPendente {
   quantidade: string;
   valor_unitario: string;
   custo_unitario: string;
+  materiais: ItemMaterial[];
 }
 
 interface MaterialAgregado {
@@ -168,6 +181,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrimaCusto[]>([]);
+  const [materiasPrimasCompletas, setMateriasPrimasCompletas] = useState<MateriaPrimaPickerItem[]>([]);
   const [markupPadrao, setMarkupPadrao] = useState('');
   const [custoBaseFilamento, setCustoBaseFilamento] = useState('');
   const [valorConsumoHora, setValorConsumoHora] = useState('');
@@ -216,6 +230,16 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [calculandoNovoItem, setCalculandoNovoItem] = useState(false);
   const [salvandoValorCodigo, setSalvandoValorCodigo] = useState<number | null>(null);
 
+  const [materiaisPendente, setMateriaisPendente] = useState<ItemMaterial[]>([]);
+  const [materiaisExistente, setMateriaisExistente] = useState<ItemMaterial[]>([]);
+  const [trocarMaterialAlvo, setTrocarMaterialAlvo] = useState<{
+    contexto: 'pendente' | 'existente' | 'salvo';
+    index: number;
+  } | null>(null);
+  const [editandoCoresItem, setEditandoCoresItem] = useState<ItemOrcamento | null>(null);
+  const [materiaisEdicaoItem, setMateriaisEdicaoItem] = useState<ItemMaterial[]>([]);
+  const [salvandoCoresItem, setSalvandoCoresItem] = useState(false);
+
   const orcamentosFiltrados = orcamentos.filter((o) => {
     const q = busca.toLowerCase();
     return o.status === status && o.cliente_nome.toLowerCase().includes(q);
@@ -244,7 +268,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     if (cliRes.ok) setClientes(await cliRes.json());
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (eqRes.ok) setEquipamentos(await eqRes.json());
-    if (mpRes.ok) setMateriasPrimas(await mpRes.json());
+    if (mpRes.ok) {
+      const mpData = await mpRes.json();
+      setMateriasPrimas(mpData);
+      setMateriasPrimasCompletas(mpData);
+    }
     if (markupRes.ok) {
       const data = await markupRes.json();
       setMarkupPadrao(data.valor_percentual !== null ? Number(data.valor_percentual).toFixed(2) : '');
@@ -273,6 +301,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setForm({ ...emptyForm, markup_percentual: markupPadrao });
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
+    setMateriaisPendente([]);
     setError('');
     setRaioX(null);
     setModalOpen(true);
@@ -330,6 +359,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           quantidade: item.quantidade,
           valor_unitario: item.valor_unitario,
           custo_unitario: '0',
+          materiais: item.materiais || [],
         }))
       );
     } else {
@@ -344,17 +374,83 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setForm(emptyForm);
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
+    setMateriaisPendente([]);
     setError('');
     setRaioX(null);
     setModalOpen(false);
   }
 
-  function handlePickProduto(p: ProdutoPicker) {
+  async function carregarMateriaisProduto(produtoCodigo: number): Promise<ItemMaterial[]> {
+    const res = await fetch(`/api/produtos/${produtoCodigo}/materiais`);
+    return res.ok ? await res.json() : [];
+  }
+
+  async function handlePickProduto(p: ProdutoPicker) {
     if (pickerFor === 'pendente') {
       setNovoItemLocal({ ...novoItemLocal, produto_codigo: String(p.codigo), quantidade: String(p.quantidade) });
+      setMateriaisPendente(await carregarMateriaisProduto(p.codigo));
     } else if (pickerFor === 'existente') {
       setNovoItem({ ...novoItem, produto_codigo: String(p.codigo), quantidade: String(p.quantidade) });
+      setMateriaisExistente(await carregarMateriaisProduto(p.codigo));
     }
+  }
+
+  function trocarMaterialCor(mp: MateriaPrimaPickerItem) {
+    if (!trocarMaterialAlvo) return;
+    const { contexto, index } = trocarMaterialAlvo;
+    const atualizar = (lista: ItemMaterial[]) =>
+      lista.map((m, i) =>
+        i === index
+          ? {
+              ...m,
+              materia_prima_codigo: mp.codigo,
+              tipo_nome: mp.tipo_nome,
+              marca: mp.marca,
+              cor: mp.cor,
+              cor_hex: mp.cor_hex,
+              unidade_medida_sigla: mp.unidade_medida_sigla,
+            }
+          : m
+      );
+    if (contexto === 'pendente') setMateriaisPendente((prev) => atualizar(prev));
+    else if (contexto === 'existente') setMateriaisExistente((prev) => atualizar(prev));
+    else setMateriaisEdicaoItem((prev) => atualizar(prev));
+    setTrocarMaterialAlvo(null);
+  }
+
+  function renderMateriaisEditor(materiais: ItemMaterial[], contexto: 'pendente' | 'existente' | 'salvo') {
+    if (materiais.length === 0) return null;
+    return (
+      <div className="field" style={{ gridColumn: '1 / -1' }}>
+        <label>Materiais / Cores (do cadastro do produto — pode alterar)</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {materiais.map((m, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 4,
+                  backgroundColor: m.cor_hex,
+                  border: '1px solid #e2e8f0',
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 13 }}>
+                {m.tipo_nome} — {m.marca} ({m.cor}) · {m.peso} {m.unidade_medida_sigla}
+              </span>
+              <button
+                type="button"
+                className="btn-small"
+                onClick={() => setTrocarMaterialAlvo({ contexto, index: i })}
+              >
+                Trocar cor
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   async function calcularCustoProduto(
@@ -445,9 +541,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           quantidade: String(produto.quantidade),
           valor_unitario: valorUnitario.toFixed(2),
           custo_unitario: custoUnitario.toFixed(2),
+          materiais: materiaisPendente,
         },
       ]);
       setNovoItemLocal(emptyNovoItem);
+      setMateriaisPendente([]);
       setRaioX(null);
     } finally {
       setAddingItem(false);
@@ -857,6 +955,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setSelecionado(o);
     setItemError('');
     setNovoItem(emptyNovoItem);
+    setMateriaisExistente([]);
     setCustosItens({});
     const res = await fetch(`/api/orcamentos/${o.codigo}/itens`);
     if (res.ok) {
@@ -870,6 +969,46 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setSelecionado(null);
     setItens([]);
     setCustosItens({});
+    setMateriaisExistente([]);
+  }
+
+  function abrirEdicaoCores(item: ItemOrcamento) {
+    setEditandoCoresItem(item);
+    setMateriaisEdicaoItem(item.materiais);
+  }
+
+  function fecharEdicaoCores() {
+    setEditandoCoresItem(null);
+    setMateriaisEdicaoItem([]);
+  }
+
+  async function handleSalvarCoresItem() {
+    if (!selecionado || !editandoCoresItem) return;
+    setSalvandoCoresItem(true);
+    try {
+      const res = await fetch(
+        `/api/orcamentos/${selecionado.codigo}/itens/${editandoCoresItem.codigo}/materiais`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            materiais: materiaisEdicaoItem.map((m) => ({
+              materia_prima_codigo: m.materia_prima_codigo,
+              peso: m.peso,
+            })),
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Não foi possível salvar as cores.');
+        return;
+      }
+      fecharEdicaoCores();
+      await refreshItens(selecionado.codigo);
+    } finally {
+      setSalvandoCoresItem(false);
+    }
   }
 
   async function refreshItens(codigo: number) {
@@ -945,6 +1084,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           produto_codigo: novoItem.produto_codigo,
           quantidade: String(produto.quantidade),
           valor_unitario: valorUnitario.toFixed(2),
+          materiais: materiaisExistente.map((m) => ({
+            materia_prima_codigo: m.materia_prima_codigo,
+            peso: m.peso,
+          })),
         }),
       });
       if (!res.ok) {
@@ -953,6 +1096,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         return;
       }
       setNovoItem(emptyNovoItem);
+      setMateriaisExistente([]);
       setNovoItemParamsOpen(false);
       await refreshItens(selecionado.codigo);
     } finally {
@@ -1275,6 +1419,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                         <thead>
                           <tr>
                             <th>Produto</th>
+                            <th>Cor</th>
                             <th>Quantidade</th>
                             <th>Valor Custo</th>
                             <th>Valor Unitário</th>
@@ -1292,6 +1437,24 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                             return (
                               <tr key={index}>
                                 <td>{item.produto_descricao}</td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: 4 }}>
+                                    {item.materiais.map((m) => (
+                                      <span
+                                        key={m.materia_prima_codigo}
+                                        title={`${m.tipo_nome} — ${m.marca} (${m.cor})`}
+                                        style={{
+                                          width: 14,
+                                          height: 14,
+                                          borderRadius: 4,
+                                          backgroundColor: m.cor_hex,
+                                          border: '1px solid #e2e8f0',
+                                          display: 'inline-block',
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                </td>
                                 <td>{item.quantidade}</td>
                                 <td>R$ {custoUnit.toFixed(2)}</td>
                                 <td>
@@ -1321,7 +1484,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                             );
                           })}
                           <tr>
-                            <td colSpan={4} style={{ textAlign: 'right', fontWeight: 600 }}>
+                            <td colSpan={5} style={{ textAlign: 'right', fontWeight: 600 }}>
                               Total
                             </td>
                             <td style={{ fontWeight: 600 }}>R$ {totalPendente.toFixed(2)}</td>
@@ -1362,6 +1525,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                       <label>Quantidade (do cadastro do produto)</label>
                       <input value={novoItemLocal.quantidade} disabled />
                     </div>
+                    {renderMateriaisEditor(materiaisPendente, 'pendente')}
                   </div>
                   <p className="hint" style={{ marginTop: -4 }}>
                     Custo e valor de venda são calculados automaticamente ao adicionar o item.
@@ -1813,6 +1977,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <thead>
                 <tr>
                   <th>Produto</th>
+                  <th>Cor</th>
                   <th>Quantidade</th>
                   <th>Valor Custo</th>
                   <th>Valor Unitário</th>
@@ -1831,6 +1996,24 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   return (
                     <tr key={item.codigo}>
                       <td>{item.produto_descricao}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {item.materiais.map((m) => (
+                            <span
+                              key={m.materia_prima_codigo}
+                              title={`${m.tipo_nome} — ${m.marca} (${m.cor})`}
+                              style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: 4,
+                                backgroundColor: m.cor_hex,
+                                border: '1px solid #e2e8f0',
+                                display: 'inline-block',
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </td>
                       <td>{item.quantidade}</td>
                       <td>{custoUnit !== undefined ? `R$ ${custoUnit.toFixed(2)}` : '-'}</td>
                       <td>
@@ -1856,6 +2039,15 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                           >
                             <IconCheck />
                           </button>
+                          {item.materiais.length > 0 && (
+                            <button
+                              className="icon-btn"
+                              title="Alterar cores"
+                              onClick={() => abrirEdicaoCores(item)}
+                            >
+                              <IconPalette />
+                            </button>
+                          )}
                           <button className="icon-btn danger" title="Remover" onClick={() => handleDeleteItem(item.codigo)}>
                             <IconTrash />
                           </button>
@@ -1866,7 +2058,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 })}
                 {itens.length === 0 && (
                   <tr>
-                    <td colSpan={7}>Nenhum item adicionado.</td>
+                    <td colSpan={8}>Nenhum item adicionado.</td>
                   </tr>
                 )}
               </tbody>
@@ -1892,6 +2084,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <label>Quantidade (do cadastro do produto)</label>
               <input value={novoItem.quantidade} disabled />
             </div>
+            {renderMateriaisEditor(materiaisExistente, 'existente')}
           </div>
           <p className="hint" style={{ marginTop: -4 }}>
             Informe os parâmetros de custo para calcular o valor sugerido deste item.
@@ -1901,6 +2094,41 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           </button>
         </div>
       )}
+
+      {editandoCoresItem && (
+        <div className="modal-overlay" onClick={fecharEdicaoCores}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Cores de {editandoCoresItem.produto_descricao}</h3>
+              <button type="button" className="modal-close" onClick={fecharEdicaoCores} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+            {renderMateriaisEditor(materiaisEdicaoItem, 'salvo')}
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ width: 'auto', padding: '10px 20px' }}
+                onClick={handleSalvarCoresItem}
+                disabled={salvandoCoresItem}
+              >
+                {salvandoCoresItem ? 'Salvando...' : 'Salvar cores'}
+              </button>
+              <button type="button" className="btn-small" onClick={fecharEdicaoCores}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <MateriaPrimaPicker
+        open={trocarMaterialAlvo !== null}
+        materiais={materiasPrimasCompletas}
+        onSelect={trocarMaterialCor}
+        onClose={() => setTrocarMaterialAlvo(null)}
+      />
     </div>
   );
 }
