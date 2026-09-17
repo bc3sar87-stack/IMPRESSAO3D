@@ -18,7 +18,14 @@ export async function GET(
 
   const { rows } = await pool.query(
     `SELECT l.codigo, l.fornecedor, l.valor_custo, l.data_compra, l.observacao, l.criado_em,
-            COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo
+            COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo,
+            COALESCE((
+              SELECT SUM(oim.peso * oi.quantidade)
+              FROM orcamento_item_materiais oim
+              JOIN orcamento_itens oi ON oi.codigo = oim.orcamento_item_codigo
+              JOIN orcamentos o ON o.codigo = oi.orcamento_codigo
+              WHERE oim.lote_codigo = l.codigo AND oim.baixado_em IS NULL AND o.status <> 'REJEITADO'
+            ), 0) AS reservado
      FROM materia_prima_lotes l
      LEFT JOIN movimentacoes_estoque me ON me.lote_codigo = l.codigo
      WHERE l.materia_prima_codigo = $1 AND l.empresa_codigo = $2

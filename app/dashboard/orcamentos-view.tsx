@@ -114,6 +114,7 @@ interface LoteEstoque {
   data_compra: string | null;
   observacao: string | null;
   saldo: string;
+  reservado: string;
 }
 
 interface ItemOrcamento {
@@ -284,10 +285,14 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     if (mpRes.ok) {
       const mpData: MateriaPrimaPickerItem[] = await mpRes.json();
       setMateriasPrimas(mpData);
-      const estoqueData: { codigo: number; saldo: string }[] = estoqueRes.ok ? await estoqueRes.json() : [];
-      const saldoPorCodigo = new Map(estoqueData.map((e) => [e.codigo, e.saldo]));
+      const estoqueData: { codigo: number; saldo: string; reservado: string }[] = estoqueRes.ok
+        ? await estoqueRes.json()
+        : [];
+      const disponivelPorCodigo = new Map(
+        estoqueData.map((e) => [e.codigo, (Number(e.saldo) - Number(e.reservado)).toFixed(2)])
+      );
       setMateriasPrimasCompletas(
-        mpData.map((m) => ({ ...m, estoque: saldoPorCodigo.get(m.codigo) ?? null }))
+        mpData.map((m) => ({ ...m, estoque: disponivelPorCodigo.get(m.codigo) ?? null }))
       );
     }
     if (markupRes.ok) {
@@ -497,8 +502,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   )}
                   {lotes.length === 1 && (
                     <span style={{ color: '#64748b' }}>
-                      Lote: {lotes[0].fornecedor || 'sem fornecedor'} — saldo {lotes[0].saldo}{' '}
-                      {m.unidade_medida_sigla}
+                      Lote: {lotes[0].fornecedor || 'sem fornecedor'} — disponível{' '}
+                      {(Number(lotes[0].saldo) - Number(lotes[0].reservado)).toFixed(2)} {m.unidade_medida_sigla}
                     </span>
                   )}
                   {lotes.length > 1 && (
@@ -510,7 +515,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                       <option value="">Selecione o lote...</option>
                       {lotes.map((l) => (
                         <option key={l.codigo} value={l.codigo}>
-                          {l.fornecedor || 'Sem fornecedor'} — saldo {l.saldo} {m.unidade_medida_sigla}
+                          {l.fornecedor || 'Sem fornecedor'} — disponível{' '}
+                          {(Number(l.saldo) - Number(l.reservado)).toFixed(2)} {m.unidade_medida_sigla}
                           {l.valor_custo ? ` — R$ ${Number(l.valor_custo).toFixed(2)}` : ''}
                         </option>
                       ))}

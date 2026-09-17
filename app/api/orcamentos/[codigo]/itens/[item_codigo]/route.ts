@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { requireUsuario } from '@/lib/auth';
+import { reverterBaixaEstoqueItem } from '@/lib/estoque';
 
 async function recalcularTotal(orcamentoCodigo: string, empresaCodigo: number) {
   await pool.query(
@@ -58,10 +59,22 @@ export async function DELETE(
   }
 
   const { codigo, item_codigo } = await params;
-  await pool.query(
-    `DELETE FROM orcamento_itens WHERE codigo=$1 AND orcamento_codigo=$2 AND empresa_codigo=$3`,
-    [item_codigo, codigo, session.empresa_codigo]
-  );
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await reverterBaixaEstoqueItem(client, item_codigo, session.empresa_codigo);
+    await client.query(
+      `DELETE FROM orcamento_itens WHERE codigo=$1 AND orcamento_codigo=$2 AND empresa_codigo=$3`,
+      [item_codigo, codigo, session.empresa_codigo]
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 
   await recalcularTotal(codigo, session.empresa_codigo);
   return NextResponse.json({ ok: true });

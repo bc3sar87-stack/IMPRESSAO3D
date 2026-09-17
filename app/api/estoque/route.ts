@@ -15,7 +15,14 @@ export async function GET() {
     `SELECT mp.codigo, t.nome AS tipo_nome, mp.marca, mp.cor, mp.cor_hex,
             u.sigla AS unidade_medida_sigla,
             COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo,
-            COUNT(DISTINCT l.codigo) AS total_lotes
+            COUNT(DISTINCT l.codigo) AS total_lotes,
+            COALESCE((
+              SELECT SUM(oim.peso * oi.quantidade)
+              FROM orcamento_item_materiais oim
+              JOIN orcamento_itens oi ON oi.codigo = oim.orcamento_item_codigo
+              JOIN orcamentos o ON o.codigo = oi.orcamento_codigo
+              WHERE oim.materia_prima_codigo = mp.codigo AND oim.baixado_em IS NULL AND o.status <> 'REJEITADO'
+            ), 0) AS reservado
      FROM materia_prima mp
      JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
      JOIN unidades_medida u ON u.codigo = mp.unidade_medida_codigo

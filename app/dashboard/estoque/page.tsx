@@ -13,6 +13,7 @@ interface ItemEstoque {
   saldo: string;
   unidade_medida_sigla: string;
   total_lotes: string;
+  reservado: string;
 }
 
 interface Lote {
@@ -23,6 +24,7 @@ interface Lote {
   observacao: string | null;
   criado_em: string;
   saldo: string;
+  reservado: string;
 }
 
 interface Movimentacao {
@@ -205,37 +207,44 @@ export default function EstoquePage() {
               <th>Tipo</th>
               <th>Marca</th>
               <th>Cor</th>
-              <th>Saldo</th>
+              <th>Saldo Físico</th>
+              <th>Reservado</th>
+              <th>Disponível</th>
               <th>Unidade</th>
               <th>Lotes</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {itensFiltrados.map((item) => (
-              <tr key={item.codigo}>
-                <td>{item.codigo}</td>
-                <td>{item.tipo_nome}</td>
-                <td>{item.marca}</td>
-                <td>
-                  <span className="color-swatch" style={{ backgroundColor: item.cor_hex }} />
-                  {item.cor}
-                </td>
-                <td style={{ color: Number(item.saldo) <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
-                  {item.saldo}
-                </td>
-                <td>{item.unidade_medida_sigla}</td>
-                <td>{item.total_lotes}</td>
-                <td>
-                  <button className="btn-small" onClick={() => abrirCor(item)}>
-                    Ver Lotes
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {itensFiltrados.map((item) => {
+              const disponivel = Number(item.saldo) - Number(item.reservado);
+              return (
+                <tr key={item.codigo}>
+                  <td>{item.codigo}</td>
+                  <td>{item.tipo_nome}</td>
+                  <td>{item.marca}</td>
+                  <td>
+                    <span className="color-swatch" style={{ backgroundColor: item.cor_hex }} />
+                    {item.cor}
+                  </td>
+                  <td>{item.saldo}</td>
+                  <td>{Number(item.reservado) > 0 ? item.reservado : '-'}</td>
+                  <td style={{ color: disponivel <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
+                    {disponivel.toFixed(2)}
+                  </td>
+                  <td>{item.unidade_medida_sigla}</td>
+                  <td>{item.total_lotes}</td>
+                  <td>
+                    <button className="btn-small" onClick={() => abrirCor(item)}>
+                      Ver Lotes
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={8}>Nenhuma matéria prima encontrada.</td>
+                <td colSpan={10}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>
@@ -266,35 +275,44 @@ export default function EstoquePage() {
                   <th>Fornecedor</th>
                   <th>Custo</th>
                   <th>Data da Compra</th>
-                  <th>Saldo</th>
+                  <th>Saldo Físico</th>
+                  <th>Reservado</th>
+                  <th>Disponível</th>
                   <th>Observação</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {lotes.map((lote) => (
-                  <tr key={lote.codigo}>
-                    <td>{lote.fornecedor || '-'}</td>
-                    <td>{lote.valor_custo ? `R$ ${Number(lote.valor_custo).toFixed(2)}` : '-'}</td>
-                    <td>
-                      {lote.data_compra
-                        ? new Date(lote.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
-                        : '-'}
-                    </td>
-                    <td style={{ color: Number(lote.saldo) <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
-                      {lote.saldo} {selecionado.unidade_medida_sigla}
-                    </td>
-                    <td>{lote.observacao || '-'}</td>
-                    <td>
-                      <button className="btn-small" onClick={() => abrirLote(lote)}>
-                        Movimentar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {lotes.map((lote) => {
+                  const disponivel = Number(lote.saldo) - Number(lote.reservado);
+                  return (
+                    <tr key={lote.codigo}>
+                      <td>{lote.fornecedor || '-'}</td>
+                      <td>{lote.valor_custo ? `R$ ${Number(lote.valor_custo).toFixed(2)}` : '-'}</td>
+                      <td>
+                        {lote.data_compra
+                          ? new Date(lote.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                          : '-'}
+                      </td>
+                      <td>
+                        {lote.saldo} {selecionado.unidade_medida_sigla}
+                      </td>
+                      <td>{Number(lote.reservado) > 0 ? `${lote.reservado} ${selecionado.unidade_medida_sigla}` : '-'}</td>
+                      <td style={{ color: disponivel <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
+                        {disponivel.toFixed(2)} {selecionado.unidade_medida_sigla}
+                      </td>
+                      <td>{lote.observacao || '-'}</td>
+                      <td>
+                        <button className="btn-small" onClick={() => abrirLote(lote)}>
+                          Movimentar
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {lotes.length === 0 && (
                   <tr>
-                    <td colSpan={6}>Nenhum lote cadastrado.</td>
+                    <td colSpan={8}>Nenhum lote cadastrado.</td>
                   </tr>
                 )}
               </tbody>
@@ -384,7 +402,10 @@ export default function EstoquePage() {
                 Movimentar Lote #{loteSelecionado.codigo}
                 <br />
                 <small style={{ color: '#64748b', fontWeight: 400 }}>
-                  Saldo: {loteSelecionado.saldo} {selecionado?.unidade_medida_sigla}
+                  Saldo físico: {loteSelecionado.saldo} {selecionado?.unidade_medida_sigla}
+                  {Number(loteSelecionado.reservado) > 0
+                    ? ` · Reservado: ${loteSelecionado.reservado} ${selecionado?.unidade_medida_sigla}`
+                    : ''}
                   {loteSelecionado.fornecedor ? ` · ${loteSelecionado.fornecedor}` : ''}
                 </small>
               </h3>

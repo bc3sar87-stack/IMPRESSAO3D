@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { requireUsuario } from '@/lib/auth';
+import { aplicarBaixaEstoqueOrcamento, reverterBaixaEstoqueOrcamento } from '@/lib/estoque';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
   const session = await requireUsuario();
@@ -83,36 +84,59 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
-  const { rows } = await pool.query(
-    `UPDATE orcamentos SET cliente_codigo=$1, data=$2, data_entrega=$3, status=$4, observacoes=$5,
-            equipamento_codigo=$6, markup_percentual=$7, impostos_percentual=$8, taxa_marketplace=$9,
-            taxa_percentual=$10, embalagem_valor=$11, custos_extras_valor=$12,
-            valor_sugerido=COALESCE($13, valor_sugerido), custo_total=COALESCE($14, custo_total)
-     WHERE codigo=$15 AND empresa_codigo=$16
-     RETURNING codigo`,
-    [
-      cliente_codigo,
-      data,
-      data_entrega || null,
-      status,
-      observacoes || null,
-      equipamento_codigo || null,
-      markup_percentual || 0,
-      impostos_percentual || 0,
-      taxa_marketplace || 'MANUAL',
-      taxa_percentual || 0,
-      embalagem_valor || 0,
-      custos_extras_valor || 0,
-      valor_sugerido || null,
-      custo_total || null,
-      codigo,
-      session.empresa_codigo,
-    ]
+  const { rows: atualRows } = await pool.query(
+    `SELECT status FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`,
+    [codigo, session.empresa_codigo]
   );
-  if (rows.length === 0) {
+  if (atualRows.length === 0) {
     return NextResponse.json({ error: 'Orçamento não encontrado.' }, { status: 404 });
   }
-  return NextResponse.json({ codigo: rows[0].codigo });
+  const statusAnterior = atualRows[0].status;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE orcamentos SET cliente_codigo=$1, data=$2, data_entrega=$3, status=$4, observacoes=$5,
+              equipamento_codigo=$6, markup_percentual=$7, impostos_percentual=$8, taxa_marketplace=$9,
+              taxa_percentual=$10, embalagem_valor=$11, custos_extras_valor=$12,
+              valor_sugerido=COALESCE($13, valor_sugerido), custo_total=COALESCE($14, custo_total)
+       WHERE codigo=$15 AND empresa_codigo=$16
+       RETURNING codigo`,
+      [
+        cliente_codigo,
+        data,
+        data_entrega || null,
+        status,
+        observacoes || null,
+        equipamento_codigo || null,
+        markup_percentual || 0,
+        impostos_percentual || 0,
+        taxa_marketplace || 'MANUAL',
+        taxa_percentual || 0,
+        embalagem_valor || 0,
+        custos_extras_valor || 0,
+        valor_sugerido || null,
+        custo_total || null,
+        codigo,
+        session.empresa_codigo,
+      ]
+    );
+
+    if (statusAnterior !== 'FINALIZADO' && status === 'FINALIZADO') {
+      await aplicarBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
+    } else if (statusAnterior === 'FINALIZADO' && status !== 'FINALIZADO') {
+      await reverterBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
+    }
+
+    await client.query('COMMIT');
+    return NextResponse.json({ codigo: rows[0].codigo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
@@ -125,9 +149,21 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   }
 
   const { codigo } = await params;
-  await pool.query(`DELETE FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`, [
-    codigo,
-    session.empresa_codigo,
-  ]);
-  return NextResponse.json({ ok: true });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await reverterBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
+    await client.query(`DELETE FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`, [
+      codigo,
+      session.empresa_codigo,
+    ]);
+    await client.query('COMMIT');
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

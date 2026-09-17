@@ -79,7 +79,7 @@ export default function MateriaPrimaPicker({
                 </span>
                 {m.estoque !== undefined && m.estoque !== null && (
                   <span style={{ color: Number(m.estoque) <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
-                    Estoque: {Number(m.estoque).toLocaleString('pt-BR')} {m.unidade_medida_sigla}
+                    Disponível: {Number(m.estoque).toLocaleString('pt-BR')} {m.unidade_medida_sigla}
                   </span>
                 )}
                 {m.fornecedor && <span>Fornecedor: {m.fornecedor}</span>}
