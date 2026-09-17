@@ -72,7 +72,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   );
 
   const { rows: pixRows } = await pool.query(
-    `SELECT chave_pix, nome_recebedor, cidade, qrcode_imagem, qrcode_tipo FROM configuracao_pix WHERE empresa_codigo = $1`,
+    `SELECT chave_pix, tipo_chave, nome_recebedor, cidade, qrcode_imagem, qrcode_tipo FROM configuracao_pix WHERE empresa_codigo = $1`,
     [session.empresa_codigo]
   );
   const pix = pixRows[0];
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (pix?.chave_pix && pix.nome_recebedor && pix.cidade) {
     const payload = gerarPayloadPix({
       chave: pix.chave_pix,
+      tipoChave: pix.tipo_chave,
       nomeRecebedor: pix.nome_recebedor,
       cidade: pix.cidade,
       valor: Number(orcamento.valor_total),

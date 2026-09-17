@@ -11,8 +11,25 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+const TIPOS_CHAVE = [
+  { value: 'CPF', label: 'CPF' },
+  { value: 'CNPJ', label: 'CNPJ' },
+  { value: 'EMAIL', label: 'E-mail' },
+  { value: 'TELEFONE', label: 'Telefone' },
+  { value: 'ALEATORIA', label: 'Chave aleatória' },
+];
+
+const PLACEHOLDERS_CHAVE: Record<string, string> = {
+  CPF: '123.456.789-00',
+  CNPJ: '12.345.678/0001-90',
+  EMAIL: 'contato@empresa.com',
+  TELEFONE: '(11) 91234-5678',
+  ALEATORIA: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+};
+
 export default function ConfiguracaoPixPage() {
   const [chavePix, setChavePix] = useState('');
+  const [tipoChave, setTipoChave] = useState('');
   const [nomeRecebedor, setNomeRecebedor] = useState('');
   const [cidade, setCidade] = useState('');
   const [qrcodePreview, setQrcodePreview] = useState('');
@@ -30,6 +47,7 @@ export default function ConfiguracaoPixPage() {
     if (res.ok) {
       const data = await res.json();
       setChavePix(data.chave_pix || '');
+      setTipoChave(data.tipo_chave || '');
       setNomeRecebedor(data.nome_recebedor || '');
       setCidade(data.cidade || '');
       setQrcodePreview(data.tem_qrcode ? `/api/configuracao-pix/qrcode?t=${Date.now()}` : '');
@@ -94,6 +112,7 @@ export default function ConfiguracaoPixPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chave_pix: chavePix,
+          tipo_chave: tipoChave || undefined,
           nome_recebedor: nomeRecebedor,
           cidade: cidade,
           qrcode_base64: qrcodeBase64 || undefined,
@@ -129,11 +148,23 @@ export default function ConfiguracaoPixPage() {
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field">
+              <label>Tipo de Chave</label>
+              <select value={tipoChave} onChange={(e) => setTipoChave(e.target.value)}>
+                <option value="">Selecione...</option>
+                {TIPOS_CHAVE.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <p className="hint">Necessário para o sistema formatar a chave corretamente no QR Code.</p>
+            </div>
+            <div className="field">
               <label>Chave Pix</label>
               <input
                 value={chavePix}
                 onChange={(e) => setChavePix(e.target.value)}
-                placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"
+                placeholder={PLACEHOLDERS_CHAVE[tipoChave] || 'CPF, CNPJ, e-mail, telefone ou chave aleatória'}
               />
             </div>
             <div className="field">

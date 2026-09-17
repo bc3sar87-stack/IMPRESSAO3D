@@ -15,6 +15,40 @@ function tlv(id: string, value: string): string {
   return `${id}${String(value.length).padStart(2, '0')}${value}`;
 }
 
+export type TipoChavePix = 'CPF' | 'CNPJ' | 'EMAIL' | 'TELEFONE' | 'ALEATORIA';
+
+export function normalizarChavePix(chave: string, tipo?: TipoChavePix | null): string {
+  const valor = chave.trim();
+
+  switch (tipo) {
+    case 'CPF':
+    case 'CNPJ':
+      return valor.replace(/\D/g, '');
+    case 'EMAIL':
+      return valor.toLowerCase();
+    case 'ALEATORIA':
+      return valor.toLowerCase();
+    case 'TELEFONE': {
+      const digitos = valor.replace(/\D/g, '');
+      if (valor.startsWith('+')) return `+${digitos}`;
+      const comDDI = digitos.length <= 11 ? `55${digitos}` : digitos;
+      return `+${comDDI}`;
+    }
+    default:
+      break;
+  }
+
+  // Sem tipo informado (dados salvos antes desse campo existir): tenta inferir.
+  if (valor.includes('@')) return valor.toLowerCase();
+  if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(valor)) {
+    return valor.toLowerCase();
+  }
+  if (/^\+\d{10,15}$/.test(valor)) return valor;
+  const digitos = valor.replace(/\D/g, '');
+  if (digitos.length === 11 || digitos.length === 14) return digitos;
+  return valor;
+}
+
 function crc16(payload: string): string {
   let crc = 0xffff;
   for (let i = 0; i < payload.length; i++) {
@@ -28,18 +62,20 @@ function crc16(payload: string): string {
 
 export interface PixPayloadParams {
   chave: string;
+  tipoChave?: TipoChavePix | null;
   nomeRecebedor: string;
   cidade: string;
   valor?: number | null;
   txid?: string;
 }
 
-export function gerarPayloadPix({ chave, nomeRecebedor, cidade, valor, txid }: PixPayloadParams): string {
+export function gerarPayloadPix({ chave, tipoChave, nomeRecebedor, cidade, valor, txid }: PixPayloadParams): string {
   const nome = sanitizePixField(nomeRecebedor, 25);
   const cidadeSanitizada = sanitizePixField(cidade, 15);
   const referencia = (txid || '***').replace(/[^A-Za-z0-9]/g, '').slice(0, 25) || '***';
+  const chaveNormalizada = normalizarChavePix(chave, tipoChave);
 
-  const merchantAccountInfo = tlv('00', 'br.gov.bcb.pix') + tlv('01', chave.trim());
+  const merchantAccountInfo = tlv('00', 'br.gov.bcb.pix') + tlv('01', chaveNormalizada);
 
   let payload =
     tlv('00', '01') +

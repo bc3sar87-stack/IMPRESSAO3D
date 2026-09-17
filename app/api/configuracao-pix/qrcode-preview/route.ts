@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT chave_pix, nome_recebedor, cidade FROM configuracao_pix WHERE empresa_codigo = $1`,
+    `SELECT chave_pix, tipo_chave, nome_recebedor, cidade FROM configuracao_pix WHERE empresa_codigo = $1`,
     [session.empresa_codigo]
   );
 
@@ -21,6 +21,7 @@ export async function GET() {
 
   const payload = gerarPayloadPix({
     chave: config.chave_pix,
+    tipoChave: config.tipo_chave,
     nomeRecebedor: config.nome_recebedor,
     cidade: config.cidade,
   });
