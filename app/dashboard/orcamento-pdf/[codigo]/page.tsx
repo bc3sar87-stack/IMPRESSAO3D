@@ -37,6 +37,7 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
   const [erro, setErro] = useState('');
   const [chavePix, setChavePix] = useState('');
   const [temQrcodePix, setTemQrcodePix] = useState(false);
+  const [pixDinamico, setPixDinamico] = useState(false);
   const [temLogoEmpresa, setTemLogoEmpresa] = useState(false);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
         const pix = await pixRes.json();
         setChavePix(pix.chave_pix || '');
         setTemQrcodePix(pix.tem_qrcode);
+        setPixDinamico(Boolean(pix.chave_pix && pix.nome_recebedor && pix.cidade));
       }
       if (logoRes.ok) {
         const logo = await logoRes.json();
@@ -187,21 +189,37 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
           </>
         )}
 
-        {(chavePix || temQrcodePix) && (
+        {(chavePix || temQrcodePix || pixDinamico) && (
           <>
             <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #e2e8f0' }} />
             <h4 style={{ marginBottom: 8 }}>Pagamento via Pix</h4>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-              {temQrcodePix && (
+              {pixDinamico ? (
                 <img
-                  src="/api/configuracao-pix/qrcode"
+                  src={`/api/orcamentos/${codigo}/pix-qrcode`}
                   alt="QR Code Pix"
                   style={{ width: 140, height: 140, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 8 }}
                 />
+              ) : (
+                temQrcodePix && (
+                  <img
+                    src="/api/configuracao-pix/qrcode"
+                    alt="QR Code Pix"
+                    style={{ width: 140, height: 140, objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: 8 }}
+                  />
+                )
               )}
               {chavePix && (
                 <p style={{ margin: 0 }}>
                   <strong>Chave Pix:</strong> {chavePix}
+                  {pixDinamico && (
+                    <>
+                      <br />
+                      <span style={{ fontSize: 12, color: '#64748b' }}>
+                        Valor: R$ {Number(orcamento.valor_total).toFixed(2)}
+                      </span>
+                    </>
+                  )}
                 </p>
               )}
             </div>

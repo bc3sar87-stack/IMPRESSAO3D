@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { requireUsuario } from '@/lib/auth';
 import { sendSystemEmail } from '@/lib/mailer';
+import { gerarPayloadPix, gerarQrCodePixBuffer } from '@/lib/pix';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ codigo: string }> }) {
   const session = await requireUsuario();
@@ -71,10 +72,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   );
 
   const { rows: pixRows } = await pool.query(
-    `SELECT chave_pix, qrcode_imagem, qrcode_tipo FROM configuracao_pix WHERE empresa_codigo = $1`,
+    `SELECT chave_pix, nome_recebedor, cidade, qrcode_imagem, qrcode_tipo FROM configuracao_pix WHERE empresa_codigo = $1`,
     [session.empresa_codigo]
   );
   const pix = pixRows[0];
+
+  let pixQrcodeBuffer: Buffer | null = null;
+  let pixQrcodeTipo = 'image/png';
+  if (pix?.chave_pix && pix.nome_recebedor && pix.cidade) {
+    const payload = gerarPayloadPix({
+      chave: pix.chave_pix,
+      nomeRecebedor: pix.nome_recebedor,
+      cidade: pix.cidade,
+      valor: Number(orcamento.valor_total),
+      txid: `ORC${codigo}`,
+    });
+    pixQrcodeBuffer = await gerarQrCodePixBuffer(payload);
+  } else if (pix?.qrcode_imagem) {
+    pixQrcodeBuffer = pix.qrcode_imagem;
+    pixQrcodeTipo = pix.qrcode_tipo || 'image/png';
+  }
 
   const linhasItens = itensRows
     .map(
@@ -130,11 +147,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       </p>
       ${orcamento.observacoes ? `<p><strong>Observações:</strong> ${orcamento.observacoes}</p>` : ''}
       ${
-        pix && (pix.chave_pix || pix.qrcode_imagem)
+        pix && (pix.chave_pix || pixQrcodeBuffer)
           ? `<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
                <h3 style="color:#1e293b;margin:0 0 8px;">Pagamento via Pix</h3>
                <table style="width:100%;"><tr>
-                 ${pix.qrcode_imagem ? `<td style="vertical-align:middle;padding-right:16px;"><img src="cid:pixqrcode" alt="QR Code Pix" style="width:140px;height:140px;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;" /></td>` : ''}
+                 ${pixQrcodeBuffer ? `<td style="vertical-align:middle;padding-right:16px;"><img src="cid:pixqrcode" alt="QR Code Pix" style="width:140px;height:140px;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;" /></td>` : ''}
                  ${pix.chave_pix ? `<td style="vertical-align:middle;"><strong>Chave Pix:</strong><br/>${pix.chave_pix}</td>` : ''}
                </tr></table>
              </div>`
@@ -155,12 +172,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       contentType: orcamento.logo_tipo || 'image/png',
     });
   }
-  if (pix?.qrcode_imagem) {
+  if (pixQrcodeBuffer) {
     attachments.push({
       filename: 'pix-qrcode.png',
-      content: pix.qrcode_imagem,
+      content: pixQrcodeBuffer,
       cid: 'pixqrcode',
-      contentType: pix.qrcode_tipo || 'image/png',
+      contentType: pixQrcodeTipo,
     });
   }
 

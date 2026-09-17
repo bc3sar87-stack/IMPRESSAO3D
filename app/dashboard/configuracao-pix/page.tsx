@@ -13,11 +13,14 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 export default function ConfiguracaoPixPage() {
   const [chavePix, setChavePix] = useState('');
+  const [nomeRecebedor, setNomeRecebedor] = useState('');
+  const [cidade, setCidade] = useState('');
   const [qrcodePreview, setQrcodePreview] = useState('');
   const [qrcodeBase64, setQrcodeBase64] = useState('');
   const [qrcodeTipo, setQrcodeTipo] = useState('');
   const [removerQrcode, setRemoverQrcode] = useState(false);
   const [ampliarAberto, setAmpliarAberto] = useState(false);
+  const [qrDinamicoPreview, setQrDinamicoPreview] = useState('');
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -27,7 +30,14 @@ export default function ConfiguracaoPixPage() {
     if (res.ok) {
       const data = await res.json();
       setChavePix(data.chave_pix || '');
+      setNomeRecebedor(data.nome_recebedor || '');
+      setCidade(data.cidade || '');
       setQrcodePreview(data.tem_qrcode ? `/api/configuracao-pix/qrcode?t=${Date.now()}` : '');
+      setQrDinamicoPreview(
+        data.chave_pix && data.nome_recebedor && data.cidade
+          ? `/api/configuracao-pix/qrcode-preview?t=${Date.now()}`
+          : ''
+      );
     }
   }
 
@@ -84,6 +94,8 @@ export default function ConfiguracaoPixPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chave_pix: chavePix,
+          nome_recebedor: nomeRecebedor,
+          cidade: cidade,
           qrcode_base64: qrcodeBase64 || undefined,
           qrcode_tipo: qrcodeTipo || undefined,
           remover_qrcode: removerQrcode,
@@ -123,10 +135,50 @@ export default function ConfiguracaoPixPage() {
                 onChange={(e) => setChavePix(e.target.value)}
                 placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"
               />
-              <p className="hint">Exibida no PDF e no e-mail do orçamento.</p>
             </div>
             <div className="field">
-              <label>QR Code</label>
+              <label>Nome do Recebedor</label>
+              <input
+                value={nomeRecebedor}
+                onChange={(e) => setNomeRecebedor(e.target.value)}
+                maxLength={25}
+                placeholder="Nome completo ou razão social"
+              />
+              <p className="hint">Máximo 25 caracteres, sem acentos (exigência do padrão Pix).</p>
+            </div>
+            <div className="field">
+              <label>Cidade</label>
+              <input
+                value={cidade}
+                onChange={(e) => setCidade(e.target.value)}
+                maxLength={15}
+                placeholder="Cidade da agência"
+              />
+              <p className="hint">Máximo 15 caracteres.</p>
+            </div>
+          </div>
+
+          <p className="hint" style={{ marginTop: -4 }}>
+            Preenchendo Chave, Nome e Cidade, o sistema gera automaticamente o QR Code Pix com o valor de cada
+            pedido na hora de imprimir ou enviar o orçamento por e-mail.
+          </p>
+
+          {qrDinamicoPreview && (
+            <div className="field" style={{ maxWidth: 220 }}>
+              <label>Prévia do QR Code (gerado pelo sistema)</label>
+              <img
+                src={qrDinamicoPreview}
+                alt="Prévia QR Code Pix"
+                className="paste-zone-preview"
+                style={{ background: '#fff', padding: 8, border: '1px solid #e2e8f0', borderRadius: 8 }}
+              />
+              <p className="hint">Sem valor definido — o valor do pedido é incluído automaticamente na impressão/e-mail.</p>
+            </div>
+          )}
+
+          <div className="form-grid" style={{ marginTop: 8 }}>
+            <div className="field">
+              <label>QR Code estático (opcional)</label>
               <div className="paste-zone" tabIndex={0} onPaste={handleQrcodePaste}>
                 {qrcodePreview ? (
                   <img
@@ -151,7 +203,10 @@ export default function ConfiguracaoPixPage() {
                   </button>
                 )}
               </div>
-              <p className="hint">Máximo 4MB.</p>
+              <p className="hint">
+                Máximo 4MB. Usado apenas se Nome do Recebedor ou Cidade não estiverem preenchidos (nesse caso o
+                sistema não consegue gerar o QR Code automaticamente).
+              </p>
             </div>
           </div>
 
