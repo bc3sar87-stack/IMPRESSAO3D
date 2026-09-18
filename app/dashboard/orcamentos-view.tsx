@@ -135,6 +135,7 @@ interface ItemPendente {
   quantidade: string;
   valor_unitario: string;
   custo_unitario: string;
+  custo_detalhado?: CustoDetalhado;
   materiais: ItemMaterial[];
 }
 
@@ -144,6 +145,16 @@ interface MaterialAgregado {
   cor_hex: string;
   pesoTotal: number;
   unidade: string;
+}
+
+interface CustoDetalhado {
+  materiais: { nome: string; cor: string; peso: string; unidade: string; custo: number }[];
+  materialCost: number;
+  maoDeObraCost: number;
+  energiaCost: number;
+  custosFixos: { descricao: string; custo: number }[];
+  custosFixosCost: number;
+  total: number;
 }
 
 interface RaioXData {
@@ -224,6 +235,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [novoItem, setNovoItem] = useState(emptyNovoItem);
   const [itemError, setItemError] = useState('');
   const [custosItens, setCustosItens] = useState<Record<number, number>>({});
+  const [custosItensDetalhado, setCustosItensDetalhado] = useState<Record<number, CustoDetalhado>>({});
   const [emailOrcamento, setEmailOrcamento] = useState<Orcamento | null>(null);
   const [emailDestinatario, setEmailDestinatario] = useState('');
   const [enviandoEmail, setEnviandoEmail] = useState(false);
@@ -555,11 +567,17 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     materiaisMap?: Map<number, MaterialAgregado>
   ) {
     if (produto.tipo === 'REVENDA') {
-      return {
-        materialCost: Number(produto.valor_custo) || 0,
-        energiaCost: 0,
+      const valor = Number(produto.valor_custo) || 0;
+      const detalhe: CustoDetalhado = {
+        materiais: [],
+        materialCost: valor,
         maoDeObraCost: 0,
+        energiaCost: 0,
+        custosFixos: [],
+        custosFixosCost: 0,
+        total: valor,
       };
+      return { materialCost: valor, energiaCost: 0, maoDeObraCost: 0, detalhe };
     }
 
     const equipamentoSelecionado = equipamentos.find((eq) => String(eq.codigo) === equipamentoCodigo);
@@ -572,11 +590,20 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     const materiais: ItemMaterial[] = res.ok ? await res.json() : [];
 
     let materialCost = 0;
+    const materiaisDetalhe: CustoDetalhado['materiais'] = [];
     for (const m of materiais) {
       const mp = materiasPrimas.find((x) => x.codigo === m.materia_prima_codigo);
       const custoKg = mp?.valor_custo ? Number(mp.valor_custo) : custoKgPadrao;
       const pesoNum = Number(m.peso) || 0;
-      materialCost += (pesoNum / 1000) * custoKg;
+      const custoItem = (pesoNum / 1000) * custoKg;
+      materialCost += custoItem;
+      materiaisDetalhe.push({
+        nome: m.tipo_nome,
+        cor: m.cor,
+        peso: m.peso,
+        unidade: m.unidade_medida_sigla,
+        custo: custoItem,
+      });
 
       if (materiaisMap) {
         const existente = materiaisMap.get(m.materia_prima_codigo);
@@ -598,9 +625,59 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     const horasMaoObra = (produto.tempo_mao_obra_segundos || 0) / 3600;
     const energiaCost = (consumoWHora / 1000) * horasImpressao * valorHoraEnergia;
     const maoDeObraCost = horasMaoObra * valorHoraMaoObra;
-    const custosFixosCost = (produto.custos_fixos || []).reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
+    const custosFixos = produto.custos_fixos || [];
+    const custosFixosCost = custosFixos.reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
 
-    return { materialCost: materialCost + custosFixosCost, energiaCost, maoDeObraCost };
+    const detalhe: CustoDetalhado = {
+      materiais: materiaisDetalhe,
+      materialCost,
+      maoDeObraCost,
+      energiaCost,
+      custosFixos: custosFixos.map((c) => ({ descricao: c.descricao, custo: Number(c.custo) || 0 })),
+      custosFixosCost,
+      total: materialCost + maoDeObraCost + energiaCost + custosFixosCost,
+    };
+
+    return { materialCost: materialCost + custosFixosCost, energiaCost, maoDeObraCost, detalhe };
+  }
+
+  function dividirCustoDetalhado(detalhe: CustoDetalhado, divisor: number): CustoDetalhado {
+    if (!divisor || divisor === 1) return detalhe;
+    return {
+      materiais: detalhe.materiais.map((m) => ({ ...m, custo: m.custo / divisor })),
+      materialCost: detalhe.materialCost / divisor,
+      maoDeObraCost: detalhe.maoDeObraCost / divisor,
+      energiaCost: detalhe.energiaCost / divisor,
+      custosFixos: detalhe.custosFixos.map((c) => ({ ...c, custo: c.custo / divisor })),
+      custosFixosCost: detalhe.custosFixosCost / divisor,
+      total: detalhe.total / divisor,
+    };
+  }
+
+  function formatCustoTooltip(detalhe?: CustoDetalhado): string {
+    if (!detalhe) return '';
+    const linhas: string[] = [];
+    if (detalhe.materiais.length > 0) {
+      linhas.push('Materiais:');
+      for (const m of detalhe.materiais) {
+        linhas.push(`  ${m.nome} — ${m.cor} (${Number(m.peso).toFixed(2)} ${m.unidade}): R$ ${m.custo.toFixed(2)}`);
+      }
+    }
+    if (detalhe.maoDeObraCost > 0) {
+      linhas.push(`Mão de obra: R$ ${detalhe.maoDeObraCost.toFixed(2)}`);
+    }
+    if (detalhe.energiaCost > 0) {
+      linhas.push(`Energia: R$ ${detalhe.energiaCost.toFixed(2)}`);
+    }
+    if (detalhe.custosFixos.length > 0) {
+      linhas.push('Custos fixos:');
+      for (const c of detalhe.custosFixos) {
+        linhas.push(`  ${c.descricao}: R$ ${c.custo.toFixed(2)}`);
+      }
+    }
+    if (linhas.length === 0) return '';
+    linhas.push(`Total: R$ ${detalhe.total.toFixed(2)}`);
+    return linhas.join('\n');
   }
 
   async function handleAddItemLocal() {
@@ -612,7 +689,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     }
     setAddingItem(true);
     try {
-      const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(
+      const { materialCost, energiaCost, maoDeObraCost, detalhe } = await calcularCustoProduto(
         produto,
         form.equipamento_codigo
       );
@@ -638,6 +715,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           quantidade: String(produto.quantidade),
           valor_unitario: valorUnitario.toFixed(2),
           custo_unitario: custoUnitario.toFixed(2),
+          custo_detalhado: detalhe && produto.quantidade > 0 ? dividirCustoDetalhado(detalhe, produto.quantidade) : detalhe,
           materiais: materiaisPendente,
         },
       ]);
@@ -1006,17 +1084,22 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
 
   async function calcularCustosItens(itensList: ItemOrcamento[], equipamentoCodigo: string, orcamento?: Orcamento) {
     const novoMapa: Record<number, number> = {};
+    const novoDetalhado: Record<number, CustoDetalhado> = {};
     await Promise.all(
       itensList.map(async (item) => {
         const produto = produtos.find((p) => p.codigo === item.produto_codigo);
         if (!produto) return;
-        const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(produto, equipamentoCodigo);
+        const { materialCost, energiaCost, maoDeObraCost, detalhe } = await calcularCustoProduto(produto, equipamentoCodigo);
         const custoTotal = materialCost + energiaCost + maoDeObraCost;
         const quantidade = Number(item.quantidade) || 1;
         novoMapa[item.codigo] = quantidade > 0 ? custoTotal / quantidade : custoTotal;
+        if (detalhe) {
+          novoDetalhado[item.codigo] = quantidade > 0 ? dividirCustoDetalhado(detalhe, quantidade) : detalhe;
+        }
       })
     );
     setCustosItens(novoMapa);
+    setCustosItensDetalhado(novoDetalhado);
 
     if (orcamento) {
       const embalagem = Number(orcamento.embalagem_valor) || 0;
@@ -1276,6 +1359,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <th>Status</th>
               <th>Valor Sugerido</th>
               <th>Valor Escolhido</th>
+              <th>Custo Total</th>
               <th>Lucro</th>
               <th></th>
             </tr>
@@ -1318,6 +1402,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 </td>
                 <td>{o.valor_sugerido ? `R$ ${o.valor_sugerido}` : '-'}</td>
                 <td>R$ {o.valor_total}</td>
+                <td>
+                  {o.custo_total !== null && o.custo_total !== undefined
+                    ? `R$ ${Number(o.custo_total).toFixed(2)}`
+                    : '-'}
+                </td>
                 <td>
                   {o.custo_total !== null && o.custo_total !== undefined
                     ? `R$ ${(Number(o.valor_total) - Number(o.custo_total)).toFixed(2)}`
@@ -1578,7 +1667,17 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                                   </div>
                                 </td>
                                 <td>{item.quantidade}</td>
-                                <td>R$ {custoUnit.toFixed(2)}</td>
+                                <td>
+                                  <span
+                                    title={formatCustoTooltip(item.custo_detalhado) || undefined}
+                                    style={{
+                                      cursor: item.custo_detalhado ? 'help' : undefined,
+                                      borderBottom: item.custo_detalhado ? '1px dotted #94a3b8' : undefined,
+                                    }}
+                                  >
+                                    R$ {custoUnit.toFixed(2)}
+                                  </span>
+                                </td>
                                 <td>
                                   <div className="input-prefix-group" style={{ minWidth: 140 }}>
                                     <span className="input-prefix">R$</span>
@@ -2124,6 +2223,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <tbody>
                 {itens.map((item) => {
                   const custoUnit = custosItens[item.codigo];
+                  const custoDetalhe = custosItensDetalhado[item.codigo];
                   const lucroItem =
                     custoUnit !== undefined
                       ? (Number(item.valor_unitario) - custoUnit) * (Number(item.quantidade) || 0)
@@ -2150,7 +2250,18 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                         </div>
                       </td>
                       <td>{item.quantidade}</td>
-                      <td>{custoUnit !== undefined ? `R$ ${custoUnit.toFixed(2)}` : '-'}</td>
+                      <td>
+                        {custoUnit !== undefined ? (
+                          <span
+                            title={formatCustoTooltip(custoDetalhe) || undefined}
+                            style={{ cursor: custoDetalhe ? 'help' : undefined, borderBottom: custoDetalhe ? '1px dotted #94a3b8' : undefined }}
+                          >
+                            R$ {custoUnit.toFixed(2)}
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
                       <td>
                         <div className="input-prefix-group" style={{ minWidth: 140 }}>
                           <span className="input-prefix">R$</span>
