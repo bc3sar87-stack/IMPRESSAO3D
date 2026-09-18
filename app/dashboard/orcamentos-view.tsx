@@ -161,6 +161,8 @@ interface RaioXData {
   materialTotal: number;
   energiaTotal: number;
   maoDeObraTotal: number;
+  custosFixosTotal: number;
+  custosFixos: { descricao: string; custo: number }[];
   embalagem: number;
   custosExtras: number;
   custoIndustrial: number;
@@ -236,6 +238,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [itemError, setItemError] = useState('');
   const [custosItens, setCustosItens] = useState<Record<number, number>>({});
   const [custosItensDetalhado, setCustosItensDetalhado] = useState<Record<number, CustoDetalhado>>({});
+  const [custosOrcamentosDetalhado, setCustosOrcamentosDetalhado] = useState<Record<number, CustoDetalhado | null>>({});
   const [emailOrcamento, setEmailOrcamento] = useState<Orcamento | null>(null);
   const [emailDestinatario, setEmailDestinatario] = useState('');
   const [enviandoEmail, setEnviandoEmail] = useState(false);
@@ -654,7 +657,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     };
   }
 
-  function formatCustoTooltip(detalhe?: CustoDetalhado): string {
+  function formatCustoTooltip(detalhe?: CustoDetalhado, extra?: { embalagem: number; custosExtras: number }): string {
     if (!detalhe) return '';
     const linhas: string[] = [];
     if (detalhe.materiais.length > 0) {
@@ -675,9 +678,53 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         linhas.push(`  ${c.descricao}: R$ ${c.custo.toFixed(2)}`);
       }
     }
+    const embalagemExtras = (extra?.embalagem || 0) + (extra?.custosExtras || 0);
+    if (embalagemExtras > 0) {
+      linhas.push(`Embalagem/Custos extras: R$ ${embalagemExtras.toFixed(2)}`);
+    }
     if (linhas.length === 0) return '';
-    linhas.push(`Total: R$ ${detalhe.total.toFixed(2)}`);
+    linhas.push(`Total: R$ ${(detalhe.total + embalagemExtras).toFixed(2)}`);
     return linhas.join('\n');
+  }
+
+  async function garantirCustoDetalhadoOrcamento(o: Orcamento) {
+    if (custosOrcamentosDetalhado[o.codigo] !== undefined) return;
+    const res = await fetch(`/api/orcamentos/${o.codigo}/itens`);
+    if (!res.ok) return;
+    const itensSalvos: ItemOrcamento[] = await res.json();
+    if (itensSalvos.length === 0) {
+      setCustosOrcamentosDetalhado((atual) => ({ ...atual, [o.codigo]: null }));
+      return;
+    }
+    const equipamentoCodigo = o.equipamento_codigo ? String(o.equipamento_codigo) : '';
+    const detalhes = await Promise.all(
+      itensSalvos.map(async (item) => {
+        const produto = produtos.find((p) => p.codigo === item.produto_codigo);
+        if (!produto) return null;
+        const { detalhe } = await calcularCustoProduto(produto, equipamentoCodigo);
+        return detalhe || null;
+      })
+    );
+    const agregado: CustoDetalhado = {
+      materiais: [],
+      materialCost: 0,
+      maoDeObraCost: 0,
+      energiaCost: 0,
+      custosFixos: [],
+      custosFixosCost: 0,
+      total: 0,
+    };
+    for (const d of detalhes) {
+      if (!d) continue;
+      agregado.materiais.push(...d.materiais);
+      agregado.materialCost += d.materialCost;
+      agregado.maoDeObraCost += d.maoDeObraCost;
+      agregado.energiaCost += d.energiaCost;
+      agregado.custosFixos.push(...d.custosFixos);
+      agregado.custosFixosCost += d.custosFixosCost;
+      agregado.total += d.total;
+    }
+    setCustosOrcamentosDetalhado((atual) => ({ ...atual, [o.codigo]: agregado }));
   }
 
   async function handleAddItemLocal() {
@@ -760,14 +807,14 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           const produto = produtos.find((p) => p.codigo === item.produto_codigo);
           const quantidade = produto?.quantidade || Number(item.quantidade) || 1;
           if (!produto) {
-            return { item, quantidade, materialCost: 0, energiaCost: 0, maoDeObraCost: 0 };
+            return { item, quantidade, materialCost: 0, energiaCost: 0, maoDeObraCost: 0, detalhe: undefined as CustoDetalhado | undefined };
           }
-          const { materialCost, energiaCost, maoDeObraCost } = await calcularCustoProduto(
+          const { materialCost, energiaCost, maoDeObraCost, detalhe } = await calcularCustoProduto(
             produto,
             equipamentoCodigo,
             materiaisMap
           );
-          return { item, quantidade, materialCost, energiaCost, maoDeObraCost };
+          return { item, quantidade, materialCost, energiaCost, maoDeObraCost, detalhe };
         })
       );
 
@@ -777,10 +824,12 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       const impostos = Number(o.impostos_percentual) || 0;
       const taxa = Number(o.taxa_percentual) || 0;
 
-      const materialTotal = itensCalculados.reduce((s, i) => s + i.materialCost, 0);
+      const materialTotal = itensCalculados.reduce((s, i) => s + (i.detalhe ? i.detalhe.materialCost : i.materialCost), 0);
       const energiaTotal = itensCalculados.reduce((s, i) => s + i.energiaCost, 0);
       const maoDeObraTotal = itensCalculados.reduce((s, i) => s + i.maoDeObraCost, 0);
-      const custoIndustrial = materialTotal + energiaTotal + maoDeObraTotal + embalagem + custosExtras;
+      const custosFixosTotal = itensCalculados.reduce((s, i) => s + (i.detalhe?.custosFixosCost || 0), 0);
+      const custosFixos = itensCalculados.flatMap((i) => i.detalhe?.custosFixos || []);
+      const custoIndustrial = materialTotal + custosFixosTotal + energiaTotal + maoDeObraTotal + embalagem + custosExtras;
       const lucro = custoIndustrial * (markup / 100);
       const precoBase = custoIndustrial + lucro;
       const percentualFees = (impostos + taxa) / 100;
@@ -840,6 +889,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         materialTotal,
         energiaTotal,
         maoDeObraTotal,
+        custosFixosTotal,
+        custosFixos,
         embalagem,
         custosExtras,
         custoIndustrial,
@@ -1403,9 +1454,22 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 <td>{o.valor_sugerido ? `R$ ${o.valor_sugerido}` : '-'}</td>
                 <td>R$ {o.valor_total}</td>
                 <td>
-                  {o.custo_total !== null && o.custo_total !== undefined
-                    ? `R$ ${Number(o.custo_total).toFixed(2)}`
-                    : '-'}
+                  {o.custo_total !== null && o.custo_total !== undefined ? (
+                    <span
+                      onMouseEnter={() => garantirCustoDetalhadoOrcamento(o)}
+                      title={
+                        formatCustoTooltip(custosOrcamentosDetalhado[o.codigo] || undefined, {
+                          embalagem: Number(o.embalagem_valor) || 0,
+                          custosExtras: Number(o.custos_extras_valor) || 0,
+                        }) || 'Passe o mouse para carregar o detalhamento...'
+                      }
+                      style={{ cursor: 'help', borderBottom: '1px dotted #94a3b8' }}
+                    >
+                      R$ {Number(o.custo_total).toFixed(2)}
+                    </span>
+                  ) : (
+                    '-'
+                  )}
                 </td>
                 <td>
                   {o.custo_total !== null && o.custo_total !== undefined
@@ -1852,10 +1916,25 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               </div>
               <div className="raiox-line-value">R$ {raioX.maoDeObraTotal.toFixed(2)}</div>
             </div>
+            {raioX.custosFixosTotal > 0 && (
+              <div className="raiox-line">
+                <div>
+                  <div className="raiox-line-label">Custos Fixos do Produto</div>
+                  <div className="raiox-line-hint">Itens cadastrados no produto (ex: argola, embalagem própria).</div>
+                </div>
+                <div
+                  className="raiox-line-value"
+                  title={raioX.custosFixos.map((c) => `${c.descricao}: R$ ${c.custo.toFixed(2)}`).join('\n')}
+                  style={{ cursor: 'help', borderBottom: '1px dotted #94a3b8' }}
+                >
+                  R$ {raioX.custosFixosTotal.toFixed(2)}
+                </div>
+              </div>
+            )}
             <div className="raiox-line">
               <div>
-                <div className="raiox-line-label">Embalagem &amp; Fixos</div>
-                <div className="raiox-line-hint">Caixa, plástico bolha e outros insumos.</div>
+                <div className="raiox-line-label">Embalagem &amp; Custos Extras</div>
+                <div className="raiox-line-hint">Caixa, plástico bolha e outros insumos do orçamento.</div>
               </div>
               <div className="raiox-line-value">R$ {(raioX.embalagem + raioX.custosExtras).toFixed(2)}</div>
             </div>
