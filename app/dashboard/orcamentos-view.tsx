@@ -2343,7 +2343,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                         )}
                       </td>
                       <td>
-                        <div className="input-prefix-group" style={{ minWidth: 140 }}>
+                        <div className="input-prefix-group" style={{ width: 100 }}>
                           <span className="input-prefix">R$</span>
                           <input
                             type="text"
