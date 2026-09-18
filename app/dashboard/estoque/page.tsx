@@ -7,7 +7,6 @@ import { IconTrash } from '../icons';
 interface ItemEstoque {
   codigo: number;
   tipo_nome: string;
-  marca: string;
   cor: string;
   cor_hex: string;
   saldo: string;
@@ -18,6 +17,7 @@ interface ItemEstoque {
 
 interface Lote {
   codigo: number;
+  marca: string | null;
   fornecedor: string | null;
   valor_custo: string | null;
   data_compra: string | null;
@@ -40,6 +40,7 @@ interface Movimentacao {
 }
 
 const emptyNovoLote = {
+  marca: '',
   fornecedor: '',
   valor_custo: '',
   quantidade_inicial: '',
@@ -75,11 +76,7 @@ export default function EstoquePage() {
 
   const itensFiltrados = itens.filter((item) => {
     const q = busca.toLowerCase();
-    return (
-      item.tipo_nome.toLowerCase().includes(q) ||
-      item.marca.toLowerCase().includes(q) ||
-      item.cor.toLowerCase().includes(q)
-    );
+    return item.tipo_nome.toLowerCase().includes(q) || item.cor.toLowerCase().includes(q);
   });
 
   async function load() {
@@ -211,7 +208,7 @@ export default function EstoquePage() {
         <h2>Controle de Estoque</h2>
       </div>
 
-      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo, marca ou cor..." />
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo ou cor..." />
 
       <div className="table-wrap">
         <table className="data-table">
@@ -219,7 +216,6 @@ export default function EstoquePage() {
             <tr>
               <th>Código</th>
               <th>Tipo</th>
-              <th>Marca</th>
               <th>Cor</th>
               <th>Saldo Físico</th>
               <th>Reservado</th>
@@ -236,7 +232,6 @@ export default function EstoquePage() {
                 <tr key={item.codigo}>
                   <td>{item.codigo}</td>
                   <td>{item.tipo_nome}</td>
-                  <td>{item.marca}</td>
                   <td>
                     <span className="color-swatch" style={{ backgroundColor: item.cor_hex }} />
                     {item.cor}
@@ -258,7 +253,7 @@ export default function EstoquePage() {
             })}
             {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={10}>Nenhuma matéria prima encontrada.</td>
+                <td colSpan={9}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>
@@ -269,7 +264,7 @@ export default function EstoquePage() {
         <div className="card">
           <div className="card-header">
             <h3>
-              {selecionado.tipo_nome} — {selecionado.marca} ({selecionado.cor})
+              {selecionado.tipo_nome} — {selecionado.cor}
               <br />
               <small style={{ color: '#64748b', fontWeight: 400 }}>
                 Saldo total: {selecionado.saldo} {selecionado.unidade_medida_sigla}
@@ -286,6 +281,7 @@ export default function EstoquePage() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Marca</th>
                   <th>Fornecedor</th>
                   <th>Custo</th>
                   <th>Data da Compra</th>
@@ -303,6 +299,7 @@ export default function EstoquePage() {
                   const disponivel = Number(lote.saldo) - Number(lote.reservado);
                   return (
                     <tr key={lote.codigo}>
+                      <td>{lote.marca || '-'}</td>
                       <td>{lote.fornecedor || '-'}</td>
                       <td>{lote.valor_custo ? `R$ ${Number(lote.valor_custo).toFixed(2)}` : '-'}</td>
                       <td>
@@ -338,7 +335,7 @@ export default function EstoquePage() {
                 })}
                 {lotes.length === 0 && (
                   <tr>
-                    <td colSpan={10}>Nenhum lote cadastrado.</td>
+                    <td colSpan={11}>Nenhum lote cadastrado.</td>
                   </tr>
                 )}
               </tbody>
@@ -353,6 +350,13 @@ export default function EstoquePage() {
             <form onSubmit={handleCriarLote} style={{ marginTop: 12 }}>
               <h4 style={{ marginBottom: 8 }}>Novo Lote</h4>
               <div className="form-grid">
+                <div className="field">
+                  <label>Marca</label>
+                  <input
+                    value={novoLoteForm.marca}
+                    onChange={(e) => setNovoLoteForm({ ...novoLoteForm, marca: e.target.value.toUpperCase() })}
+                  />
+                </div>
                 <div className="field">
                   <label>Fornecedor</label>
                   <input

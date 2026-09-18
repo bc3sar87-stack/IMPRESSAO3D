@@ -18,7 +18,7 @@ export async function GET() {
             COALESCE(
               (SELECT json_agg(json_build_object(
                  'materia_prima_codigo', mp.codigo,
-                 'nome', t.nome || ' — ' || mp.marca,
+                 'nome', t.nome,
                  'cor', mp.cor,
                  'cor_hex', mp.cor_hex,
                  'peso', pm.peso,

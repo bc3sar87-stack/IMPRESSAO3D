@@ -15,7 +15,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const { tipo_codigo, marca, descricao, cor, cor_hex, unidade_medida_codigo, fornecedor, valor_custo } =
     await request.json().catch(() => ({}));
 
-  if (!tipo_codigo || !marca || !descricao || !cor || !unidade_medida_codigo) {
+  if (!tipo_codigo || !descricao || !cor || !unidade_medida_codigo) {
     return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
   }
   if (valor_custo !== undefined && valor_custo !== null && valor_custo !== '' && Number.isNaN(Number(valor_custo))) {
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
      RETURNING codigo`,
     [
       tipo_codigo,
-      marca,
+      marca || null,
       descricao,
       cor,
       cor_hex || '#cccccc',

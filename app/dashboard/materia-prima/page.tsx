@@ -8,7 +8,6 @@ interface MateriaPrima {
   codigo: number;
   tipo_codigo: number;
   tipo_nome: string;
-  marca: string;
   descricao: string;
   cor: string;
   cor_hex: string;
@@ -32,9 +31,7 @@ interface Unidade {
 
 const emptyForm = {
   tipo_codigo: '',
-  marca: '',
   descricao: '',
-  cor: '',
   cor_hex: '#cccccc',
   unidade_medida_codigo: '',
   fornecedor: '',
@@ -56,7 +53,6 @@ export default function MateriaPrimaPage() {
     const q = busca.toLowerCase();
     return (
       item.tipo_nome.toLowerCase().includes(q) ||
-      item.marca.toLowerCase().includes(q) ||
       item.descricao.toLowerCase().includes(q) ||
       item.cor.toLowerCase().includes(q) ||
       (item.fornecedor || '').toLowerCase().includes(q)
@@ -89,9 +85,7 @@ export default function MateriaPrimaPage() {
     setEditingCodigo(item.codigo);
     setForm({
       tipo_codigo: String(item.tipo_codigo),
-      marca: item.marca,
       descricao: item.descricao,
-      cor: item.cor,
       cor_hex: item.cor_hex,
       unidade_medida_codigo: String(item.unidade_medida_codigo),
       fornecedor: item.fornecedor || '',
@@ -105,9 +99,7 @@ export default function MateriaPrimaPage() {
     setEditingCodigo(null);
     setForm({
       tipo_codigo: String(item.tipo_codigo),
-      marca: item.marca,
       descricao: `${item.descricao} (cópia)`,
-      cor: item.cor,
       cor_hex: item.cor_hex,
       unidade_medida_codigo: String(item.unidade_medida_codigo),
       fornecedor: item.fornecedor || '',
@@ -134,7 +126,7 @@ export default function MateriaPrimaPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, cor: form.descricao }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -181,7 +173,7 @@ export default function MateriaPrimaPage() {
         </div>
       )}
 
-      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo, marca, cor ou descrição..." />
+      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo, cor ou descrição..." />
 
       <div className="table-wrap">
         <table className="data-table">
@@ -189,9 +181,7 @@ export default function MateriaPrimaPage() {
             <tr>
               <th>Código</th>
               <th>Tipo</th>
-              <th>Marca</th>
-              <th>Descrição</th>
-              <th>Cor</th>
+              <th>Descrição / Cor</th>
               <th>Unidade</th>
               <th>Fornecedor</th>
               <th>Valor Custo</th>
@@ -203,11 +193,9 @@ export default function MateriaPrimaPage() {
               <tr key={item.codigo}>
                 <td>{item.codigo}</td>
                 <td>{item.tipo_nome}</td>
-                <td>{item.marca}</td>
-                <td>{item.descricao}</td>
                 <td>
                   <span className="color-swatch" style={{ backgroundColor: item.cor_hex }} />
-                  {item.cor}
+                  {item.descricao}
                 </td>
                 <td>{item.unidade_medida_nome}</td>
                 <td>{item.fornecedor || '-'}</td>
@@ -229,7 +217,7 @@ export default function MateriaPrimaPage() {
             ))}
             {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={9}>Nenhuma matéria prima encontrada.</td>
+                <td colSpan={7}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>
@@ -266,15 +254,7 @@ export default function MateriaPrimaPage() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>Marca</label>
-                  <input
-                    value={form.marca}
-                    onChange={(e) => setForm({ ...form, marca: e.target.value.toUpperCase() })}
-                    required
-                  />
-                </div>
-                <div className="field">
-                  <label>Cor</label>
+                  <label>Descrição (nome da cor)</label>
                   <div className="color-field">
                     <input
                       type="color"
@@ -283,20 +263,12 @@ export default function MateriaPrimaPage() {
                       onChange={(e) => setForm({ ...form, cor_hex: e.target.value })}
                     />
                     <input
-                      value={form.cor}
-                      onChange={(e) => setForm({ ...form, cor: e.target.value.toUpperCase() })}
-                      placeholder="Nome da cor"
+                      value={form.descricao}
+                      onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
+                      placeholder="Ex.: PRETO, VERMELHO FOSCO..."
                       required
                     />
                   </div>
-                </div>
-                <div className="field">
-                  <label>Descrição</label>
-                  <input
-                    value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
-                    required
-                  />
                 </div>
                 <div className="field">
                   <label>Unidade de Medida</label>

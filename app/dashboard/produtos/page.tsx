@@ -23,7 +23,6 @@ interface MateriaPrima {
   codigo: number;
   tipo_codigo: number;
   tipo_nome: string;
-  marca: string;
   cor: string;
   cor_hex: string;
   unidade_medida_sigla: string;
@@ -35,7 +34,6 @@ interface ItemMaterial {
   codigo: number;
   materia_prima_codigo: number;
   tipo_nome: string;
-  marca: string;
   cor: string;
   unidade_medida_sigla: string;
   peso: string;
@@ -638,7 +636,7 @@ export default function ProdutosPage() {
                 {itensMaterial.map((item) => (
                   <tr key={item.codigo}>
                     <td>
-                      {item.tipo_nome} — {item.marca} ({item.cor})
+                      {item.tipo_nome} — {item.cor}
                     </td>
                     <td>
                       {item.peso} {item.unidade_medida_sigla}
@@ -686,7 +684,7 @@ export default function ProdutosPage() {
                               flexShrink: 0,
                             }}
                           />
-                          {mp.tipo_nome} — {mp.marca} ({mp.cor})
+                          {mp.tipo_nome} — {mp.cor}
                         </>
                       ) : (
                         'Selecionar matéria prima...'

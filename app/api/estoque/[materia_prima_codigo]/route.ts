@@ -17,7 +17,7 @@ export async function GET(
   const { materia_prima_codigo } = await params;
 
   const { rows } = await pool.query(
-    `SELECT l.codigo, l.fornecedor, l.valor_custo, l.data_compra, l.observacao, l.criado_em,
+    `SELECT l.codigo, l.marca, l.fornecedor, l.valor_custo, l.data_compra, l.observacao, l.criado_em,
             l.temp_mesa_min, l.temp_mesa_max, l.temp_impressao_min, l.temp_impressao_max,
             COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo,
             COALESCE((
@@ -51,6 +51,7 @@ export async function POST(
 
   const { materia_prima_codigo } = await params;
   const {
+    marca,
     fornecedor,
     valor_custo,
     quantidade_inicial,
@@ -88,13 +89,14 @@ export async function POST(
     await client.query('BEGIN');
     const { rows: loteRows } = await client.query(
       `INSERT INTO materia_prima_lotes (
-         materia_prima_codigo, fornecedor, valor_custo, data_compra, observacao,
+         materia_prima_codigo, marca, fornecedor, valor_custo, data_compra, observacao,
          temp_mesa_min, temp_mesa_max, temp_impressao_min, temp_impressao_max, empresa_codigo
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING codigo`,
       [
         materia_prima_codigo,
+        marca || null,
         fornecedor || null,
         valor_custo || null,
         data_compra || null,

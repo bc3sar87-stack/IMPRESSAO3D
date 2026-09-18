@@ -26,7 +26,6 @@ interface OrcamentoDetalhe {
 interface ItemMaterial {
   materia_prima_codigo: number;
   tipo_nome: string;
-  marca: string;
   cor: string;
   cor_hex: string;
   peso: string;

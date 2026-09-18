@@ -6,7 +6,6 @@ import SearchBox from './search-box';
 export interface MateriaPrimaPickerItem {
   codigo: number;
   tipo_nome: string;
-  marca: string;
   cor: string;
   cor_hex: string;
   unidade_medida_sigla: string;
@@ -31,9 +30,7 @@ export default function MateriaPrimaPicker({
   if (!open) return null;
 
   const q = busca.toLowerCase();
-  const filtrados = materiais.filter((m) =>
-    `${m.tipo_nome} ${m.marca} ${m.cor}`.toLowerCase().includes(q)
-  );
+  const filtrados = materiais.filter((m) => `${m.tipo_nome} ${m.cor}`.toLowerCase().includes(q));
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -44,7 +41,7 @@ export default function MateriaPrimaPicker({
             ×
           </button>
         </div>
-        <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo, marca ou cor..." />
+        <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por tipo ou cor..." />
         <div className="product-picker-list">
           {filtrados.map((m) => (
             <button
@@ -68,7 +65,7 @@ export default function MateriaPrimaPicker({
               />
               <div className="product-picker-info">
                 <strong>
-                  #{m.codigo} · {m.tipo_nome} — {m.marca}
+                  #{m.codigo} · {m.tipo_nome}
                 </strong>
                 <span>Cor: {m.cor}</span>
                 <span>

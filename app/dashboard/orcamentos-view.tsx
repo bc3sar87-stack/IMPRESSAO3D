@@ -100,7 +100,6 @@ interface ItemMaterial {
   codigo?: number;
   materia_prima_codigo: number;
   tipo_nome: string;
-  marca: string;
   cor: string;
   cor_hex: string;
   unidade_medida_sigla: string;
@@ -442,7 +441,6 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               ...m,
               materia_prima_codigo: mp.codigo,
               tipo_nome: mp.tipo_nome,
-              marca: mp.marca,
               cor: mp.cor,
               cor_hex: mp.cor_hex,
               unidade_medida_sigla: mp.unidade_medida_sigla,
@@ -487,7 +485,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     }}
                   />
                   <span style={{ fontSize: 13 }}>
-                    {m.tipo_nome} — {m.marca} ({m.cor}) · {m.peso} {m.unidade_medida_sigla}
+                    {m.tipo_nome} — {m.cor} · {m.peso} {m.unidade_medida_sigla}
                   </span>
                   <button
                     type="button"
@@ -568,7 +566,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         } else {
           materiaisMap.set(m.materia_prima_codigo, {
             materia_prima_codigo: m.materia_prima_codigo,
-            nome: `${m.tipo_nome} — ${m.marca} (${m.cor})`,
+            nome: `${m.tipo_nome} — ${m.cor}`,
             cor_hex: m.cor_hex || '#cbd5e1',
             pesoTotal: pesoNum,
             unidade: m.unidade_medida_sigla,
@@ -1536,7 +1534,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                                     {item.materiais.map((m) => (
                                       <span
                                         key={m.materia_prima_codigo}
-                                        title={`${m.tipo_nome} — ${m.marca} (${m.cor})`}
+                                        title={`${m.tipo_nome} — ${m.cor}`}
                                         style={{
                                           width: 14,
                                           height: 14,
@@ -2108,7 +2106,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                           {item.materiais.map((m) => (
                             <span
                               key={m.materia_prima_codigo}
-                              title={`${m.tipo_nome} — ${m.marca} (${m.cor})`}
+                              title={`${m.tipo_nome} — ${m.cor}`}
                               style={{
                                 width: 14,
                                 height: 14,
