@@ -6,6 +6,16 @@ import TimeInput, { formatSegundos } from '../time-input';
 import { IconEdit, IconCopy, IconTrash, IconList } from '../icons';
 import MateriaPrimaPicker from '../materia-prima-picker';
 
+interface ProdutoMaterialResumo {
+  materia_prima_codigo: number;
+  nome: string;
+  cor: string;
+  cor_hex: string;
+  peso: string;
+  unidade_medida_sigla: string;
+  valor_custo: string | null;
+}
+
 interface Produto {
   codigo: number;
   descricao: string;
@@ -17,6 +27,7 @@ interface Produto {
   tempo_mao_obra_segundos: number;
   tipo: 'IMPRESSAO' | 'REVENDA';
   valor_custo: string | null;
+  materiais: ProdutoMaterialResumo[];
 }
 
 interface MateriaPrima {
@@ -73,6 +84,8 @@ export default function ProdutosPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
+  const [custoBaseFilamento, setCustoBaseFilamento] = useState('0');
+  const [custoMaoObraHora, setCustoMaoObraHora] = useState('0');
   const [fotoAmpliadaAberta, setFotoAmpliadaAberta] = useState(false);
   const [fotoTabelaAmpliada, setFotoTabelaAmpliada] = useState<Produto | null>(null);
 
@@ -87,12 +100,33 @@ export default function ProdutosPage() {
   );
 
   async function load() {
-    const [prodRes, mpRes] = await Promise.all([
+    const [prodRes, mpRes, filamentoRes, maoObraRes] = await Promise.all([
       fetch('/api/produtos'),
       fetch('/api/materia-prima'),
+      fetch('/api/custo-base-filamento'),
+      fetch('/api/custo-mao-obra-hora'),
     ]);
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (mpRes.ok) setMateriasPrimas(await mpRes.json());
+    if (filamentoRes.ok) {
+      const data = await filamentoRes.json();
+      setCustoBaseFilamento(data.valor !== null ? String(data.valor) : '0');
+    }
+    if (maoObraRes.ok) {
+      const data = await maoObraRes.json();
+      setCustoMaoObraHora(data.valor_hora !== null ? String(data.valor_hora) : '0');
+    }
+  }
+
+  function custoPrevio(p: Produto): number {
+    const custoKgPadrao = Number(custoBaseFilamento) || 0;
+    const custoHoraMaoObra = Number(custoMaoObraHora) || 0;
+    const materialCost = (p.materiais || []).reduce((soma, m) => {
+      const custoKg = m.valor_custo ? Number(m.valor_custo) : custoKgPadrao;
+      return soma + (Number(m.peso) / 1000) * custoKg;
+    }, 0);
+    const maoDeObraCost = ((p.tempo_mao_obra_segundos || 0) / 3600) * custoHoraMaoObra;
+    return materialCost + maoDeObraCost;
   }
 
   useEffect(() => {
@@ -334,6 +368,7 @@ export default function ProdutosPage() {
               <th>Tempo Impressão</th>
               <th>Tempo Mão de Obra</th>
               <th>Valor Custo</th>
+              <th>Custo Prévio</th>
               <th>STL</th>
               <th></th>
             </tr>
@@ -367,6 +402,7 @@ export default function ProdutosPage() {
                 <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_impressao_segundos)}</td>
                 <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_mao_obra_segundos)}</td>
                 <td>{p.tipo === 'REVENDA' ? `R$ ${p.valor_custo || '0.00'}` : '-'}</td>
+                <td>{p.tipo === 'IMPRESSAO' ? `R$ ${custoPrevio(p).toFixed(2)}` : '-'}</td>
                 <td>
                   {p.stl_nome && (
                     <a href={`/api/produtos/${p.codigo}/stl`}>{p.stl_nome}</a>
@@ -401,7 +437,7 @@ export default function ProdutosPage() {
             ))}
             {produtosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={10}>Nenhum produto encontrado.</td>
+                <td colSpan={11}>Nenhum produto encontrado.</td>
               </tr>
             )}
           </tbody>
