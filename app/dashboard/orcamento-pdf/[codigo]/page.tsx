@@ -81,10 +81,18 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
     load();
   }, [codigo]);
 
+  function voltar() {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      window.close();
+    }
+  }
+
   if (erro) {
     return (
       <div className="card">
-        <button className="btn-small" style={{ marginBottom: 16 }} onClick={() => router.back()}>
+        <button className="btn-small" style={{ marginBottom: 16 }} onClick={voltar}>
           ← Voltar
         </button>
         <div className="error-msg">{erro}</div>
@@ -99,7 +107,7 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
   return (
     <div id="orcamento-pdf">
       <div className="no-print" style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
-        <button className="btn-small" onClick={() => router.back()}>
+        <button className="btn-small" onClick={voltar}>
           ← Voltar
         </button>
         <button className="btn-primary" style={{ width: 'auto', padding: '10px 20px' }} onClick={() => window.print()}>
