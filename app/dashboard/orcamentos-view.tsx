@@ -2270,7 +2270,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
 
       {selecionado && (
         <div className="modal-overlay" onClick={fecharItens}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 960 }}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1150 }}>
             <div className="modal-header">
               <h3>
                 Itens do orçamento #{selecionado.codigo} — {selecionado.cliente_nome}
@@ -2343,7 +2343,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                         )}
                       </td>
                       <td>
-                        <div className="input-prefix-group" style={{ width: 100 }}>
+                        <div className="input-prefix-group" style={{ width: 120 }}>
                           <span className="input-prefix">R$</span>
                           <input
                             type="text"
