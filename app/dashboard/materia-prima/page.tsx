@@ -35,7 +35,6 @@ const emptyForm = {
   descricao: '',
   cor_hex: '#cccccc',
   unidade_medida_codigo: '',
-  fornecedor: '',
   valor_custo: '',
 };
 
@@ -81,8 +80,7 @@ export default function MateriaPrimaPage() {
     return (
       item.tipo_nome.toLowerCase().includes(q) ||
       item.descricao.toLowerCase().includes(q) ||
-      item.cor.toLowerCase().includes(q) ||
-      (item.fornecedor || '').toLowerCase().includes(q)
+      item.cor.toLowerCase().includes(q)
     );
   });
 
@@ -115,7 +113,6 @@ export default function MateriaPrimaPage() {
       descricao: item.descricao,
       cor_hex: item.cor_hex,
       unidade_medida_codigo: String(item.unidade_medida_codigo),
-      fornecedor: item.fornecedor || '',
       valor_custo: item.valor_custo || '',
     });
     setError('');
@@ -129,7 +126,6 @@ export default function MateriaPrimaPage() {
       descricao: `${item.descricao} (cópia)`,
       cor_hex: item.cor_hex,
       unidade_medida_codigo: String(item.unidade_medida_codigo),
-      fornecedor: item.fornecedor || '',
       valor_custo: item.valor_custo || '',
     });
     setError('');
@@ -244,7 +240,6 @@ export default function MateriaPrimaPage() {
               <th>Tipo</th>
               <th>Descrição / Cor</th>
               <th>Unidade</th>
-              <th>Fornecedor</th>
               <th>Valor Custo</th>
               <th></th>
             </tr>
@@ -259,7 +254,6 @@ export default function MateriaPrimaPage() {
                   {item.descricao}
                 </td>
                 <td>{item.unidade_medida_nome}</td>
-                <td>{item.fornecedor || '-'}</td>
                 <td>{item.valor_custo ? `R$ ${item.valor_custo}/Kg` : '-'}</td>
                 <td>
                   <div className="row-actions">
@@ -292,7 +286,7 @@ export default function MateriaPrimaPage() {
             ))}
             {itensFiltrados.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhuma matéria prima encontrada.</td>
+                <td colSpan={6}>Nenhuma matéria prima encontrada.</td>
               </tr>
             )}
           </tbody>
@@ -361,13 +355,6 @@ export default function MateriaPrimaPage() {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="field">
-                  <label>Fornecedor</label>
-                  <input
-                    value={form.fornecedor}
-                    onChange={(e) => setForm({ ...form, fornecedor: e.target.value.toUpperCase() })}
-                  />
                 </div>
                 <div className="field">
                   <label>Valor Custo (R$/Kg)</label>
