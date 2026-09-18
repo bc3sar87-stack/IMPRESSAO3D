@@ -16,6 +16,12 @@ interface ProdutoMaterialResumo {
   valor_custo: string | null;
 }
 
+interface CustoFixoResumo {
+  codigo: number;
+  descricao: string;
+  custo: string;
+}
+
 interface Produto {
   codigo: number;
   descricao: string;
@@ -28,6 +34,7 @@ interface Produto {
   tipo: 'IMPRESSAO' | 'REVENDA';
   valor_custo: string | null;
   materiais: ProdutoMaterialResumo[];
+  custos_fixos: CustoFixoResumo[];
 }
 
 interface MateriaPrima {
@@ -94,6 +101,9 @@ export default function ProdutosPage() {
   const [novoMaterial, setNovoMaterial] = useState({ materia_prima_codigo: '', peso: '' });
   const [materialError, setMaterialError] = useState('');
   const [materiaPickerOpen, setMateriaPickerOpen] = useState(false);
+  const [custosFixos, setCustosFixos] = useState<CustoFixoResumo[]>([]);
+  const [novoCustoFixo, setNovoCustoFixo] = useState({ descricao: '', custo: '' });
+  const [custoFixoError, setCustoFixoError] = useState('');
 
   const produtosFiltrados = produtos.filter((p) =>
     p.descricao.toLowerCase().includes(busca.toLowerCase())
@@ -126,7 +136,8 @@ export default function ProdutosPage() {
       return soma + (Number(m.peso) / 1000) * custoKg;
     }, 0);
     const maoDeObraCost = ((p.tempo_mao_obra_segundos || 0) / 3600) * custoHoraMaoObra;
-    return materialCost + maoDeObraCost;
+    const custosFixosCost = (p.custos_fixos || []).reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
+    return materialCost + maoDeObraCost + custosFixosCost;
   }
 
   useEffect(() => {
@@ -309,14 +320,22 @@ export default function ProdutosPage() {
   async function abrirMateriais(p: Produto) {
     setSelecionado(p);
     setMaterialError('');
+    setCustoFixoError('');
     setNovoMaterial({ materia_prima_codigo: '', peso: '' });
-    const res = await fetch(`/api/produtos/${p.codigo}/materiais`);
+    setNovoCustoFixo({ descricao: '', custo: '' });
+    const [res, res2] = await Promise.all([
+      fetch(`/api/produtos/${p.codigo}/materiais`),
+      fetch(`/api/produtos/${p.codigo}/custos-fixos`),
+    ]);
     if (res.ok) setItensMaterial(await res.json());
+    if (res2.ok) setCustosFixos(await res2.json());
   }
 
   function fecharMateriais() {
     setSelecionado(null);
     setItensMaterial([]);
+    setCustosFixos([]);
+    load();
   }
 
   async function handleAddMaterial(e: FormEvent) {
@@ -343,6 +362,35 @@ export default function ProdutosPage() {
     await fetch(`/api/produtos/${selecionado.codigo}/materiais/${itemCodigo}`, { method: 'DELETE' });
     const res = await fetch(`/api/produtos/${selecionado.codigo}/materiais`);
     if (res.ok) setItensMaterial(await res.json());
+  }
+
+  async function handleAddCustoFixo(e: FormEvent) {
+    e.preventDefault();
+    if (!selecionado) return;
+    setCustoFixoError('');
+    const res = await fetch(`/api/produtos/${selecionado.codigo}/custos-fixos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        descricao: novoCustoFixo.descricao,
+        custo: novoCustoFixo.custo.replace(',', '.'),
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setCustoFixoError(data.error || 'Não foi possível adicionar.');
+      return;
+    }
+    setNovoCustoFixo({ descricao: '', custo: '' });
+    const res2 = await fetch(`/api/produtos/${selecionado.codigo}/custos-fixos`);
+    if (res2.ok) setCustosFixos(await res2.json());
+  }
+
+  async function handleDeleteCustoFixo(itemCodigo: number) {
+    if (!selecionado) return;
+    await fetch(`/api/produtos/${selecionado.codigo}/custos-fixos/${itemCodigo}`, { method: 'DELETE' });
+    const res = await fetch(`/api/produtos/${selecionado.codigo}/custos-fixos`);
+    if (res.ok) setCustosFixos(await res.json());
   }
 
   return (
@@ -424,7 +472,7 @@ export default function ProdutosPage() {
                       <IconCopy />
                     </button>
                     {p.tipo === 'IMPRESSAO' && (
-                      <button className="icon-btn" title="Materiais" onClick={() => abrirMateriais(p)}>
+                      <button className="icon-btn" title="Materiais e Custos Fixos" onClick={() => abrirMateriais(p)}>
                         <IconList />
                       </button>
                     )}
@@ -649,104 +697,172 @@ export default function ProdutosPage() {
       )}
 
       {selecionado && (
-        <div className="card">
-          <div className="card-header">
-            <h3>Materiais de {selecionado.descricao}</h3>
-            <button className="btn-small" onClick={fecharMateriais}>
-              Fechar
-            </button>
-          </div>
-
-          {materialError && <div className="error-msg">{materialError}</div>}
-
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Matéria Prima</th>
-                  <th>Peso</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {itensMaterial.map((item) => (
-                  <tr key={item.codigo}>
-                    <td>
-                      {item.tipo_nome} — {item.cor}
-                    </td>
-                    <td>
-                      {item.peso} {item.unidade_medida_sigla}
-                    </td>
-                    <td>
-                      <button className="btn-small danger" onClick={() => handleDeleteMaterial(item.codigo)}>
-                        Remover
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {itensMaterial.length === 0 && (
-                  <tr>
-                    <td colSpan={3}>Nenhum material adicionado.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <form onSubmit={handleAddMaterial}>
-            <div className="form-grid">
-              <div className="field">
-                <label>Matéria Prima</label>
-                <button
-                  type="button"
-                  className="pricing-select-btn"
-                  onClick={() => setMateriaPickerOpen(true)}
-                >
-                  {novoMaterial.materia_prima_codigo ? (
-                    (() => {
-                      const mp = materiasPrimas.find(
-                        (m) => String(m.codigo) === novoMaterial.materia_prima_codigo
-                      );
-                      return mp ? (
-                        <>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              width: 16,
-                              height: 16,
-                              borderRadius: 4,
-                              backgroundColor: mp.cor_hex,
-                              border: '1px solid #e2e8f0',
-                              flexShrink: 0,
-                            }}
-                          />
-                          {mp.tipo_nome} — {mp.cor}
-                        </>
-                      ) : (
-                        'Selecionar matéria prima...'
-                      );
-                    })()
-                  ) : (
-                    <span className="pricing-select-placeholder">Selecionar matéria prima...</span>
-                  )}
-                </button>
-              </div>
-              <div className="field">
-                <label>Peso</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={novoMaterial.peso}
-                  onChange={(e) => setNovoMaterial({ ...novoMaterial, peso: e.target.value })}
-                  required
-                />
-              </div>
+        <div className="modal-overlay" onClick={fecharMateriais}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900 }}>
+            <div className="modal-header">
+              <h3>Materiais e Custos Fixos de {selecionado.descricao}</h3>
+              <button type="button" className="modal-close" onClick={fecharMateriais} aria-label="Fechar">
+                ×
+              </button>
             </div>
-            <button className="btn-small" type="submit" style={{ marginTop: 8 }}>
-              Adicionar material
-            </button>
-          </form>
+
+            <h4 style={{ marginBottom: 8 }}>Materiais</h4>
+            {materialError && <div className="error-msg">{materialError}</div>}
+
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Matéria Prima</th>
+                    <th>Peso</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itensMaterial.map((item) => (
+                    <tr key={item.codigo}>
+                      <td>
+                        {item.tipo_nome} — {item.cor}
+                      </td>
+                      <td>
+                        {item.peso} {item.unidade_medida_sigla}
+                      </td>
+                      <td>
+                        <button className="btn-small danger" onClick={() => handleDeleteMaterial(item.codigo)}>
+                          Remover
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {itensMaterial.length === 0 && (
+                    <tr>
+                      <td colSpan={3}>Nenhum material adicionado.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <form onSubmit={handleAddMaterial}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Matéria Prima</label>
+                  <button
+                    type="button"
+                    className="pricing-select-btn"
+                    onClick={() => setMateriaPickerOpen(true)}
+                  >
+                    {novoMaterial.materia_prima_codigo ? (
+                      (() => {
+                        const mp = materiasPrimas.find(
+                          (m) => String(m.codigo) === novoMaterial.materia_prima_codigo
+                        );
+                        return mp ? (
+                          <>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 16,
+                                height: 16,
+                                borderRadius: 4,
+                                backgroundColor: mp.cor_hex,
+                                border: '1px solid #e2e8f0',
+                                flexShrink: 0,
+                              }}
+                            />
+                            {mp.tipo_nome} — {mp.cor}
+                          </>
+                        ) : (
+                          'Selecionar matéria prima...'
+                        );
+                      })()
+                    ) : (
+                      <span className="pricing-select-placeholder">Selecionar matéria prima...</span>
+                    )}
+                  </button>
+                </div>
+                <div className="field">
+                  <label>Peso</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={novoMaterial.peso}
+                    onChange={(e) => setNovoMaterial({ ...novoMaterial, peso: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <button className="btn-small" type="submit" style={{ marginTop: 8 }}>
+                Adicionar material
+              </button>
+            </form>
+
+            <h4 style={{ marginTop: 24, marginBottom: 8 }}>Custos Fixos</h4>
+            <p className="hint" style={{ marginTop: -4 }}>
+              Custos extras que compõem o produto (ex: argola, embalagem, acessório comprado pronto).
+            </p>
+            {custoFixoError && <div className="error-msg">{custoFixoError}</div>}
+
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Custo</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {custosFixos.map((item) => (
+                    <tr key={item.codigo}>
+                      <td>{item.descricao}</td>
+                      <td>R$ {Number(item.custo).toFixed(2)}</td>
+                      <td>
+                        <button className="btn-small danger" onClick={() => handleDeleteCustoFixo(item.codigo)}>
+                          Remover
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {custosFixos.length === 0 && (
+                    <tr>
+                      <td colSpan={3}>Nenhum custo fixo adicionado.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <form onSubmit={handleAddCustoFixo}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Descrição</label>
+                  <input
+                    value={novoCustoFixo.descricao}
+                    onChange={(e) => setNovoCustoFixo({ ...novoCustoFixo, descricao: e.target.value.toUpperCase() })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Custo</label>
+                  <div className="input-prefix-group">
+                    <span className="input-prefix">R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={novoCustoFixo.custo}
+                      onChange={(e) => setNovoCustoFixo({ ...novoCustoFixo, custo: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              <button className="btn-small" type="submit" style={{ marginTop: 8 }}>
+                Adicionar custo fixo
+              </button>
+            </form>
+          </div>
         </div>
       )}
 

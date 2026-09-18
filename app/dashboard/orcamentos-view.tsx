@@ -598,8 +598,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     const horasMaoObra = (produto.tempo_mao_obra_segundos || 0) / 3600;
     const energiaCost = (consumoWHora / 1000) * horasImpressao * valorHoraEnergia;
     const maoDeObraCost = horasMaoObra * valorHoraMaoObra;
+    const custosFixosCost = (produto.custos_fixos || []).reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
 
-    return { materialCost, energiaCost, maoDeObraCost };
+    return { materialCost: materialCost + custosFixosCost, energiaCost, maoDeObraCost };
   }
 
   async function handleAddItemLocal() {

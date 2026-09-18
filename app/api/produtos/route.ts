@@ -31,7 +31,17 @@ export async function GET() {
                JOIN unidades_medida u ON u.codigo = mp.unidade_medida_codigo
                WHERE pm.produto_codigo = p.codigo),
               '[]'
-            ) AS materiais
+            ) AS materiais,
+            COALESCE(
+              (SELECT json_agg(json_build_object(
+                 'codigo', cf.codigo,
+                 'descricao', cf.descricao,
+                 'custo', cf.custo
+               ) ORDER BY cf.codigo)
+               FROM produto_custos_fixos cf
+               WHERE cf.produto_codigo = p.codigo),
+              '[]'
+            ) AS custos_fixos
      FROM produtos p WHERE p.empresa_codigo = $1 ORDER BY p.codigo`,
     [session.empresa_codigo]
   );

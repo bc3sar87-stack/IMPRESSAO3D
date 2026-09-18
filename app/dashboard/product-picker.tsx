@@ -14,6 +14,12 @@ export interface ProdutoPickerMaterial {
   valor_custo: string | null;
 }
 
+export interface ProdutoPickerCustoFixo {
+  codigo: number;
+  descricao: string;
+  custo: string;
+}
+
 export interface ProdutoPicker {
   codigo: number;
   descricao: string;
@@ -22,6 +28,7 @@ export interface ProdutoPicker {
   tempo_mao_obra_segundos: number;
   tem_foto: boolean;
   materiais: ProdutoPickerMaterial[];
+  custos_fixos: ProdutoPickerCustoFixo[];
   tipo: 'IMPRESSAO' | 'REVENDA';
   valor_custo: string | null;
 }
