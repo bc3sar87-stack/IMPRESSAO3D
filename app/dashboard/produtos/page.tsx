@@ -128,16 +128,56 @@ export default function ProdutosPage() {
     }
   }
 
-  function custoPrevio(p: Produto): number {
+  function custoPrevioDetalhado(p: Produto) {
     const custoKgPadrao = Number(custoBaseFilamento) || 0;
     const custoHoraMaoObra = Number(custoMaoObraHora) || 0;
-    const materialCost = (p.materiais || []).reduce((soma, m) => {
+    const materiais = p.materiais || [];
+    const materialCost = materiais.reduce((soma, m) => {
       const custoKg = m.valor_custo ? Number(m.valor_custo) : custoKgPadrao;
       return soma + (Number(m.peso) / 1000) * custoKg;
     }, 0);
     const maoDeObraCost = ((p.tempo_mao_obra_segundos || 0) / 3600) * custoHoraMaoObra;
-    const custosFixosCost = (p.custos_fixos || []).reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
-    return materialCost + maoDeObraCost + custosFixosCost;
+    const custosFixos = p.custos_fixos || [];
+    const custosFixosCost = custosFixos.reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
+    return {
+      materiais,
+      materialCost,
+      maoDeObraCost,
+      custosFixos,
+      custosFixosCost,
+      total: materialCost + maoDeObraCost + custosFixosCost,
+    };
+  }
+
+  function custoPrevio(p: Produto): number {
+    return custoPrevioDetalhado(p).total;
+  }
+
+  function custoPrevioTooltip(p: Produto): string {
+    const d = custoPrevioDetalhado(p);
+    const linhas: string[] = [];
+    if (d.materiais.length > 0) {
+      linhas.push('Materiais:');
+      for (const m of d.materiais) {
+        const custoKg = m.valor_custo ? Number(m.valor_custo) : Number(custoBaseFilamento) || 0;
+        const custoItem = (Number(m.peso) / 1000) * custoKg;
+        linhas.push(`  ${m.nome} — ${m.cor} (${m.peso} ${m.unidade_medida_sigla}): R$ ${custoItem.toFixed(2)}`);
+      }
+    }
+    if (d.maoDeObraCost > 0) {
+      linhas.push(`Mão de obra: R$ ${d.maoDeObraCost.toFixed(2)}`);
+    }
+    if (d.custosFixos.length > 0) {
+      linhas.push('Custos fixos:');
+      for (const c of d.custosFixos) {
+        linhas.push(`  ${c.descricao}: R$ ${Number(c.custo).toFixed(2)}`);
+      }
+    }
+    if (linhas.length === 0) {
+      return 'Nenhum material, mão de obra ou custo fixo cadastrado.';
+    }
+    linhas.push(`Total: R$ ${d.total.toFixed(2)}`);
+    return linhas.join('\n');
   }
 
   useEffect(() => {
@@ -450,7 +490,15 @@ export default function ProdutosPage() {
                 <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_impressao_segundos)}</td>
                 <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_mao_obra_segundos)}</td>
                 <td>{p.tipo === 'REVENDA' ? `R$ ${p.valor_custo || '0.00'}` : '-'}</td>
-                <td>{p.tipo === 'IMPRESSAO' ? `R$ ${custoPrevio(p).toFixed(2)}` : '-'}</td>
+                <td>
+                  {p.tipo === 'IMPRESSAO' ? (
+                    <span title={custoPrevioTooltip(p)} style={{ cursor: 'help', borderBottom: '1px dotted #94a3b8' }}>
+                      R$ {custoPrevio(p).toFixed(2)}
+                    </span>
+                  ) : (
+                    '-'
+                  )}
+                </td>
                 <td>
                   {p.stl_nome && (
                     <a href={`/api/produtos/${p.codigo}/stl`}>{p.stl_nome}</a>
