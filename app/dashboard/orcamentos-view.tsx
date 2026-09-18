@@ -2353,7 +2353,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                           />
                         </div>
                       </td>
-                      <td>R$ {item.subtotal}</td>
+                      <td>R$ {Number(item.subtotal).toFixed(2)}</td>
                       <td>{lucroItem !== undefined ? `R$ ${lucroItem.toFixed(2)}` : '-'}</td>
                       <td>
                         <div className="row-actions">
