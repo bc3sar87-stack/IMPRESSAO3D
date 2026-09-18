@@ -31,27 +31,36 @@ export interface ProdutoPicker {
   custos_fixos: ProdutoPickerCustoFixo[];
   tipo: 'IMPRESSAO' | 'REVENDA';
   valor_custo: string | null;
+  grupo_codigo: number | null;
+  grupo_nome: string | null;
 }
 
 export default function ProductPicker({
   open,
   produtos,
+  grupos,
   custoBaseFilamento,
   onSelect,
   onClose,
 }: {
   open: boolean;
   produtos: ProdutoPicker[];
+  grupos?: { codigo: number; nome: string }[];
   custoBaseFilamento: string;
   onSelect: (produto: ProdutoPicker) => void;
   onClose: () => void;
 }) {
   const [busca, setBusca] = useState('');
+  const [filtroGrupo, setFiltroGrupo] = useState('');
 
   if (!open) return null;
 
   const custoPadrao = Number(custoBaseFilamento) || 0;
-  const filtrados = produtos.filter((p) => p.descricao.toLowerCase().includes(busca.toLowerCase()));
+  const filtrados = produtos.filter(
+    (p) =>
+      p.descricao.toLowerCase().includes(busca.toLowerCase()) &&
+      (!filtroGrupo || String(p.grupo_codigo) === filtroGrupo)
+  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -62,6 +71,20 @@ export default function ProductPicker({
             ×
           </button>
         </div>
+        {grupos && grupos.length > 0 && (
+          <select
+            value={filtroGrupo}
+            onChange={(e) => setFiltroGrupo(e.target.value)}
+            style={{ marginBottom: 8, width: '100%' }}
+          >
+            <option value="">Todos os grupos</option>
+            {grupos.map((g) => (
+              <option key={g.codigo} value={g.codigo}>
+                {g.nome}
+              </option>
+            ))}
+          </select>
+        )}
         <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por descrição..." />
         <div className="product-picker-list">
           {filtrados.map((p) => {

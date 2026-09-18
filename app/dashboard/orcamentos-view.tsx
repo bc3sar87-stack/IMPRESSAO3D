@@ -207,6 +207,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+  const [grupos, setGrupos] = useState<{ codigo: number; nome: string }[]>([]);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrimaCusto[]>([]);
   const [materiasPrimasCompletas, setMateriasPrimasCompletas] = useState<MateriaPrimaPickerItem[]>([]);
   const [markupPadrao, setMarkupPadrao] = useState('');
@@ -283,7 +284,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   );
 
   async function load() {
-    const [orcRes, cliRes, prodRes, eqRes, markupRes, mpRes, estoqueRes, consumoRes, filamentoRes, maoObraRes] =
+    const [orcRes, cliRes, prodRes, eqRes, markupRes, mpRes, estoqueRes, consumoRes, filamentoRes, maoObraRes, grupoRes] =
       await Promise.all([
         fetch('/api/orcamentos'),
         fetch('/api/clientes'),
@@ -295,11 +296,13 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         fetch('/api/valor-consumo-hora'),
         fetch('/api/custo-base-filamento'),
         fetch('/api/custo-mao-obra-hora'),
+        fetch('/api/grupos-produtos'),
       ]);
     if (orcRes.ok) setOrcamentos(await orcRes.json());
     if (cliRes.ok) setClientes(await cliRes.json());
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (eqRes.ok) setEquipamentos(await eqRes.json());
+    if (grupoRes.ok) setGrupos(await grupoRes.json());
     if (mpRes.ok) {
       const mpData: MateriaPrimaPickerItem[] = await mpRes.json();
       setMateriasPrimas(mpData);
@@ -2136,6 +2139,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       <ProductPicker
         open={pickerFor !== null}
         produtos={produtos}
+        grupos={grupos}
         custoBaseFilamento={custoBaseFilamento}
         onSelect={handlePickProduto}
         onClose={() => setPickerFor(null)}
