@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT cp.codigo, cp.fornecedor, cp.descricao, cp.valor, cp.data_vencimento, cp.data_pagamento, cp.status,
+    `SELECT cp.codigo, cp.fornecedor, cp.descricao, cp.valor, cp.data_compra, cp.data_vencimento, cp.data_pagamento, cp.status,
             cp.banco_codigo, b.codigo_banco, b.agencia, b.num_conta, b.descricao AS banco_descricao
      FROM contas_pagar cp
      LEFT JOIN bancos b ON b.codigo = cp.banco_codigo
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Selecione uma empresa.' }, { status: 400 });
   }
 
-  const { fornecedor, descricao, valor, data_vencimento, parcelas } = await request
+  const { fornecedor, descricao, valor, data_compra, data_vencimento, parcelas } = await request
     .json()
     .catch(() => ({}));
 
@@ -65,10 +65,10 @@ export async function POST(request: NextRequest) {
         const p = parcelas[i];
         const descricaoParcela = total > 1 ? `${descricao} (Parcela ${i + 1}/${total})` : descricao;
         const { rows } = await client.query(
-          `INSERT INTO contas_pagar (fornecedor, descricao, valor, data_vencimento, empresa_codigo)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO contas_pagar (fornecedor, descricao, valor, data_compra, data_vencimento, empresa_codigo)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING codigo`,
-          [fornecedor || null, descricaoParcela, p.valor, p.data_vencimento, session.empresa_codigo]
+          [fornecedor || null, descricaoParcela, p.valor, data_compra || null, p.data_vencimento, session.empresa_codigo]
         );
         codigos.push(rows[0].codigo);
       }
@@ -93,10 +93,10 @@ export async function POST(request: NextRequest) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO contas_pagar (fornecedor, descricao, valor, data_vencimento, empresa_codigo)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO contas_pagar (fornecedor, descricao, valor, data_compra, data_vencimento, empresa_codigo)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING codigo`,
-    [fornecedor || null, descricao, valor, data_vencimento, session.empresa_codigo]
+    [fornecedor || null, descricao, valor, data_compra || null, data_vencimento, session.empresa_codigo]
   );
   return NextResponse.json({ codigo: rows[0].codigo }, { status: 201 });
 }

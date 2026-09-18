@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { codigo } = await params;
-  const { fornecedor, descricao, valor, data_vencimento, data_pagamento, status, banco_codigo } =
+  const { fornecedor, descricao, valor, data_compra, data_vencimento, data_pagamento, status, banco_codigo } =
     await request.json().catch(() => ({}));
 
   if (!descricao || valor === undefined || valor === '' || !data_vencimento || !status) {
@@ -43,13 +43,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const { rows } = await pool.query(
     `UPDATE contas_pagar
-     SET fornecedor=$1, descricao=$2, valor=$3, data_vencimento=$4, data_pagamento=$5, status=$6, banco_codigo=$7
-     WHERE codigo=$8 AND empresa_codigo=$9
+     SET fornecedor=$1, descricao=$2, valor=$3, data_compra=$4, data_vencimento=$5, data_pagamento=$6, status=$7, banco_codigo=$8
+     WHERE codigo=$9 AND empresa_codigo=$10
      RETURNING codigo`,
     [
       fornecedor || null,
       descricao,
       valor,
+      data_compra || null,
       data_vencimento,
       data_pagamento || null,
       status,

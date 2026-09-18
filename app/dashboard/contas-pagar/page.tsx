@@ -9,6 +9,7 @@ interface ContaPagar {
   fornecedor: string | null;
   descricao: string;
   valor: string;
+  data_compra: string | null;
   data_vencimento: string;
   data_pagamento: string | null;
   status: 'ABERTO' | 'PAGO' | 'CANCELADO';
@@ -43,6 +44,7 @@ const emptyForm = {
   fornecedor: '',
   descricao: '',
   valor: '',
+  data_compra: '',
   data_vencimento: '',
   data_pagamento: '',
   status: 'ABERTO' as ContaPagar['status'],
@@ -130,6 +132,7 @@ export default function ContasPagarPage() {
       fornecedor: c.fornecedor || '',
       descricao: c.descricao,
       valor: c.valor,
+      data_compra: c.data_compra ? c.data_compra.slice(0, 10) : '',
       data_vencimento: c.data_vencimento.slice(0, 10),
       data_pagamento: c.data_pagamento ? c.data_pagamento.slice(0, 10) : '',
       status: c.status,
@@ -208,6 +211,7 @@ export default function ContasPagarPage() {
           body: JSON.stringify({
             fornecedor: form.fornecedor || null,
             descricao: form.descricao,
+            data_compra: form.data_compra || null,
             parcelas: parcelas.map((p) => ({
               valor: parseDecimal(p.valor).toFixed(2),
               data_vencimento: p.data_vencimento,
@@ -248,6 +252,7 @@ export default function ContasPagarPage() {
           fornecedor: form.fornecedor || null,
           descricao: form.descricao,
           valor: valorNumero.toFixed(2),
+          data_compra: form.data_compra || null,
           data_vencimento: form.data_vencimento || hoje(),
           data_pagamento: form.data_pagamento || null,
           status: form.status,
@@ -293,6 +298,7 @@ export default function ContasPagarPage() {
           fornecedor: baixaConta.fornecedor,
           descricao: baixaConta.descricao,
           valor: baixaConta.valor,
+          data_compra: baixaConta.data_compra ? baixaConta.data_compra.slice(0, 10) : null,
           data_vencimento: baixaConta.data_vencimento.slice(0, 10),
           data_pagamento: hoje(),
           status: 'PAGO',
@@ -345,6 +351,7 @@ export default function ContasPagarPage() {
               <th>Fornecedor</th>
               <th>Descrição</th>
               <th>Valor</th>
+              <th>Compra</th>
               <th>Vencimento</th>
               <th>Pagamento</th>
               <th>Banco</th>
@@ -359,6 +366,7 @@ export default function ContasPagarPage() {
                 <td>{c.fornecedor || '-'}</td>
                 <td>{c.descricao}</td>
                 <td>R$ {c.valor}</td>
+                <td>{c.data_compra ? new Date(c.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</td>
                 <td>{new Date(c.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</td>
                 <td>
                   {c.data_pagamento
@@ -390,7 +398,7 @@ export default function ContasPagarPage() {
             ))}
             {contasFiltradas.length === 0 && (
               <tr>
-                <td colSpan={9}>Nenhum título encontrado.</td>
+                <td colSpan={10}>Nenhum título encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -423,6 +431,14 @@ export default function ContasPagarPage() {
                     value={form.descricao}
                     onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
                     required
+                  />
+                </div>
+                <div className="field">
+                  <label>Data da Compra</label>
+                  <input
+                    type="date"
+                    value={form.data_compra}
+                    onChange={(e) => setForm({ ...form, data_compra: e.target.value })}
                   />
                 </div>
                 {!parcelado && (
