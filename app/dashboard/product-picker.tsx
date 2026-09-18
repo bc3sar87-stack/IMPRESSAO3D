@@ -72,18 +72,16 @@ export default function ProductPicker({
           </button>
         </div>
         {grupos && grupos.length > 0 && (
-          <select
-            value={filtroGrupo}
-            onChange={(e) => setFiltroGrupo(e.target.value)}
-            style={{ marginBottom: 8, width: '100%' }}
-          >
-            <option value="">Todos os grupos</option>
-            {grupos.map((g) => (
-              <option key={g.codigo} value={g.codigo}>
-                {g.nome}
-              </option>
-            ))}
-          </select>
+          <div className="field" style={{ marginBottom: 8 }}>
+            <select value={filtroGrupo} onChange={(e) => setFiltroGrupo(e.target.value)}>
+              <option value="">Todos os grupos</option>
+              {grupos.map((g) => (
+                <option key={g.codigo} value={g.codigo}>
+                  {g.nome}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
         <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por descrição..." />
         <div className="product-picker-list">

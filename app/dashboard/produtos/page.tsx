@@ -475,18 +475,16 @@ export default function ProdutosPage() {
         <div style={{ flex: 1, minWidth: 220 }}>
           <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por descrição..." />
         </div>
-        <select
-          value={filtroGrupo}
-          onChange={(e) => setFiltroGrupo(e.target.value)}
-          style={{ maxWidth: 220 }}
-        >
-          <option value="">Todos os grupos</option>
-          {grupos.map((g) => (
-            <option key={g.codigo} value={g.codigo}>
-              {g.nome}
-            </option>
-          ))}
-        </select>
+        <div className="field" style={{ margin: 0, minWidth: 220 }}>
+          <select value={filtroGrupo} onChange={(e) => setFiltroGrupo(e.target.value)}>
+            <option value="">Todos os grupos</option>
+            {grupos.map((g) => (
+              <option key={g.codigo} value={g.codigo}>
+                {g.nome}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="table-wrap">
