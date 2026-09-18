@@ -111,6 +111,7 @@ interface LoteEstoque {
   codigo: number;
   fornecedor: string | null;
   valor_custo: string | null;
+  quantidade_inicial: string | null;
   data_compra: string | null;
   observacao: string | null;
   saldo: string;
@@ -520,13 +521,19 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                       style={{ fontSize: 12, padding: '4px 6px' }}
                     >
                       <option value="">Selecione o lote...</option>
-                      {lotes.map((l) => (
-                        <option key={l.codigo} value={l.codigo}>
-                          #{l.codigo} · {l.fornecedor || 'Sem fornecedor'} — disponível{' '}
-                          {loteDisponivel(l).toFixed(2)} {m.unidade_medida_sigla}
-                          {l.valor_custo ? ` — R$ ${Number(l.valor_custo).toFixed(2)}` : ''}
-                        </option>
-                      ))}
+                      {lotes.map((l) => {
+                        const custoUnidade =
+                          l.valor_custo && Number(l.quantidade_inicial) > 0
+                            ? Number(l.valor_custo) / Number(l.quantidade_inicial)
+                            : null;
+                        return (
+                          <option key={l.codigo} value={l.codigo}>
+                            #{l.codigo} · {l.fornecedor || 'Sem fornecedor'} — disponível{' '}
+                            {loteDisponivel(l).toFixed(2)} {m.unidade_medida_sigla}
+                            {custoUnidade !== null ? ` — R$ ${custoUnidade.toFixed(4)}/${m.unidade_medida_sigla}` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   )}
                 </div>

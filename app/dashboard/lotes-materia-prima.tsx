@@ -15,6 +15,7 @@ interface Lote {
   marca: string | null;
   fornecedor: string | null;
   valor_custo: string | null;
+  quantidade_inicial: string | null;
   data_compra: string | null;
   observacao: string | null;
   criado_em: string;
@@ -225,7 +226,8 @@ export default function LotesMateriaPrima({
                 <tr>
                   <th>Marca</th>
                   <th>Fornecedor</th>
-                  <th>Custo</th>
+                  <th>Custo Total</th>
+                  <th>Custo/Unidade</th>
                   <th>Data da Compra</th>
                   <th>Saldo Físico</th>
                   <th>Reservado</th>
@@ -239,11 +241,16 @@ export default function LotesMateriaPrima({
               <tbody>
                 {lotes.map((lote) => {
                   const disponivel = Number(lote.saldo) - Number(lote.reservado);
+                  const custoUnidade =
+                    lote.valor_custo && Number(lote.quantidade_inicial) > 0
+                      ? Number(lote.valor_custo) / Number(lote.quantidade_inicial)
+                      : null;
                   return (
                     <tr key={lote.codigo}>
                       <td>{lote.marca || '-'}</td>
                       <td>{lote.fornecedor || '-'}</td>
                       <td>{lote.valor_custo ? `R$ ${Number(lote.valor_custo).toFixed(2)}` : '-'}</td>
+                      <td>{custoUnidade !== null ? `R$ ${custoUnidade.toFixed(4)}/${alvo.unidade_medida_sigla}` : '-'}</td>
                       <td>
                         {lote.data_compra
                           ? new Date(lote.data_compra).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
@@ -331,7 +338,7 @@ export default function LotesMateriaPrima({
                   </datalist>
                 </div>
                 <div className="field">
-                  <label>Custo (R$/{alvo.unidade_medida_sigla})</label>
+                  <label>Custo Total do Lote (R$)</label>
                   <div className="input-prefix-group">
                     <span className="input-prefix">R$</span>
                     <input

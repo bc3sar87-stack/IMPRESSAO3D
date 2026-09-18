@@ -58,19 +58,24 @@ export default async function DashboardPage() {
   let contasReceber = { quantidade: 0, valor: 0, vencidasQuantidade: 0, vencidasValor: 0 };
   let contasPagar = { quantidade: 0, valor: 0, vencidasQuantidade: 0, vencidasValor: 0 };
   let faturamentoMensal: { mes: string; valor: number }[] = [];
+  let horasImpressaoMensal: { mes: string; horas: number }[] = [];
 
   if (empresaCodigo) {
-    const [estoqueRes, orcamentosRes, receberRes, pagarRes, faturamentoRes] = await Promise.all([
+    const [estoqueRes, orcamentosRes, receberRes, pagarRes, faturamentoRes, horasImpressaoRes] = await Promise.all([
       pool.query(
-        `SELECT COALESCE(SUM(saldo * custo), 0) AS valor
+        `SELECT COALESCE(SUM(saldo * custo_unitario), 0) AS valor
          FROM (
-           SELECT l.codigo, COALESCE(l.valor_custo, mp.valor_custo, 0) AS custo,
+           SELECT l.codigo,
+                  CASE
+                    WHEN l.valor_custo IS NOT NULL AND l.quantidade_inicial > 0
+                      THEN l.valor_custo / l.quantidade_inicial
+                    ELSE 0
+                  END AS custo_unitario,
                   COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo
            FROM materia_prima_lotes l
-           JOIN materia_prima mp ON mp.codigo = l.materia_prima_codigo
            LEFT JOIN movimentacoes_estoque me ON me.lote_codigo = l.codigo
            WHERE l.empresa_codigo = $1
-           GROUP BY l.codigo, l.valor_custo, mp.valor_custo
+           GROUP BY l.codigo, l.valor_custo, l.quantidade_inicial
          ) x`,
         [empresaCodigo]
       ),
@@ -106,6 +111,17 @@ export default async function DashboardPage() {
          GROUP BY DATE_TRUNC('month', data)`,
         [empresaCodigo]
       ),
+      pool.query(
+        `SELECT TO_CHAR(DATE_TRUNC('month', o.data), 'YYYY-MM') AS mes,
+                COALESCE(SUM(p.tempo_impressao_segundos * oi.quantidade), 0) AS segundos
+         FROM orcamento_itens oi
+         JOIN orcamentos o ON o.codigo = oi.orcamento_codigo
+         JOIN produtos p ON p.codigo = oi.produto_codigo
+         WHERE o.empresa_codigo = $1 AND o.status IN ('FINALIZADO', 'PENDENTE_ENTREGA', 'ENTREGUE')
+           AND o.data >= CURRENT_DATE - INTERVAL '12 months'
+         GROUP BY DATE_TRUNC('month', o.data)`,
+        [empresaCodigo]
+      ),
     ]);
 
     valorEstoque = Number(estoqueRes.rows[0]?.valor || 0);
@@ -137,10 +153,24 @@ export default async function DashboardPage() {
         valor: seriesMap.get(chave) || 0,
       });
     }
+
+    const horasSeriesMap = new Map<string, number>(
+      horasImpressaoRes.rows.map((r) => [r.mes, Number(r.segundos) / 3600])
+    );
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      horasImpressaoMensal.push({
+        mes: `${MESES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
+        horas: horasSeriesMap.get(chave) || 0,
+      });
+    }
   }
 
   const totalOrcamentosQuantidade = orcamentosPorStatus.reduce((s, o) => s + o.quantidade, 0);
   const totalOrcamentosValor = orcamentosPorStatus.reduce((s, o) => s + o.valor, 0);
+  const totalHorasImpressao12m = horasImpressaoMensal.reduce((s, m) => s + m.horas, 0);
+  const maxHorasImpressao = Math.max(1, ...horasImpressaoMensal.map((m) => m.horas));
   const faturamentoTotal12m = faturamentoMensal.reduce((s, m) => s + m.valor, 0);
   const maxFaturamento = Math.max(1, ...faturamentoMensal.map((m) => m.valor));
 
@@ -199,6 +229,10 @@ export default async function DashboardPage() {
               <span>Faturamento (12 meses)</span>
               <strong>R$ {formatMoeda(faturamentoTotal12m)}</strong>
             </div>
+            <div className="fin-summary-item">
+              <span>Horas de Impressão Realizadas (12 meses)</span>
+              <strong>{formatMoeda(totalHorasImpressao12m)} h</strong>
+            </div>
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>
@@ -252,6 +286,32 @@ export default async function DashboardPage() {
                       width: 26,
                       height: Math.max(3, (m.valor / maxFaturamento) * 140),
                       background: '#2563eb',
+                      borderRadius: 4,
+                    }}
+                  />
+                  <span style={{ fontSize: 11, color: '#64748b', whiteSpace: 'nowrap' }}>{m.mes}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Horas de Impressão Realizadas nos últimos 12 meses</h3>
+            <p className="hint" style={{ marginTop: -8 }}>
+              Soma do tempo de impressão dos itens de orçamentos finalizados, pendentes de entrega ou entregues, por mês.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 190, padding: '8px 4px', overflowX: 'auto' }}>
+              {horasImpressaoMensal.map((m, i) => (
+                <div
+                  key={i}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 44 }}
+                >
+                  <div
+                    title={`${formatMoeda(m.horas)} h`}
+                    style={{
+                      width: 26,
+                      height: Math.max(3, (m.horas / maxHorasImpressao) * 140),
+                      background: '#f59e0b',
                       borderRadius: 4,
                     }}
                   />

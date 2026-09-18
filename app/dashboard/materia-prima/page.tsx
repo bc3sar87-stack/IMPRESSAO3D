@@ -430,7 +430,7 @@ export default function MateriaPrimaPage() {
                   </datalist>
                 </div>
                 <div className="field">
-                  <label>Custo (R$/{novoLoteAlvo.unidade_medida_sigla})</label>
+                  <label>Custo Total do Lote (R$)</label>
                   <div className="input-prefix-group">
                     <span className="input-prefix">R$</span>
                     <input
