@@ -27,6 +27,7 @@ const groups: NavGroup[] = [
       { href: '/dashboard/clientes', label: 'Cadastro de Clientes' },
       { href: '/dashboard/materia-prima', label: 'Cadastro de Matéria Prima' },
       { href: '/dashboard/produtos', label: 'Cadastro de Produto' },
+      { href: '/dashboard/grupos-produtos', label: 'Cadastro de Grupo de Produtos' },
       { href: '/dashboard/estoque', label: 'Controle de Estoque' },
     ],
   },

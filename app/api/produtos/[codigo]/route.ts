@@ -23,6 +23,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     tipo,
     valor_custo,
     remover_foto,
+    grupo_codigo,
   } = await request.json().catch(() => ({}));
 
   if (!descricao) {
@@ -33,12 +34,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const tempoImpressao = tipoProduto === 'IMPRESSAO' ? tempo_impressao_segundos || 0 : 0;
   const tempoMaoObra = tipoProduto === 'IMPRESSAO' ? tempo_mao_obra_segundos || 0 : 0;
   const valorCusto = tipoProduto === 'REVENDA' ? valor_custo || 0 : null;
+  const grupoCodigo = grupo_codigo || null;
 
   const { rows } = foto_base64
     ? await pool.query(
         `UPDATE produtos SET descricao=$1, link_stl=$2, foto=$3, foto_tipo=$4, quantidade=$5,
-                tempo_impressao_segundos=$6, tempo_mao_obra_segundos=$7, tipo=$8, valor_custo=$9
-         WHERE codigo=$10 AND empresa_codigo=$11
+                tempo_impressao_segundos=$6, tempo_mao_obra_segundos=$7, tipo=$8, valor_custo=$9,
+                grupo_codigo=$10
+         WHERE codigo=$11 AND empresa_codigo=$12
          RETURNING codigo`,
         [
           descricao,
@@ -50,6 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           tempoMaoObra,
           tipoProduto,
           valorCusto,
+          grupoCodigo,
           codigo,
           session.empresa_codigo,
         ]
@@ -58,8 +62,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       ? await pool.query(
           `UPDATE produtos SET descricao=$1, link_stl=$2, quantidade=$3,
                   tempo_impressao_segundos=$4, tempo_mao_obra_segundos=$5, tipo=$6, valor_custo=$7,
-                  foto=NULL, foto_tipo=NULL
-           WHERE codigo=$8 AND empresa_codigo=$9
+                  grupo_codigo=$8, foto=NULL, foto_tipo=NULL
+           WHERE codigo=$9 AND empresa_codigo=$10
            RETURNING codigo`,
           [
             descricao,
@@ -69,14 +73,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             tempoMaoObra,
             tipoProduto,
             valorCusto,
+            grupoCodigo,
             codigo,
             session.empresa_codigo,
           ]
         )
       : await pool.query(
           `UPDATE produtos SET descricao=$1, link_stl=$2, quantidade=$3,
-                  tempo_impressao_segundos=$4, tempo_mao_obra_segundos=$5, tipo=$6, valor_custo=$7
-           WHERE codigo=$8 AND empresa_codigo=$9
+                  tempo_impressao_segundos=$4, tempo_mao_obra_segundos=$5, tipo=$6, valor_custo=$7,
+                  grupo_codigo=$8
+           WHERE codigo=$9 AND empresa_codigo=$10
            RETURNING codigo`,
           [
             descricao,
@@ -86,6 +92,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             tempoMaoObra,
             tipoProduto,
             valorCusto,
+            grupoCodigo,
             codigo,
             session.empresa_codigo,
           ]

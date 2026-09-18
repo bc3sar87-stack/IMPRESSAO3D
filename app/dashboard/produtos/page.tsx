@@ -33,8 +33,15 @@ interface Produto {
   tempo_mao_obra_segundos: number;
   tipo: 'IMPRESSAO' | 'REVENDA';
   valor_custo: string | null;
+  grupo_codigo: number | null;
+  grupo_nome: string | null;
   materiais: ProdutoMaterialResumo[];
   custos_fixos: CustoFixoResumo[];
+}
+
+interface Grupo {
+  codigo: number;
+  nome: string;
 }
 
 interface MateriaPrima {
@@ -69,6 +76,7 @@ const emptyForm = {
   tempoMaoObraSegundos: 0,
   tipo: 'IMPRESSAO' as Produto['tipo'],
   valorCusto: '',
+  grupoCodigo: '',
   removerFoto: false,
 };
 
@@ -83,6 +91,8 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [filtroGrupo, setFiltroGrupo] = useState('');
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrima[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [stlFile, setStlFile] = useState<File | null>(null);
@@ -105,19 +115,23 @@ export default function ProdutosPage() {
   const [novoCustoFixo, setNovoCustoFixo] = useState({ descricao: '', custo: '' });
   const [custoFixoError, setCustoFixoError] = useState('');
 
-  const produtosFiltrados = produtos.filter((p) =>
-    p.descricao.toLowerCase().includes(busca.toLowerCase())
+  const produtosFiltrados = produtos.filter(
+    (p) =>
+      p.descricao.toLowerCase().includes(busca.toLowerCase()) &&
+      (!filtroGrupo || String(p.grupo_codigo) === filtroGrupo)
   );
 
   async function load() {
-    const [prodRes, mpRes, filamentoRes, maoObraRes] = await Promise.all([
+    const [prodRes, mpRes, filamentoRes, maoObraRes, grupoRes] = await Promise.all([
       fetch('/api/produtos'),
       fetch('/api/materia-prima'),
       fetch('/api/custo-base-filamento'),
       fetch('/api/custo-mao-obra-hora'),
+      fetch('/api/grupos-produtos'),
     ]);
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (mpRes.ok) setMateriasPrimas(await mpRes.json());
+    if (grupoRes.ok) setGrupos(await grupoRes.json());
     if (filamentoRes.ok) {
       const data = await filamentoRes.json();
       setCustoBaseFilamento(data.valor !== null ? String(data.valor) : '0');
@@ -206,6 +220,7 @@ export default function ProdutosPage() {
       tempoMaoObraSegundos: p.tempo_mao_obra_segundos,
       tipo: p.tipo,
       valorCusto: p.valor_custo || '',
+      grupoCodigo: p.grupo_codigo ? String(p.grupo_codigo) : '',
       removerFoto: false,
     });
     setStlFile(null);
@@ -242,6 +257,7 @@ export default function ProdutosPage() {
       tempoMaoObraSegundos: p.tempo_mao_obra_segundos,
       tipo: p.tipo,
       valorCusto: p.valor_custo || '',
+      grupoCodigo: p.grupo_codigo ? String(p.grupo_codigo) : '',
       removerFoto: false,
     });
 
@@ -318,6 +334,7 @@ export default function ProdutosPage() {
           tempo_mao_obra_segundos: form.tempoMaoObraSegundos,
           tipo: form.tipo,
           valor_custo: form.valorCusto.replace(',', '.'),
+          grupo_codigo: form.grupoCodigo || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -442,7 +459,23 @@ export default function ProdutosPage() {
         </button>
       </div>
 
-      <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por descrição..." />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <SearchBox value={busca} onChange={setBusca} placeholder="Pesquisar por descrição..." />
+        </div>
+        <select
+          value={filtroGrupo}
+          onChange={(e) => setFiltroGrupo(e.target.value)}
+          style={{ maxWidth: 220 }}
+        >
+          <option value="">Todos os grupos</option>
+          {grupos.map((g) => (
+            <option key={g.codigo} value={g.codigo}>
+              {g.nome}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="table-wrap">
         <table className="data-table">
@@ -452,6 +485,7 @@ export default function ProdutosPage() {
               <th>Código</th>
               <th>Tipo</th>
               <th>Descrição</th>
+              <th>Grupo</th>
               <th>Qtd</th>
               <th>Tempo Impressão</th>
               <th>Tempo Mão de Obra</th>
@@ -486,6 +520,7 @@ export default function ProdutosPage() {
                   </span>
                 </td>
                 <td>{p.descricao}</td>
+                <td>{p.grupo_nome || '-'}</td>
                 <td>{p.quantidade}</td>
                 <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_impressao_segundos)}</td>
                 <td>{p.tipo === 'REVENDA' ? '-' : formatSegundos(p.tempo_mao_obra_segundos)}</td>
@@ -533,7 +568,7 @@ export default function ProdutosPage() {
             ))}
             {produtosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={11}>Nenhum produto encontrado.</td>
+                <td colSpan={12}>Nenhum produto encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -569,6 +604,20 @@ export default function ProdutosPage() {
                     onChange={(e) => setForm({ ...form, descricao: e.target.value.toUpperCase() })}
                     required
                   />
+                </div>
+                <div className="field">
+                  <label>Grupo</label>
+                  <select
+                    value={form.grupoCodigo}
+                    onChange={(e) => setForm({ ...form, grupoCodigo: e.target.value })}
+                  >
+                    <option value="">Selecione...</option>
+                    {grupos.map((g) => (
+                      <option key={g.codigo} value={g.codigo}>
+                        {g.nome}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="field">
                   <label>Quantidade</label>

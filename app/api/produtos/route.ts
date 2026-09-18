@@ -14,7 +14,7 @@ export async function GET() {
   const { rows } = await pool.query(
     `SELECT p.codigo, p.descricao, p.link_stl, p.stl_nome, (p.foto IS NOT NULL) AS tem_foto,
             p.quantidade, p.tempo_impressao_segundos, p.tempo_mao_obra_segundos,
-            p.tipo, p.valor_custo,
+            p.tipo, p.valor_custo, p.grupo_codigo, g.nome AS grupo_nome,
             COALESCE(
               (SELECT json_agg(json_build_object(
                  'materia_prima_codigo', mp.codigo,
@@ -42,7 +42,9 @@ export async function GET() {
                WHERE cf.produto_codigo = p.codigo),
               '[]'
             ) AS custos_fixos
-     FROM produtos p WHERE p.empresa_codigo = $1 ORDER BY p.codigo`,
+     FROM produtos p
+     LEFT JOIN grupos_produtos g ON g.codigo = p.grupo_codigo
+     WHERE p.empresa_codigo = $1 ORDER BY p.codigo`,
     [session.empresa_codigo]
   );
   return NextResponse.json(rows);
@@ -67,6 +69,7 @@ export async function POST(request: NextRequest) {
     tempo_mao_obra_segundos,
     tipo,
     valor_custo,
+    grupo_codigo,
   } = await request.json().catch(() => ({}));
 
   if (!descricao) {
@@ -79,9 +82,9 @@ export async function POST(request: NextRequest) {
   const { rows } = await pool.query(
     `INSERT INTO produtos (
        descricao, link_stl, foto, foto_tipo, quantidade, tempo_impressao_segundos,
-       tempo_mao_obra_segundos, tipo, valor_custo, empresa_codigo
+       tempo_mao_obra_segundos, tipo, valor_custo, grupo_codigo, empresa_codigo
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING codigo`,
     [
       descricao,
@@ -93,6 +96,7 @@ export async function POST(request: NextRequest) {
       tipoProduto === 'IMPRESSAO' ? tempo_mao_obra_segundos || 0 : 0,
       tipoProduto,
       tipoProduto === 'REVENDA' ? valor_custo || 0 : null,
+      grupo_codigo || null,
       session.empresa_codigo,
     ]
   );
