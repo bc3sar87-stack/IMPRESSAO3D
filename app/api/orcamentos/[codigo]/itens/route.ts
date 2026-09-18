@@ -70,7 +70,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 
   const { codigo } = await params;
   const { rows } = await pool.query(
-    `SELECT oi.codigo, oi.produto_codigo, p.descricao AS produto_descricao, oi.quantidade, oi.valor_unitario,
+    `SELECT oi.codigo, oi.produto_codigo, p.descricao AS produto_descricao, (p.foto IS NOT NULL) AS produto_tem_foto,
+            oi.quantidade, oi.valor_unitario,
             (oi.quantidade * oi.valor_unitario) AS subtotal,
             ${MATERIAIS_JSON_SUBQUERY}
      FROM orcamento_itens oi

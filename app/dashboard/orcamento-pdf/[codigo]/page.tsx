@@ -34,7 +34,9 @@ interface ItemMaterial {
 
 interface ItemOrcamento {
   codigo: number;
+  produto_codigo: number;
   produto_descricao: string;
+  produto_tem_foto: boolean;
   quantidade: string;
   valor_unitario: string;
   subtotal: string;
@@ -183,6 +185,7 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
         <table className="data-table">
           <thead>
             <tr>
+              <th>Foto</th>
               <th>Produto</th>
               <th>Cor</th>
               <th>Quantidade</th>
@@ -193,6 +196,17 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
           <tbody>
             {itens.map((item) => (
               <tr key={item.codigo}>
+                <td>
+                  {item.produto_tem_foto ? (
+                    <img
+                      src={`/api/produtos/${item.produto_codigo}/foto`}
+                      alt={item.produto_descricao}
+                      style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }}
+                    />
+                  ) : (
+                    '-'
+                  )}
+                </td>
                 <td>{item.produto_descricao}</td>
                 <td>
                   {item.materiais.map((m) => (
@@ -221,7 +235,7 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
             ))}
             {itens.length === 0 && (
               <tr>
-                <td colSpan={5}>Nenhum item adicionado.</td>
+                <td colSpan={6}>Nenhum item adicionado.</td>
               </tr>
             )}
           </tbody>
