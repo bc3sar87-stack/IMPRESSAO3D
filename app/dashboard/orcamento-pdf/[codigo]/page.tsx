@@ -11,7 +11,7 @@ interface OrcamentoDetalhe {
   observacoes: string | null;
   valor_total: string;
   cliente_nome: string;
-  cliente_documento: string;
+  cliente_documento: string | null;
   cliente_tipo_pessoa: 'PJ' | 'PF';
   cliente_telefone: string | null;
   cliente_email: string | null;
@@ -149,9 +149,11 @@ export default function OrcamentoPdfPage({ params }: { params: Promise<{ codigo:
 
         <h4 style={{ marginBottom: 8 }}>Cliente</h4>
         <p style={{ margin: '2px 0' }}>{orcamento.cliente_nome}</p>
-        <p style={{ margin: '2px 0' }} className="hint">
-          {orcamento.cliente_tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: {orcamento.cliente_documento}
-        </p>
+        {orcamento.cliente_documento && (
+          <p style={{ margin: '2px 0' }} className="hint">
+            {orcamento.cliente_tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: {orcamento.cliente_documento}
+          </p>
+        )}
         {orcamento.cliente_telefone && (
           <p style={{ margin: '2px 0' }} className="hint">
             Telefone: {orcamento.cliente_telefone}

@@ -22,11 +22,11 @@ const groups: NavGroup[] = [
   {
     title: 'Cadastros',
     links: [
-      { href: '/dashboard/produtos', label: 'Cadastro de Produto' },
-      { href: '/dashboard/clientes', label: 'Cadastro de Clientes' },
-      { href: '/dashboard/materia-prima', label: 'Cadastro de Matéria Prima' },
       { href: '/dashboard/tipos-materia-prima', label: 'Cadastro de Tipo' },
       { href: '/dashboard/unidades-medida', label: 'Cadastro de Unidade de Medida' },
+      { href: '/dashboard/clientes', label: 'Cadastro de Clientes' },
+      { href: '/dashboard/materia-prima', label: 'Cadastro de Matéria Prima' },
+      { href: '/dashboard/produtos', label: 'Cadastro de Produto' },
       { href: '/dashboard/estoque', label: 'Controle de Estoque' },
     ],
   },

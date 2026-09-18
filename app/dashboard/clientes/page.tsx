@@ -8,11 +8,12 @@ import { IconEdit, IconCopy, IconTrash } from '../icons';
 interface Cliente {
   codigo: number;
   tipo_pessoa: 'PJ' | 'PF';
-  documento: string;
+  documento: string | null;
   nome: string;
   telefone: string | null;
   email: string | null;
   endereco: string | null;
+  observacao: string | null;
 }
 
 const emptyForm = {
@@ -22,6 +23,7 @@ const emptyForm = {
   telefone: '',
   email: '',
   endereco: '',
+  observacao: '',
 };
 
 export default function ClientesPage() {
@@ -37,7 +39,7 @@ export default function ClientesPage() {
     const q = busca.toLowerCase();
     return (
       c.nome.toLowerCase().includes(q) ||
-      c.documento.includes(q) ||
+      (c.documento || '').includes(q) ||
       (c.telefone || '').includes(q) ||
       (c.email || '').toLowerCase().includes(q)
     );
@@ -63,11 +65,12 @@ export default function ClientesPage() {
     setEditingCodigo(c.codigo);
     setForm({
       tipo_pessoa: c.tipo_pessoa,
-      documento: c.documento,
+      documento: c.documento || '',
       nome: c.nome,
       telefone: c.telefone || '',
       email: c.email || '',
       endereco: c.endereco || '',
+      observacao: c.observacao || '',
     });
     setError('');
     setModalOpen(true);
@@ -82,6 +85,7 @@ export default function ClientesPage() {
       telefone: c.telefone || '',
       email: c.email || '',
       endereco: c.endereco || '',
+      observacao: c.observacao || '',
     });
     setError('');
     setModalOpen(true);
@@ -168,7 +172,7 @@ export default function ClientesPage() {
               <tr key={c.codigo}>
                 <td>{c.codigo}</td>
                 <td>{c.nome}</td>
-                <td>{c.tipo_pessoa === 'PJ' ? maskCNPJ(c.documento) : maskCPF(c.documento)}</td>
+                <td>{c.documento ? (c.tipo_pessoa === 'PJ' ? maskCNPJ(c.documento) : maskCPF(c.documento)) : '-'}</td>
                 <td>{c.telefone ? maskTelefone(c.telefone) : '-'}</td>
                 <td>{c.email || '-'}</td>
                 <td>
@@ -223,7 +227,6 @@ export default function ClientesPage() {
                     placeholder={isPJ ? '00.000.000/0000-00' : '000.000.000-00'}
                     value={form.documento}
                     onChange={(e) => handleDocumentoChange(e.target.value)}
-                    required
                   />
                 </div>
                 <div className="field">
@@ -255,6 +258,14 @@ export default function ClientesPage() {
                   <input
                     value={form.endereco}
                     onChange={(e) => setForm({ ...form, endereco: e.target.value.toUpperCase() })}
+                  />
+                </div>
+                <div className="field" style={{ gridColumn: '1 / -1' }}>
+                  <label>Observação</label>
+                  <textarea
+                    value={form.observacao}
+                    onChange={(e) => setForm({ ...form, observacao: e.target.value.toUpperCase() })}
+                    rows={3}
                   />
                 </div>
               </div>
