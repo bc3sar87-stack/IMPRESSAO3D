@@ -402,6 +402,14 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setModalOpen(false);
   }
 
+  function loteDisponivel(l: LoteEstoque): number {
+    return Number(l.saldo) - Number(l.reservado);
+  }
+
+  function lotesComSaldo(lotes: LoteEstoque[]): LoteEstoque[] {
+    return lotes.filter((l) => loteDisponivel(l) > 0);
+  }
+
   async function carregarLotesMateriaPrima(materiaPrimaCodigo: number): Promise<LoteEstoque[]> {
     const res = await fetch(`/api/estoque/${materiaPrimaCodigo}`);
     const lotes: LoteEstoque[] = res.ok ? await res.json() : [];
@@ -414,7 +422,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     const materiais: ItemMaterial[] = res.ok ? await res.json() : [];
     return Promise.all(
       materiais.map(async (m) => {
-        const lotes = await carregarLotesMateriaPrima(m.materia_prima_codigo);
+        const lotes = lotesComSaldo(await carregarLotesMateriaPrima(m.materia_prima_codigo));
         return { ...m, lote_codigo: lotes.length === 1 ? lotes[0].codigo : null };
       })
     );
@@ -433,7 +441,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   async function trocarMaterialCor(mp: MateriaPrimaPickerItem) {
     if (!trocarMaterialAlvo) return;
     const { contexto, index } = trocarMaterialAlvo;
-    const lotes = await carregarLotesMateriaPrima(mp.codigo);
+    const lotes = lotesComSaldo(await carregarLotesMateriaPrima(mp.codigo));
     const atualizar = (lista: ItemMaterial[]) =>
       lista.map((m, i) =>
         i === index
@@ -470,7 +478,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         <label>Materiais / Cores (do cadastro do produto — pode alterar)</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {materiais.map((m, i) => {
-            const lotes = lotesPorMateriaPrima[m.materia_prima_codigo] || [];
+            const lotes = lotesComSaldo(lotesPorMateriaPrima[m.materia_prima_codigo] || []);
             return (
               <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -497,12 +505,12 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 </div>
                 <div style={{ marginLeft: 26, fontSize: 12 }}>
                   {lotes.length === 0 && (
-                    <span style={{ color: '#dc2626' }}>Sem lote em estoque cadastrado para esta cor.</span>
+                    <span style={{ color: '#dc2626' }}>Sem lote com saldo disponível para esta cor.</span>
                   )}
                   {lotes.length === 1 && (
                     <span style={{ color: '#64748b' }}>
-                      Lote: {lotes[0].fornecedor || 'sem fornecedor'} — disponível{' '}
-                      {(Number(lotes[0].saldo) - Number(lotes[0].reservado)).toFixed(2)} {m.unidade_medida_sigla}
+                      Lote #{lotes[0].codigo}: {lotes[0].fornecedor || 'sem fornecedor'} — disponível{' '}
+                      {loteDisponivel(lotes[0]).toFixed(2)} {m.unidade_medida_sigla}
                     </span>
                   )}
                   {lotes.length > 1 && (
@@ -514,8 +522,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                       <option value="">Selecione o lote...</option>
                       {lotes.map((l) => (
                         <option key={l.codigo} value={l.codigo}>
-                          {l.fornecedor || 'Sem fornecedor'} — disponível{' '}
-                          {(Number(l.saldo) - Number(l.reservado)).toFixed(2)} {m.unidade_medida_sigla}
+                          #{l.codigo} · {l.fornecedor || 'Sem fornecedor'} — disponível{' '}
+                          {loteDisponivel(l).toFixed(2)} {m.unidade_medida_sigla}
                           {l.valor_custo ? ` — R$ ${Number(l.valor_custo).toFixed(2)}` : ''}
                         </option>
                       ))}
