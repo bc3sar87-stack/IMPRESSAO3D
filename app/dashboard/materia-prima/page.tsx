@@ -72,6 +72,8 @@ export default function MateriaPrimaPage() {
   const [novoLoteForm, setNovoLoteForm] = useState(emptyNovoLote);
   const [salvandoLote, setSalvandoLote] = useState(false);
   const [loteError, setLoteError] = useState('');
+  const [marcasSugeridas, setMarcasSugeridas] = useState<string[]>([]);
+  const [fornecedoresSugeridos, setFornecedoresSugeridos] = useState<string[]>([]);
 
   const [loteAlvo, setLoteAlvo] = useState<LotesAlvo | null>(null);
 
@@ -85,14 +87,20 @@ export default function MateriaPrimaPage() {
   });
 
   async function load() {
-    const [itensRes, tiposRes, unidadesRes] = await Promise.all([
+    const [itensRes, tiposRes, unidadesRes, opcoesRes] = await Promise.all([
       fetch('/api/materia-prima'),
       fetch('/api/tipos-materia-prima'),
       fetch('/api/unidades-medida'),
+      fetch('/api/estoque/opcoes-lote'),
     ]);
     if (itensRes.ok) setItens(await itensRes.json());
     if (tiposRes.ok) setTipos(await tiposRes.json());
     if (unidadesRes.ok) setUnidades(await unidadesRes.json());
+    if (opcoesRes.ok) {
+      const data = await opcoesRes.json();
+      setMarcasSugeridas(data.marcas || []);
+      setFornecedoresSugeridos(data.fornecedores || []);
+    }
   }
 
   useEffect(() => {
@@ -398,16 +406,28 @@ export default function MateriaPrimaPage() {
                 <div className="field">
                   <label>Marca</label>
                   <input
+                    list="mp-marcas-sugeridas"
                     value={novoLoteForm.marca}
                     onChange={(e) => setNovoLoteForm({ ...novoLoteForm, marca: e.target.value.toUpperCase() })}
                   />
+                  <datalist id="mp-marcas-sugeridas">
+                    {marcasSugeridas.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
                 </div>
                 <div className="field">
                   <label>Fornecedor</label>
                   <input
+                    list="mp-fornecedores-sugeridos"
                     value={novoLoteForm.fornecedor}
                     onChange={(e) => setNovoLoteForm({ ...novoLoteForm, fornecedor: e.target.value.toUpperCase() })}
                   />
+                  <datalist id="mp-fornecedores-sugeridos">
+                    {fornecedoresSugeridos.map((f) => (
+                      <option key={f} value={f} />
+                    ))}
+                  </datalist>
                 </div>
                 <div className="field">
                   <label>Custo (R$/{novoLoteAlvo.unidade_medida_sigla})</label>
