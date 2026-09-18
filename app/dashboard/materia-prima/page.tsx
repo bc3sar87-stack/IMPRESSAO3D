@@ -2,7 +2,8 @@
 
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
-import { IconEdit, IconCopy, IconTrash } from '../icons';
+import { IconEdit, IconCopy, IconTrash, IconList } from '../icons';
+import LotesMateriaPrima, { LotesAlvo } from '../lotes-materia-prima';
 
 interface MateriaPrima {
   codigo: number;
@@ -72,6 +73,8 @@ export default function MateriaPrimaPage() {
   const [novoLoteForm, setNovoLoteForm] = useState(emptyNovoLote);
   const [salvandoLote, setSalvandoLote] = useState(false);
   const [loteError, setLoteError] = useState('');
+
+  const [loteAlvo, setLoteAlvo] = useState<LotesAlvo | null>(null);
 
   const itensFiltrados = itens.filter((item) => {
     const q = busca.toLowerCase();
@@ -260,6 +263,20 @@ export default function MateriaPrimaPage() {
                 <td>{item.valor_custo ? `R$ ${item.valor_custo}/Kg` : '-'}</td>
                 <td>
                   <div className="row-actions">
+                    <button
+                      className="icon-btn"
+                      title="Consultar / Inserir Lotes"
+                      onClick={() =>
+                        setLoteAlvo({
+                          codigo: item.codigo,
+                          tipo_nome: item.tipo_nome,
+                          cor: item.descricao,
+                          unidade_medida_sigla: item.unidade_medida_sigla,
+                        })
+                      }
+                    >
+                      <IconList />
+                    </button>
                     <button className="icon-btn" title="Editar" onClick={() => startEdit(item)}>
                       <IconEdit />
                     </button>
@@ -489,6 +506,8 @@ export default function MateriaPrimaPage() {
           </div>
         </div>
       )}
+
+      <LotesMateriaPrima alvo={loteAlvo} onClose={() => setLoteAlvo(null)} onChange={load} />
     </div>
   );
 }
