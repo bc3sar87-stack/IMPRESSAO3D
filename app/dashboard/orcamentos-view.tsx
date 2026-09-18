@@ -65,6 +65,7 @@ interface Orcamento {
   taxa_percentual: string;
   embalagem_valor: string;
   custos_extras_valor: string;
+  consome_estoque: boolean;
   total_itens: string;
 }
 
@@ -186,6 +187,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     taxa_percentual: '0',
     embalagem_valor: '',
     custos_extras_valor: '',
+    consome_estoque: true,
   };
 
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -345,6 +347,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       taxa_percentual: o.taxa_percentual || '',
       embalagem_valor: o.embalagem_valor || '',
       custos_extras_valor: o.custos_extras_valor || '',
+      consome_estoque: o.consome_estoque !== false,
     });
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
@@ -367,6 +370,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       taxa_percentual: o.taxa_percentual || '',
       embalagem_valor: o.embalagem_valor || '',
       custos_extras_valor: o.custos_extras_valor || '',
+      consome_estoque: o.consome_estoque !== false,
     });
     setNovoItemLocal(emptyNovoItem);
     setError('');
@@ -1418,6 +1422,16 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <option value="FINALIZADO">{STATUS_LABELS.FINALIZADO}</option>
                     <option value="PENDENTE_ENTREGA">{STATUS_LABELS.PENDENTE_ENTREGA}</option>
                     <option value="ENTREGUE">{STATUS_LABELS.ENTREGUE}</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Consome Estoque?</label>
+                  <select
+                    value={form.consome_estoque ? 'sim' : 'nao'}
+                    onChange={(e) => setForm({ ...form, consome_estoque: e.target.value === 'sim' })}
+                  >
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
                   </select>
                 </div>
                 <div className="field">

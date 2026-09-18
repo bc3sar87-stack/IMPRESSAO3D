@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { rows } = await pool.query(
     `SELECT o.codigo, o.data, o.data_entrega, o.status, o.observacoes, o.valor_total, o.valor_sugerido, o.custo_total,
             o.markup_percentual, o.impostos_percentual, o.taxa_marketplace, o.taxa_percentual,
-            o.embalagem_valor, o.custos_extras_valor,
+            o.embalagem_valor, o.custos_extras_valor, o.consome_estoque,
             c.codigo AS cliente_codigo, c.nome AS cliente_nome, c.documento AS cliente_documento,
             c.tipo_pessoa AS cliente_tipo_pessoa, c.telefone AS cliente_telefone, c.email AS cliente_email,
             c.endereco AS cliente_endereco,
@@ -60,6 +60,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     custos_extras_valor,
     valor_sugerido,
     custo_total,
+    consome_estoque,
   } = await request.json().catch(() => ({}));
 
   if (!cliente_codigo || !data || !status) {
@@ -113,8 +114,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       `UPDATE orcamentos SET cliente_codigo=$1, data=$2, data_entrega=$3, status=$4, observacoes=$5,
               equipamento_codigo=$6, markup_percentual=$7, impostos_percentual=$8, taxa_marketplace=$9,
               taxa_percentual=$10, embalagem_valor=$11, custos_extras_valor=$12,
-              valor_sugerido=COALESCE($13, valor_sugerido), custo_total=COALESCE($14, custo_total)
-       WHERE codigo=$15 AND empresa_codigo=$16
+              valor_sugerido=COALESCE($13, valor_sugerido), custo_total=COALESCE($14, custo_total),
+              consome_estoque=$15
+       WHERE codigo=$16 AND empresa_codigo=$17
        RETURNING codigo`,
       [
         cliente_codigo,
@@ -131,12 +133,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         custos_extras_valor || 0,
         valor_sugerido || null,
         custo_total || null,
+        consome_estoque === false ? false : true,
         codigo,
         session.empresa_codigo,
       ]
     );
 
-    if (statusAnterior !== 'FINALIZADO' && status === 'FINALIZADO') {
+    const consomeEstoqueAtual = consome_estoque !== false;
+    if (statusAnterior !== 'FINALIZADO' && status === 'FINALIZADO' && consomeEstoqueAtual) {
       await aplicarBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
     } else if (statusAnterior === 'FINALIZADO' && status !== 'FINALIZADO') {
       await reverterBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);

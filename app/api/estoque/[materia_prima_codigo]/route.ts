@@ -26,6 +26,7 @@ export async function GET(
               JOIN orcamento_itens oi ON oi.codigo = oim.orcamento_item_codigo
               JOIN orcamentos o ON o.codigo = oi.orcamento_codigo
               WHERE oim.lote_codigo = l.codigo AND oim.baixado_em IS NULL AND o.status <> 'REJEITADO'
+                    AND o.consome_estoque = true
             ), 0) AS reservado
      FROM materia_prima_lotes l
      LEFT JOIN movimentacoes_estoque me ON me.lote_codigo = l.codigo
