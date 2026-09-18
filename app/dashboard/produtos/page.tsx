@@ -103,6 +103,7 @@ export default function ProdutosPage() {
   const [busca, setBusca] = useState('');
   const [custoBaseFilamento, setCustoBaseFilamento] = useState('0');
   const [custoMaoObraHora, setCustoMaoObraHora] = useState('0');
+  const [valorConsumoHora, setValorConsumoHora] = useState('0');
   const [fotoAmpliadaAberta, setFotoAmpliadaAberta] = useState(false);
   const [fotoTabelaAmpliada, setFotoTabelaAmpliada] = useState<Produto | null>(null);
 
@@ -122,12 +123,13 @@ export default function ProdutosPage() {
   );
 
   async function load() {
-    const [prodRes, mpRes, filamentoRes, maoObraRes, grupoRes] = await Promise.all([
+    const [prodRes, mpRes, filamentoRes, maoObraRes, grupoRes, consumoHoraRes] = await Promise.all([
       fetch('/api/produtos'),
       fetch('/api/materia-prima'),
       fetch('/api/custo-base-filamento'),
       fetch('/api/custo-mao-obra-hora'),
       fetch('/api/grupos-produtos'),
+      fetch('/api/valor-consumo-hora'),
     ]);
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (mpRes.ok) setMateriasPrimas(await mpRes.json());
@@ -140,26 +142,33 @@ export default function ProdutosPage() {
       const data = await maoObraRes.json();
       setCustoMaoObraHora(data.valor_hora !== null ? String(data.valor_hora) : '0');
     }
+    if (consumoHoraRes.ok) {
+      const data = await consumoHoraRes.json();
+      setValorConsumoHora(data.valor_hora !== null ? String(data.valor_hora) : '0');
+    }
   }
 
   function custoPrevioDetalhado(p: Produto) {
     const custoKgPadrao = Number(custoBaseFilamento) || 0;
     const custoHoraMaoObra = Number(custoMaoObraHora) || 0;
+    const custoHoraEnergia = Number(valorConsumoHora) || 0;
     const materiais = p.materiais || [];
     const materialCost = materiais.reduce((soma, m) => {
       const custoKg = m.valor_custo ? Number(m.valor_custo) : custoKgPadrao;
       return soma + (Number(m.peso) / 1000) * custoKg;
     }, 0);
     const maoDeObraCost = ((p.tempo_mao_obra_segundos || 0) / 3600) * custoHoraMaoObra;
+    const energiaCost = ((p.tempo_impressao_segundos || 0) / 3600) * custoHoraEnergia;
     const custosFixos = p.custos_fixos || [];
     const custosFixosCost = custosFixos.reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
     return {
       materiais,
       materialCost,
       maoDeObraCost,
+      energiaCost,
       custosFixos,
       custosFixosCost,
-      total: materialCost + maoDeObraCost + custosFixosCost,
+      total: materialCost + maoDeObraCost + energiaCost + custosFixosCost,
     };
   }
 
@@ -180,6 +189,9 @@ export default function ProdutosPage() {
     }
     if (d.maoDeObraCost > 0) {
       linhas.push(`Mão de obra: R$ ${d.maoDeObraCost.toFixed(2)}`);
+    }
+    if (d.energiaCost > 0) {
+      linhas.push(`Energia: R$ ${d.energiaCost.toFixed(2)}`);
     }
     if (d.custosFixos.length > 0) {
       linhas.push('Custos fixos:');
