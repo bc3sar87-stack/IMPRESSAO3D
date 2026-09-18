@@ -2190,19 +2190,20 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       )}
 
       {selecionado && (
-        <div className="card">
-          <div className="card-header">
-            <h3>
-              Itens do orçamento #{selecionado.codigo} — {selecionado.cliente_nome}
-              <br />
-              <small style={{ color: '#64748b', fontWeight: 400 }}>
-                Total: R$ {selecionado.valor_total}
-              </small>
-            </h3>
-            <button className="btn-small" onClick={fecharItens}>
-              Fechar
-            </button>
-          </div>
+        <div className="modal-overlay" onClick={fecharItens}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1100 }}>
+            <div className="modal-header">
+              <h3>
+                Itens do orçamento #{selecionado.codigo} — {selecionado.cliente_nome}
+                <br />
+                <small style={{ color: '#64748b', fontWeight: 400 }}>
+                  Total: R$ {selecionado.valor_total}
+                </small>
+              </h3>
+              <button type="button" className="modal-close" onClick={fecharItens} aria-label="Fechar">
+                ×
+              </button>
+            </div>
 
           {itemError && <div className="error-msg">{itemError}</div>}
 
@@ -2348,9 +2349,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
           <p className="hint" style={{ marginTop: -4 }}>
             Informe os parâmetros de custo para calcular o valor sugerido deste item.
           </p>
-          <button type="button" className="btn-small" style={{ marginTop: 8 }} onClick={abrirParametrosNovoItem}>
-            Calcular e Adicionar
-          </button>
+            <button type="button" className="btn-small" style={{ marginTop: 8 }} onClick={abrirParametrosNovoItem}>
+              Calcular e Adicionar
+            </button>
+          </div>
         </div>
       )}
 
