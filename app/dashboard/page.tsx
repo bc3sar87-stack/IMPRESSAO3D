@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import { pool } from '@/lib/db';
 
@@ -31,6 +32,16 @@ const STATUS_ORDER = [
   'REJEITADO',
 ];
 
+const STATUS_ROTA: Record<string, string> = {
+  ABERTO: '/dashboard/orcamentos',
+  APROVADO: '/dashboard/orcamentos-aprovados',
+  EM_PRODUCAO: '/dashboard/orcamentos-em-producao',
+  FINALIZADO: '/dashboard/orcamentos-finalizados',
+  PENDENTE_ENTREGA: '/dashboard/orcamentos-pendente-entrega',
+  ENTREGUE: '/dashboard/orcamentos-entregues',
+  REJEITADO: '/dashboard/orcamentos-reprovados',
+};
+
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 function formatMoeda(valor: number): string {
@@ -59,9 +70,10 @@ export default async function DashboardPage() {
   let contasPagar = { quantidade: 0, valor: 0, vencidasQuantidade: 0, vencidasValor: 0 };
   let faturamentoMensal: { mes: string; valor: number }[] = [];
   let horasImpressaoMensal: { mes: string; horas: number }[] = [];
+  let previstoTotal12m = 0;
 
   if (empresaCodigo) {
-    const [estoqueRes, orcamentosRes, receberRes, pagarRes, faturamentoRes, horasImpressaoRes] = await Promise.all([
+    const [estoqueRes, orcamentosRes, receberRes, pagarRes, faturamentoRes, horasImpressaoRes, previstoRes] = await Promise.all([
       pool.query(
         `SELECT COALESCE(SUM(saldo * custo_unitario), 0) AS valor
          FROM (
@@ -107,7 +119,7 @@ export default async function DashboardPage() {
       pool.query(
         `SELECT TO_CHAR(DATE_TRUNC('month', data), 'YYYY-MM') AS mes, COALESCE(SUM(valor_total), 0) AS valor
          FROM orcamentos
-         WHERE empresa_codigo = $1 AND status <> 'REJEITADO' AND data >= CURRENT_DATE - INTERVAL '12 months'
+         WHERE empresa_codigo = $1 AND status = 'ENTREGUE' AND data >= CURRENT_DATE - INTERVAL '12 months'
          GROUP BY DATE_TRUNC('month', data)`,
         [empresaCodigo]
       ),
@@ -122,9 +134,17 @@ export default async function DashboardPage() {
          GROUP BY DATE_TRUNC('month', o.data)`,
         [empresaCodigo]
       ),
+      pool.query(
+        `SELECT COALESCE(SUM(valor_total), 0) AS valor
+         FROM orcamentos
+         WHERE empresa_codigo = $1 AND status NOT IN ('ABERTO', 'REJEITADO')
+           AND data >= CURRENT_DATE - INTERVAL '12 months'`,
+        [empresaCodigo]
+      ),
     ]);
 
     valorEstoque = Number(estoqueRes.rows[0]?.valor || 0);
+    previstoTotal12m = Number(previstoRes.rows[0]?.valor || 0);
     orcamentosPorStatus = orcamentosRes.rows.map((r) => ({
       status: r.status,
       quantidade: Number(r.quantidade),
@@ -230,6 +250,10 @@ export default async function DashboardPage() {
               <strong>R$ {formatMoeda(faturamentoTotal12m)}</strong>
             </div>
             <div className="fin-summary-item">
+              <span>Previsto (12 meses)</span>
+              <strong>R$ {formatMoeda(previstoTotal12m)}</strong>
+            </div>
+            <div className="fin-summary-item">
               <span>Horas de Impressão Realizadas (12 meses)</span>
               <strong>{formatMoeda(totalHorasImpressao12m)} h</strong>
             </div>
@@ -249,13 +273,29 @@ export default async function DashboardPage() {
                 <tbody>
                   {STATUS_ORDER.map((st) => {
                     const encontrado = orcamentosPorStatus.find((o) => o.status === st);
+                    const linkStyle = {
+                      display: 'block',
+                      padding: '13px 16px',
+                      color: 'inherit',
+                      textDecoration: 'none',
+                    };
                     return (
                       <tr key={st}>
-                        <td>
-                          <span className={`status-badge ${STATUS_BADGE_CLASS[st]}`}>{STATUS_LABELS[st]}</span>
+                        <td style={{ padding: 0 }}>
+                          <Link href={STATUS_ROTA[st]} style={linkStyle}>
+                            <span className={`status-badge ${STATUS_BADGE_CLASS[st]}`}>{STATUS_LABELS[st]}</span>
+                          </Link>
                         </td>
-                        <td>{encontrado?.quantidade || 0}</td>
-                        <td>R$ {formatMoeda(encontrado?.valor || 0)}</td>
+                        <td style={{ padding: 0 }}>
+                          <Link href={STATUS_ROTA[st]} style={linkStyle}>
+                            {encontrado?.quantidade || 0}
+                          </Link>
+                        </td>
+                        <td style={{ padding: 0 }}>
+                          <Link href={STATUS_ROTA[st]} style={linkStyle}>
+                            R$ {formatMoeda(encontrado?.valor || 0)}
+                          </Link>
+                        </td>
                       </tr>
                     );
                   })}
@@ -272,7 +312,7 @@ export default async function DashboardPage() {
           <div className="card">
             <h3 style={{ marginTop: 0 }}>Faturamento nos últimos 12 meses</h3>
             <p className="hint" style={{ marginTop: -8 }}>
-              Soma do valor dos orçamentos (exceto reprovados) por mês.
+              Soma do valor dos orçamentos entregues por mês.
             </p>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 190, padding: '8px 4px', overflowX: 'auto' }}>
               {faturamentoMensal.map((m, i) => (
