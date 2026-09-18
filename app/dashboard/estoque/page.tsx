@@ -261,19 +261,20 @@ export default function EstoquePage() {
       </div>
 
       {selecionado && (
-        <div className="card">
-          <div className="card-header">
-            <h3>
-              {selecionado.tipo_nome} — {selecionado.cor}
-              <br />
-              <small style={{ color: '#64748b', fontWeight: 400 }}>
-                Saldo total: {selecionado.saldo} {selecionado.unidade_medida_sigla}
-              </small>
-            </h3>
-            <button className="btn-small" onClick={fecharCor}>
-              Fechar
-            </button>
-          </div>
+        <div className="modal-overlay" onClick={fecharCor}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1100 }}>
+            <div className="modal-header">
+              <h3>
+                {selecionado.tipo_nome} — {selecionado.cor}
+                <br />
+                <small style={{ color: '#64748b', fontWeight: 400 }}>
+                  Saldo total: {selecionado.saldo} {selecionado.unidade_medida_sigla}
+                </small>
+              </h3>
+              <button type="button" className="modal-close" onClick={fecharCor} aria-label="Fechar">
+                ×
+              </button>
+            </div>
 
           {error && <div className="error-msg">{error}</div>}
 
@@ -342,13 +343,24 @@ export default function EstoquePage() {
             </table>
           </div>
 
-          {!novoLoteOpen ? (
             <button type="button" className="btn-small" style={{ marginTop: 8 }} onClick={() => setNovoLoteOpen(true)}>
               + Novo Lote
             </button>
-          ) : (
-            <form onSubmit={handleCriarLote} style={{ marginTop: 12 }}>
-              <h4 style={{ marginBottom: 8 }}>Novo Lote</h4>
+          </div>
+        </div>
+      )}
+
+      {novoLoteOpen && selecionado && (
+        <div className="modal-overlay" onClick={() => setNovoLoteOpen(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Novo Lote — {selecionado.tipo_nome} ({selecionado.cor})</h3>
+              <button type="button" className="modal-close" onClick={() => setNovoLoteOpen(false)} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+            {error && <div className="error-msg">{error}</div>}
+            <form onSubmit={handleCriarLote}>
               <div className="form-grid">
                 <div className="field">
                   <label>Marca</label>
@@ -452,7 +464,7 @@ export default function EstoquePage() {
                 </button>
               </div>
             </form>
-          )}
+          </div>
         </div>
       )}
 
