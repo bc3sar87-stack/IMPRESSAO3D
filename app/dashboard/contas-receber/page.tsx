@@ -370,16 +370,16 @@ export default function ContasReceberPage() {
                     required
                   />
                 </div>
+                <div className="field">
+                  <label>Data de Recebimento</label>
+                  <input
+                    type="date"
+                    value={form.data_recebimento}
+                    onChange={(e) => setForm({ ...form, data_recebimento: e.target.value })}
+                  />
+                </div>
                 {editingCodigo && (
                   <>
-                    <div className="field">
-                      <label>Data de Recebimento</label>
-                      <input
-                        type="date"
-                        value={form.data_recebimento}
-                        onChange={(e) => setForm({ ...form, data_recebimento: e.target.value })}
-                      />
-                    </div>
                     <div className="field">
                       <label>Status</label>
                       <select

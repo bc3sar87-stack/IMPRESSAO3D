@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Selecione uma empresa.' }, { status: 400 });
   }
 
-  const { orcamento_codigo, cliente_codigo, descricao, valor, data_vencimento } = await request
+  const { orcamento_codigo, cliente_codigo, descricao, valor, data_vencimento, data_recebimento } = await request
     .json()
     .catch(() => ({}));
 
@@ -68,10 +68,18 @@ export async function POST(request: NextRequest) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO contas_receber (orcamento_codigo, cliente_codigo, descricao, valor, data_vencimento, empresa_codigo)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO contas_receber (orcamento_codigo, cliente_codigo, descricao, valor, data_vencimento, data_recebimento, empresa_codigo)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING codigo`,
-    [orcamento_codigo || null, cliente_codigo || null, descricao, valor, data_vencimento, session.empresa_codigo]
+    [
+      orcamento_codigo || null,
+      cliente_codigo || null,
+      descricao,
+      valor,
+      data_vencimento,
+      data_recebimento || null,
+      session.empresa_codigo,
+    ]
   );
   return NextResponse.json({ codigo: rows[0].codigo }, { status: 201 });
 }
