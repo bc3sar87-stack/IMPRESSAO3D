@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from './search-box';
 import ProductPicker, { ProdutoPicker } from './product-picker';
 import MateriaPrimaPicker, { MateriaPrimaPickerItem } from './materia-prima-picker';
+import { maskCPF, maskCNPJ, maskTelefone } from '@/lib/masks';
 import {
   IconEdit,
   IconCopy,
@@ -205,6 +206,17 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
 
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [novoClienteOpen, setNovoClienteOpen] = useState(false);
+  const [novoClienteForm, setNovoClienteForm] = useState({
+    tipo_pessoa: 'PF' as 'PF' | 'PJ',
+    documento: '',
+    nome: '',
+    telefone: '',
+    email: '',
+    endereco: '',
+  });
+  const [novoClienteError, setNovoClienteError] = useState('');
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
   const [grupos, setGrupos] = useState<{ codigo: number; nome: string }[]>([]);
@@ -348,6 +360,46 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setError('');
     setRaioX(null);
     setModalOpen(true);
+  }
+
+  function abrirNovoCliente() {
+    setNovoClienteForm({ tipo_pessoa: 'PF', documento: '', nome: '', telefone: '', email: '', endereco: '' });
+    setNovoClienteError('');
+    setNovoClienteOpen(true);
+  }
+
+  function fecharNovoCliente() {
+    setNovoClienteOpen(false);
+    setNovoClienteError('');
+  }
+
+  function handleNovoClienteDocumentoChange(value: string) {
+    const masked = novoClienteForm.tipo_pessoa === 'PJ' ? maskCNPJ(value) : maskCPF(value);
+    setNovoClienteForm({ ...novoClienteForm, documento: masked });
+  }
+
+  async function handleSalvarNovoCliente(e: FormEvent) {
+    e.preventDefault();
+    setNovoClienteError('');
+    setSalvandoCliente(true);
+    try {
+      const res = await fetch('/api/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoClienteForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setNovoClienteError(data.error || 'Não foi possível salvar.');
+        return;
+      }
+      const res2 = await fetch('/api/clientes');
+      if (res2.ok) setClientes(await res2.json());
+      setForm((f) => ({ ...f, cliente_codigo: String(data.codigo) }));
+      setNovoClienteOpen(false);
+    } finally {
+      setSalvandoCliente(false);
+    }
   }
 
   function startEdit(o: Orcamento) {
@@ -1534,20 +1586,26 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <div className="form-grid">
                 <div className="field">
                   <label>Cliente</label>
-                  <select
-                    value={form.cliente_codigo}
-                    onChange={(e) => setForm({ ...form, cliente_codigo: e.target.value })}
-                    required
-                  >
-                    <option value="" disabled>
-                      Selecione...
-                    </option>
-                    {clientes.map((c) => (
-                      <option key={c.codigo} value={c.codigo}>
-                        {c.nome}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select
+                      value={form.cliente_codigo}
+                      onChange={(e) => setForm({ ...form, cliente_codigo: e.target.value })}
+                      required
+                      style={{ flex: 1 }}
+                    >
+                      <option value="" disabled>
+                        Selecione...
                       </option>
-                    ))}
-                  </select>
+                      {clientes.map((c) => (
+                        <option key={c.codigo} value={c.codigo}>
+                          {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn-small" onClick={abrirNovoCliente}>
+                      Novo Cliente
+                    </button>
+                  </div>
                 </div>
                 <div className="field">
                   <label>Data</label>
@@ -2144,6 +2202,92 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         onSelect={handlePickProduto}
         onClose={() => setPickerFor(null)}
       />
+
+      {novoClienteOpen && (
+        <div className="modal-overlay" onClick={fecharNovoCliente}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Novo cliente</h3>
+              <button type="button" className="modal-close" onClick={fecharNovoCliente} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+            {novoClienteError && <div className="error-msg">{novoClienteError}</div>}
+            <form onSubmit={handleSalvarNovoCliente}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Tipo</label>
+                  <select
+                    value={novoClienteForm.tipo_pessoa}
+                    onChange={(e) =>
+                      setNovoClienteForm({
+                        ...novoClienteForm,
+                        tipo_pessoa: e.target.value as 'PF' | 'PJ',
+                        documento: '',
+                      })
+                    }
+                  >
+                    <option value="PF">Pessoa Física (CPF)</option>
+                    <option value="PJ">Pessoa Jurídica (CNPJ)</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>{novoClienteForm.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}</label>
+                  <input
+                    placeholder={novoClienteForm.tipo_pessoa === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                    value={novoClienteForm.documento}
+                    onChange={(e) => handleNovoClienteDocumentoChange(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Nome</label>
+                  <input
+                    value={novoClienteForm.nome}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, nome: e.target.value.toUpperCase() })}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Telefone</label>
+                  <input
+                    placeholder="(00) 00000-0000"
+                    value={novoClienteForm.telefone}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, telefone: maskTelefone(e.target.value) })}
+                  />
+                </div>
+                <div className="field">
+                  <label>E-mail</label>
+                  <input
+                    type="email"
+                    value={novoClienteForm.email}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, email: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Endereço</label>
+                  <input
+                    value={novoClienteForm.endereco}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, endereco: e.target.value.toUpperCase() })}
+                  />
+                </div>
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                <button
+                  className="btn-primary"
+                  type="submit"
+                  disabled={salvandoCliente}
+                  style={{ width: 'auto', padding: '10px 20px' }}
+                >
+                  {salvandoCliente ? 'Salvando...' : 'Adicionar'}
+                </button>
+                <button type="button" className="btn-small" onClick={fecharNovoCliente}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {contaReceberOrcamento && (
         <div className="modal-overlay" onClick={() => setContaReceberOrcamento(null)}>
