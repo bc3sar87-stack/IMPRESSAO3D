@@ -368,8 +368,32 @@ export default function ProdutosPage() {
         }
       }
 
+      const produtoCriado: Produto | null =
+        !editingCodigo && form.tipo === 'IMPRESSAO'
+          ? {
+              codigo: data.codigo,
+              descricao: form.descricao,
+              link_stl: form.link_stl || null,
+              stl_nome: null,
+              tem_foto: false,
+              quantidade: form.quantidade,
+              tempo_impressao_segundos: form.tempoImpressaoSegundos,
+              tempo_mao_obra_segundos: form.tempoMaoObraSegundos,
+              tipo: form.tipo,
+              valor_custo: null,
+              grupo_codigo: form.grupoCodigo ? Number(form.grupoCodigo) : null,
+              grupo_nome: null,
+              materiais: [],
+              custos_fixos: [],
+            }
+          : null;
+
       cancelEdit();
       load();
+
+      if (produtoCriado && confirm('Produto cadastrado! Deseja já vincular uma matéria prima a ele?')) {
+        abrirMateriais(produtoCriado);
+      }
     } finally {
       setLoading(false);
     }
