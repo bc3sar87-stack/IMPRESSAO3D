@@ -33,6 +33,7 @@ interface Movimentacao {
   quantidade: string;
   observacao: string | null;
   criado_em: string;
+  orcamento_codigo: number | null;
 }
 
 const emptyNovoLote = {
@@ -500,6 +501,7 @@ export default function LotesMateriaPrima({
                     <th>Data</th>
                     <th>Tipo</th>
                     <th>Quantidade</th>
+                    <th>Pedido</th>
                     <th>Observação</th>
                     <th></th>
                   </tr>
@@ -511,6 +513,19 @@ export default function LotesMateriaPrima({
                       <td>{mov.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</td>
                       <td>
                         {mov.quantidade} {alvo.unidade_medida_sigla}
+                      </td>
+                      <td>
+                        {mov.orcamento_codigo ? (
+                          <a
+                            href={`/dashboard/orcamento-pdf/${mov.orcamento_codigo}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            #{mov.orcamento_codigo}
+                          </a>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td>{mov.observacao || '-'}</td>
                       <td>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { requireUsuario } from '@/lib/auth';
+import { aplicarBaixaEstoqueOrcamento, reverterBaixaEstoqueItem } from '@/lib/estoque';
 
 export async function GET(
   _request: Request,
@@ -79,13 +80,35 @@ export async function PUT(
     }
   }
 
-  await pool.query(`DELETE FROM orcamento_item_materiais WHERE orcamento_item_codigo = $1`, [item_codigo]);
-  for (const m of materiais) {
-    await pool.query(
-      `INSERT INTO orcamento_item_materiais (orcamento_item_codigo, materia_prima_codigo, peso, lote_codigo, empresa_codigo)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [item_codigo, m.materia_prima_codigo, m.peso, m.lote_codigo || null, session.empresa_codigo]
-    );
+  const { rows: orcRows } = await pool.query(
+    `SELECT status, consome_estoque FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`,
+    [codigo, session.empresa_codigo]
+  );
+  const orcamentoAtivo = orcRows[0];
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Estorna a baixa existente (se houver) antes de trocar os materiais, para não perder o
+    // registro de estoque já deduzido com o lote/peso antigo.
+    await reverterBaixaEstoqueItem(client, item_codigo, session.empresa_codigo);
+    await client.query(`DELETE FROM orcamento_item_materiais WHERE orcamento_item_codigo = $1`, [item_codigo]);
+    for (const m of materiais) {
+      await client.query(
+        `INSERT INTO orcamento_item_materiais (orcamento_item_codigo, materia_prima_codigo, peso, lote_codigo, empresa_codigo)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [item_codigo, m.materia_prima_codigo, m.peso, m.lote_codigo || null, session.empresa_codigo]
+      );
+    }
+    if (orcamentoAtivo?.status === 'FINALIZADO' && orcamentoAtivo?.consome_estoque !== false) {
+      await aplicarBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 
   return NextResponse.json({ ok: true });

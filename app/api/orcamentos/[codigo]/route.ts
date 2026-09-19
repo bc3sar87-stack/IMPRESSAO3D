@@ -86,13 +86,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { rows: atualRows } = await pool.query(
-    `SELECT status FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`,
+    `SELECT status, consome_estoque FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`,
     [codigo, session.empresa_codigo]
   );
   if (atualRows.length === 0) {
     return NextResponse.json({ error: 'Orçamento não encontrado.' }, { status: 404 });
   }
   const statusAnterior = atualRows[0].status;
+  const consomeEstoqueAnterior = atualRows[0].consome_estoque;
 
   if (status !== statusAnterior) {
     const { rows: itensRows } = await pool.query(
@@ -140,9 +141,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     );
 
     const consomeEstoqueAtual = consome_estoque !== false;
-    if (statusAnterior !== 'FINALIZADO' && status === 'FINALIZADO' && consomeEstoqueAtual) {
-      await aplicarBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
-    } else if (statusAnterior === 'FINALIZADO' && status !== 'FINALIZADO') {
+    if (status === 'FINALIZADO') {
+      if (statusAnterior !== 'FINALIZADO') {
+        if (consomeEstoqueAtual) {
+          await aplicarBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
+        }
+      } else if (consomeEstoqueAnterior !== consomeEstoqueAtual) {
+        // Permaneceu FINALIZADO, mas o "Consome Estoque?" mudou: aplica ou reverte a baixa.
+        if (consomeEstoqueAtual) {
+          await aplicarBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
+        } else {
+          await reverterBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
+        }
+      }
+    } else if (statusAnterior === 'FINALIZADO') {
       await reverterBaixaEstoqueOrcamento(client, codigo, session.empresa_codigo);
     }
 

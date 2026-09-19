@@ -11,9 +11,9 @@ export async function aplicarBaixaEstoqueOrcamento(
   empresaCodigo: number
 ) {
   await client.query(
-    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, lote_codigo, tipo, quantidade, observacao, empresa_codigo)
+    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, lote_codigo, tipo, quantidade, observacao, orcamento_codigo, empresa_codigo)
      SELECT oim.materia_prima_codigo, oim.lote_codigo, 'SAIDA', oim.peso * oi.quantidade,
-            'Baixa definitiva - Orçamento #' || oi.orcamento_codigo, $2
+            'Baixa definitiva - Orçamento #' || oi.orcamento_codigo, oi.orcamento_codigo, $2
      FROM orcamento_item_materiais oim
      JOIN orcamento_itens oi ON oi.codigo = oim.orcamento_item_codigo
      WHERE oi.orcamento_codigo = $1 AND oim.lote_codigo IS NOT NULL AND oim.baixado_em IS NULL`,
@@ -40,9 +40,9 @@ export async function reverterBaixaEstoqueOrcamento(
   empresaCodigo: number
 ) {
   await client.query(
-    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, lote_codigo, tipo, quantidade, observacao, empresa_codigo)
+    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, lote_codigo, tipo, quantidade, observacao, orcamento_codigo, empresa_codigo)
      SELECT oim.materia_prima_codigo, oim.lote_codigo, 'ENTRADA', oim.peso * oi.quantidade,
-            'Estorno de baixa - Orçamento #' || oi.orcamento_codigo, $2
+            'Estorno de baixa - Orçamento #' || oi.orcamento_codigo, oi.orcamento_codigo, $2
      FROM orcamento_item_materiais oim
      JOIN orcamento_itens oi ON oi.codigo = oim.orcamento_item_codigo
      WHERE oi.orcamento_codigo = $1 AND oim.lote_codigo IS NOT NULL AND oim.baixado_em IS NOT NULL`,
@@ -68,9 +68,9 @@ export async function reverterBaixaEstoqueItem(
   empresaCodigo: number
 ) {
   await client.query(
-    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, lote_codigo, tipo, quantidade, observacao, empresa_codigo)
+    `INSERT INTO movimentacoes_estoque (materia_prima_codigo, lote_codigo, tipo, quantidade, observacao, orcamento_codigo, empresa_codigo)
      SELECT oim.materia_prima_codigo, oim.lote_codigo, 'ENTRADA', oim.peso * oi.quantidade,
-            'Estorno de baixa - remoção de item do Orçamento #' || oi.orcamento_codigo, $2
+            'Estorno de baixa - remoção de item do Orçamento #' || oi.orcamento_codigo, oi.orcamento_codigo, $2
      FROM orcamento_item_materiais oim
      JOIN orcamento_itens oi ON oi.codigo = oim.orcamento_item_codigo
      WHERE oim.orcamento_item_codigo = $1 AND oim.lote_codigo IS NOT NULL AND oim.baixado_em IS NOT NULL`,

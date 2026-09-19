@@ -13,7 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ lot
 
   const { lote_codigo } = await params;
   const { rows } = await pool.query(
-    `SELECT codigo, tipo, quantidade, observacao, criado_em
+    `SELECT codigo, tipo, quantidade, observacao, criado_em, orcamento_codigo
      FROM movimentacoes_estoque
      WHERE lote_codigo = $1 AND empresa_codigo = $2
      ORDER BY criado_em DESC, codigo DESC`,
