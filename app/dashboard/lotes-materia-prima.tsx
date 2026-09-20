@@ -36,6 +36,14 @@ interface Movimentacao {
   orcamento_codigo: number | null;
 }
 
+interface ReservaLote {
+  orcamento_codigo: number;
+  orcamento_status: string;
+  cliente_nome: string;
+  lote_codigo: number | null;
+  peso_reservado: string;
+}
+
 const emptyNovoLote = {
   marca: '',
   fornecedor: '',
@@ -65,6 +73,7 @@ export default function LotesMateriaPrima({
 }) {
   const [lotes, setLotes] = useState<Lote[]>([]);
   const [error, setError] = useState('');
+  const [reservasPorLote, setReservasPorLote] = useState<Record<string, ReservaLote[]>>({});
 
   const [novoLoteOpen, setNovoLoteOpen] = useState(false);
   const [novoLoteForm, setNovoLoteForm] = useState(emptyNovoLote);
@@ -81,12 +90,14 @@ export default function LotesMateriaPrima({
   useEffect(() => {
     if (alvo) {
       carregarLotes(alvo.codigo);
+      carregarReservas(alvo.codigo);
       setNovoLoteOpen(false);
       setNovoLoteForm(emptyNovoLote);
       setError('');
       carregarOpcoes();
     } else {
       setLotes([]);
+      setReservasPorLote({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alvo?.codigo]);
@@ -94,6 +105,20 @@ export default function LotesMateriaPrima({
   async function carregarLotes(codigo: number) {
     const res = await fetch(`/api/estoque/${codigo}`);
     if (res.ok) setLotes(await res.json());
+  }
+
+  async function carregarReservas(materiaPrimaCodigo: number) {
+    const res = await fetch('/api/estoque/reservas');
+    if (!res.ok) return;
+    const todas: (ReservaLote & { materia_prima_codigo: number })[] = await res.json();
+    const doMaterial = todas.filter((r) => r.materia_prima_codigo === materiaPrimaCodigo);
+    const agrupado: Record<string, ReservaLote[]> = {};
+    for (const r of doMaterial) {
+      const chave = String(r.lote_codigo ?? 'sem-lote');
+      if (!agrupado[chave]) agrupado[chave] = [];
+      agrupado[chave].push(r);
+    }
+    setReservasPorLote(agrupado);
   }
 
   async function carregarOpcoes() {
@@ -260,7 +285,23 @@ export default function LotesMateriaPrima({
                       <td>
                         {lote.saldo} {alvo.unidade_medida_sigla}
                       </td>
-                      <td>{Number(lote.reservado) > 0 ? `${lote.reservado} ${alvo.unidade_medida_sigla}` : '-'}</td>
+                      <td>
+                        {Number(lote.reservado) > 0 ? (
+                          <span
+                            title={(reservasPorLote[String(lote.codigo)] || [])
+                              .map(
+                                (r) =>
+                                  `Pedido #${r.orcamento_codigo} — ${r.cliente_nome}: ${Number(r.peso_reservado).toFixed(2)} ${alvo.unidade_medida_sigla}`
+                              )
+                              .join('\n') || 'Detalhe indisponível.'}
+                            style={{ cursor: 'help', borderBottom: '1px dotted #94a3b8' }}
+                          >
+                            {lote.reservado} {alvo.unidade_medida_sigla}
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
                       <td style={{ color: disponivel <= 0 ? '#dc2626' : undefined, fontWeight: 600 }}>
                         {disponivel.toFixed(2)} {alvo.unidade_medida_sigla}
                       </td>

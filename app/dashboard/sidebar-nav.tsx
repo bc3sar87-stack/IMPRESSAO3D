@@ -44,6 +44,12 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    title: 'Relatórios',
+    links: [
+      { href: '/dashboard/relatorio-estoque', label: 'Reservas e Baixas de Estoque' },
+    ],
+  },
+  {
     title: 'Financeiro',
     links: [
       { href: '/dashboard/contas-receber', label: 'Contas a Receber' },
