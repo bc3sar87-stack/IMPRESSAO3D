@@ -1463,6 +1463,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <th>Entrega</th>
               <th>Equipamento</th>
               <th>Status</th>
+              <th>Consome Estoque?</th>
               <th>Valor Sugerido</th>
               <th>Valor Escolhido</th>
               <th>Custo Total</th>
@@ -1505,6 +1506,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                       Sem item vinculado
                     </p>
                   )}
+                </td>
+                <td>
+                  <span className={`status-badge ${o.consome_estoque !== false ? 'status-badge-blue' : 'status-badge-gray'}`}>
+                    {o.consome_estoque !== false ? 'Sim' : 'Não'}
+                  </span>
                 </td>
                 <td>{o.valor_sugerido ? `R$ ${o.valor_sugerido}` : '-'}</td>
                 <td>R$ {o.valor_total}</td>
