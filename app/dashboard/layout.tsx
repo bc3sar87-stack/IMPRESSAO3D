@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { pool } from '@/lib/db';
 import LogoutButton from './logout-button';
 import SidebarNav from './sidebar-nav';
+import StickyScrollbars from './sticky-scrollbars';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -25,6 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="app-shell">
+      <StickyScrollbars />
       <aside className="sidebar">
         <div className="sidebar-title">
           <img src="/logo-full-light.svg" alt="3D Print Control" height={40} />
