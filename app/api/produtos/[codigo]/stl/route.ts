@@ -43,10 +43,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const arquivo = formData.get('arquivo');
 
   if (!(arquivo instanceof File)) {
-    return NextResponse.json({ error: 'Envie um arquivo .stl.' }, { status: 400 });
+    return NextResponse.json({ error: 'Envie um arquivo .stl ou .3mf.' }, { status: 400 });
   }
-  if (!arquivo.name.toLowerCase().endsWith('.stl')) {
-    return NextResponse.json({ error: 'O arquivo deve ter extensão .stl.' }, { status: 400 });
+  const nomeArquivo = arquivo.name.toLowerCase();
+  if (!nomeArquivo.endsWith('.stl') && !nomeArquivo.endsWith('.3mf')) {
+    return NextResponse.json({ error: 'O arquivo deve ter extensão .stl ou .3mf.' }, { status: 400 });
   }
   if (arquivo.size > MAX_SIZE) {
     return NextResponse.json({ error: 'O arquivo deve ter no máximo 50MB.' }, { status: 400 });

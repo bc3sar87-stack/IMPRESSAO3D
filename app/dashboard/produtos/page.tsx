@@ -693,17 +693,17 @@ export default function ProdutosPage() {
                       />
                     </div>
                     <div className="field">
-                      <label>Arquivo STL da impressão</label>
+                      <label>Arquivo do Projeto (STL ou 3MF)</label>
                       <input
                         type="file"
-                        accept=".stl"
+                        accept=".stl,.3mf"
                         onChange={(e) => setStlFile(e.target.files?.[0] || null)}
                       />
                       {form.stlNomeAtual && !stlFile && (
                         <p className="hint">Arquivo atual: {form.stlNomeAtual}</p>
                       )}
                       {stlFile && <p className="hint">Arquivo selecionado: {stlFile.name}</p>}
-                      <p className="hint">Máximo 50MB.</p>
+                      <p className="hint">Formatos aceitos: .stl ou .3mf. Máximo 50MB.</p>
                     </div>
                   </>
                 )}
