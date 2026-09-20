@@ -67,6 +67,7 @@ interface Orcamento {
   embalagem_valor: string;
   custos_extras_valor: string;
   consome_estoque: boolean;
+  gerar_conta_receber: boolean;
   total_itens: string;
 }
 
@@ -202,6 +203,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     embalagem_valor: '',
     custos_extras_valor: '',
     consome_estoque: true,
+    gerar_conta_receber: true,
   };
 
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -418,6 +420,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       embalagem_valor: o.embalagem_valor || '',
       custos_extras_valor: o.custos_extras_valor || '',
       consome_estoque: o.consome_estoque !== false,
+      gerar_conta_receber: o.gerar_conta_receber !== false,
     });
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
@@ -441,6 +444,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       embalagem_valor: o.embalagem_valor || '',
       custos_extras_valor: o.custos_extras_valor || '',
       consome_estoque: o.consome_estoque !== false,
+      gerar_conta_receber: o.gerar_conta_receber !== false,
     });
     setNovoItemLocal(emptyNovoItem);
     setError('');
@@ -1154,7 +1158,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     }
     load();
 
-    if (novoStatus === 'ENTREGUE' && confirm('Deseja gerar um Contas a Receber para este orçamento?')) {
+    if (
+      novoStatus === 'ENTREGUE' &&
+      o.gerar_conta_receber !== false &&
+      confirm('Deseja gerar um Contas a Receber para este orçamento?')
+    ) {
       const vencimentoPadrao = new Date();
       vencimentoPadrao.setDate(vencimentoPadrao.getDate() + 30);
       setContaReceberOrcamento(o);
@@ -1464,6 +1472,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <th>Equipamento</th>
               <th>Status</th>
               <th>Consome Estoque?</th>
+              <th>Gera Conta a Receber?</th>
               <th>Valor Sugerido</th>
               <th>Valor Escolhido</th>
               <th>Custo Total</th>
@@ -1510,6 +1519,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 <td>
                   <span className={`status-badge ${o.consome_estoque !== false ? 'status-badge-blue' : 'status-badge-gray'}`}>
                     {o.consome_estoque !== false ? 'Sim' : 'Não'}
+                  </span>
+                </td>
+                <td>
+                  <span className={`status-badge ${o.gerar_conta_receber !== false ? 'status-badge-blue' : 'status-badge-gray'}`}>
+                    {o.gerar_conta_receber !== false ? 'Sim' : 'Não'}
                   </span>
                 </td>
                 <td>{o.valor_sugerido ? `R$ ${o.valor_sugerido}` : '-'}</td>
@@ -1654,6 +1668,17 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <option value="sim">Sim</option>
                     <option value="nao">Não</option>
                   </select>
+                </div>
+                <div className="field">
+                  <label>Gerar Contas a Receber?</label>
+                  <select
+                    value={form.gerar_conta_receber ? 'sim' : 'nao'}
+                    onChange={(e) => setForm({ ...form, gerar_conta_receber: e.target.value === 'sim' })}
+                  >
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                  <p className="hint">Se "Não", não será oferecida a criação de um título ao marcar como Entregue.</p>
                 </div>
                 <div className="field">
                   <label>Equipamento de Impressão</label>

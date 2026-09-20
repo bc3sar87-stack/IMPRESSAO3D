@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { rows } = await pool.query(
     `SELECT o.codigo, o.data, o.data_entrega, o.status, o.observacoes, o.valor_total, o.valor_sugerido, o.custo_total,
             o.markup_percentual, o.impostos_percentual, o.taxa_marketplace, o.taxa_percentual,
-            o.embalagem_valor, o.custos_extras_valor, o.consome_estoque,
+            o.embalagem_valor, o.custos_extras_valor, o.consome_estoque, o.gerar_conta_receber,
             c.codigo AS cliente_codigo, c.nome AS cliente_nome, c.documento AS cliente_documento,
             c.tipo_pessoa AS cliente_tipo_pessoa, c.telefone AS cliente_telefone, c.email AS cliente_email,
             c.endereco AS cliente_endereco,
@@ -61,6 +61,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     valor_sugerido,
     custo_total,
     consome_estoque,
+    gerar_conta_receber,
   } = await request.json().catch(() => ({}));
 
   if (!cliente_codigo || !data || !status) {
@@ -116,8 +117,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
               equipamento_codigo=$6, markup_percentual=$7, impostos_percentual=$8, taxa_marketplace=$9,
               taxa_percentual=$10, embalagem_valor=$11, custos_extras_valor=$12,
               valor_sugerido=COALESCE($13, valor_sugerido), custo_total=COALESCE($14, custo_total),
-              consome_estoque=$15
-       WHERE codigo=$16 AND empresa_codigo=$17
+              consome_estoque=$15, gerar_conta_receber=$16
+       WHERE codigo=$17 AND empresa_codigo=$18
        RETURNING codigo`,
       [
         cliente_codigo,
@@ -135,6 +136,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         valor_sugerido || null,
         custo_total || null,
         consome_estoque === false ? false : true,
+        gerar_conta_receber === false ? false : true,
         codigo,
         session.empresa_codigo,
       ]
