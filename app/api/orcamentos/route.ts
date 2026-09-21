@@ -17,13 +17,15 @@ export async function GET() {
             o.equipamento_codigo, eq.fabricante AS equipamento_fabricante, eq.modelo AS equipamento_modelo,
             o.markup_percentual, o.impostos_percentual, o.taxa_marketplace, o.taxa_percentual,
             o.embalagem_valor, o.custos_extras_valor, o.consome_estoque, o.gerar_conta_receber,
+            o.tipo_pedido_codigo, tp.nome AS tipo_pedido_nome,
             COUNT(oi.codigo) AS total_itens
      FROM orcamentos o
      JOIN clientes c ON c.codigo = o.cliente_codigo
      LEFT JOIN equipamentos eq ON eq.codigo = o.equipamento_codigo
+     LEFT JOIN tipos_pedido tp ON tp.codigo = o.tipo_pedido_codigo
      LEFT JOIN orcamento_itens oi ON oi.orcamento_codigo = o.codigo
      WHERE o.empresa_codigo = $1
-     GROUP BY o.codigo, c.nome, eq.fabricante, eq.modelo
+     GROUP BY o.codigo, c.nome, eq.fabricante, eq.modelo, tp.nome
      ORDER BY o.codigo DESC`,
     [session.empresa_codigo]
   );
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
     custo_total,
     consome_estoque,
     gerar_conta_receber,
+    tipo_pedido_codigo,
   } = await request.json().catch(() => ({}));
 
   if (!cliente_codigo) {
@@ -80,14 +83,24 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (tipo_pedido_codigo) {
+    const { rows: tpRows } = await pool.query(
+      `SELECT 1 FROM tipos_pedido WHERE codigo=$1 AND empresa_codigo=$2`,
+      [tipo_pedido_codigo, session.empresa_codigo]
+    );
+    if (tpRows.length === 0) {
+      return NextResponse.json({ error: 'Tipo de pedido inválido.' }, { status: 400 });
+    }
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO orcamentos (
        cliente_codigo, data, data_entrega, status, observacoes, equipamento_codigo,
        markup_percentual, impostos_percentual, taxa_marketplace, taxa_percentual,
        embalagem_valor, custos_extras_valor, valor_sugerido, custo_total, consome_estoque,
-       gerar_conta_receber, empresa_codigo
+       gerar_conta_receber, tipo_pedido_codigo, empresa_codigo
      )
-     VALUES ($1, COALESCE($2, CURRENT_DATE), $3, COALESCE($4, 'ABERTO'), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+     VALUES ($1, COALESCE($2, CURRENT_DATE), $3, COALESCE($4, 'ABERTO'), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
      RETURNING codigo`,
     [
       cliente_codigo,
@@ -106,6 +119,7 @@ export async function POST(request: NextRequest) {
       custo_total || null,
       consome_estoque === false ? false : true,
       gerar_conta_receber === false ? false : true,
+      tipo_pedido_codigo || null,
       session.empresa_codigo,
     ]
   );

@@ -17,6 +17,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     `SELECT o.codigo, o.data, o.data_entrega, o.status, o.observacoes, o.valor_total, o.valor_sugerido, o.custo_total,
             o.markup_percentual, o.impostos_percentual, o.taxa_marketplace, o.taxa_percentual,
             o.embalagem_valor, o.custos_extras_valor, o.consome_estoque, o.gerar_conta_receber,
+            o.tipo_pedido_codigo, tp.nome AS tipo_pedido_nome,
             c.codigo AS cliente_codigo, c.nome AS cliente_nome, c.documento AS cliente_documento,
             c.tipo_pessoa AS cliente_tipo_pessoa, c.telefone AS cliente_telefone, c.email AS cliente_email,
             c.endereco AS cliente_endereco,
@@ -26,6 +27,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
      JOIN clientes c ON c.codigo = o.cliente_codigo
      JOIN empresa e ON e.codigo = o.empresa_codigo
      LEFT JOIN equipamentos eq ON eq.codigo = o.equipamento_codigo
+     LEFT JOIN tipos_pedido tp ON tp.codigo = o.tipo_pedido_codigo
      WHERE o.codigo = $1 AND o.empresa_codigo = $2`,
     [codigo, session.empresa_codigo]
   );
@@ -62,6 +64,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     custo_total,
     consome_estoque,
     gerar_conta_receber,
+    tipo_pedido_codigo,
   } = await request.json().catch(() => ({}));
 
   if (!cliente_codigo || !data || !status) {
@@ -83,6 +86,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     );
     if (eqRows.length === 0) {
       return NextResponse.json({ error: 'Equipamento inválido.' }, { status: 400 });
+    }
+  }
+
+  if (tipo_pedido_codigo) {
+    const { rows: tpRows } = await pool.query(
+      `SELECT 1 FROM tipos_pedido WHERE codigo=$1 AND empresa_codigo=$2`,
+      [tipo_pedido_codigo, session.empresa_codigo]
+    );
+    if (tpRows.length === 0) {
+      return NextResponse.json({ error: 'Tipo de pedido inválido.' }, { status: 400 });
     }
   }
 
@@ -117,8 +130,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
               equipamento_codigo=$6, markup_percentual=$7, impostos_percentual=$8, taxa_marketplace=$9,
               taxa_percentual=$10, embalagem_valor=$11, custos_extras_valor=$12,
               valor_sugerido=COALESCE($13, valor_sugerido), custo_total=COALESCE($14, custo_total),
-              consome_estoque=$15, gerar_conta_receber=$16
-       WHERE codigo=$17 AND empresa_codigo=$18
+              consome_estoque=$15, gerar_conta_receber=$16, tipo_pedido_codigo=$17
+       WHERE codigo=$18 AND empresa_codigo=$19
        RETURNING codigo`,
       [
         cliente_codigo,
@@ -137,6 +150,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         custo_total || null,
         consome_estoque === false ? false : true,
         gerar_conta_receber === false ? false : true,
+        tipo_pedido_codigo || null,
         codigo,
         session.empresa_codigo,
       ]

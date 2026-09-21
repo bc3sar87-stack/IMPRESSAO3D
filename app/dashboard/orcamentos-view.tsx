@@ -68,6 +68,8 @@ interface Orcamento {
   custos_extras_valor: string;
   consome_estoque: boolean;
   gerar_conta_receber: boolean;
+  tipo_pedido_codigo: number | null;
+  tipo_pedido_nome: string | null;
   total_itens: string;
 }
 
@@ -90,6 +92,13 @@ interface Equipamento {
   fabricante: string;
   modelo: string;
   consumo_w_hora: string;
+}
+
+interface TipoPedido {
+  codigo: number;
+  nome: string;
+  movimenta_estoque: boolean;
+  gera_conta_receber: boolean;
 }
 
 interface Produto extends ProdutoPicker {}
@@ -204,6 +213,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     custos_extras_valor: '',
     consome_estoque: true,
     gerar_conta_receber: true,
+    tipo_pedido_codigo: '',
   };
 
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -221,6 +231,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   const [salvandoCliente, setSalvandoCliente] = useState(false);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
+  const [tiposPedido, setTiposPedido] = useState<TipoPedido[]>([]);
   const [grupos, setGrupos] = useState<{ codigo: number; nome: string }[]>([]);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrimaCusto[]>([]);
   const [materiasPrimasCompletas, setMateriasPrimasCompletas] = useState<MateriaPrimaPickerItem[]>([]);
@@ -298,7 +309,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
   );
 
   async function load() {
-    const [orcRes, cliRes, prodRes, eqRes, markupRes, mpRes, estoqueRes, consumoRes, filamentoRes, maoObraRes, grupoRes] =
+    const [orcRes, cliRes, prodRes, eqRes, markupRes, mpRes, estoqueRes, consumoRes, filamentoRes, maoObraRes, grupoRes, tipoPedidoRes] =
       await Promise.all([
         fetch('/api/orcamentos'),
         fetch('/api/clientes'),
@@ -311,12 +322,14 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         fetch('/api/custo-base-filamento'),
         fetch('/api/custo-mao-obra-hora'),
         fetch('/api/grupos-produtos'),
+        fetch('/api/tipos-pedido'),
       ]);
     if (orcRes.ok) setOrcamentos(await orcRes.json());
     if (cliRes.ok) setClientes(await cliRes.json());
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (eqRes.ok) setEquipamentos(await eqRes.json());
     if (grupoRes.ok) setGrupos(await grupoRes.json());
+    if (tipoPedidoRes.ok) setTiposPedido(await tipoPedidoRes.json());
     if (mpRes.ok) {
       const mpData: MateriaPrimaPickerItem[] = await mpRes.json();
       setMateriasPrimas(mpData);
@@ -421,6 +434,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       custos_extras_valor: o.custos_extras_valor || '',
       consome_estoque: o.consome_estoque !== false,
       gerar_conta_receber: o.gerar_conta_receber !== false,
+      tipo_pedido_codigo: o.tipo_pedido_codigo ? String(o.tipo_pedido_codigo) : '',
     });
     setItensPendentes([]);
     setNovoItemLocal(emptyNovoItem);
@@ -445,6 +459,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       custos_extras_valor: o.custos_extras_valor || '',
       consome_estoque: o.consome_estoque !== false,
       gerar_conta_receber: o.gerar_conta_receber !== false,
+      tipo_pedido_codigo: o.tipo_pedido_codigo ? String(o.tipo_pedido_codigo) : '',
     });
     setNovoItemLocal(emptyNovoItem);
     setError('');
@@ -1470,6 +1485,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               <th>Data</th>
               <th>Entrega</th>
               <th>Equipamento</th>
+              <th>Tipo de Pedido</th>
               <th>Status</th>
               <th>Consome Estoque?</th>
               <th>Gera Conta a Receber?</th>
@@ -1494,6 +1510,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 <td>
                   {o.equipamento_fabricante ? `${o.equipamento_fabricante} ${o.equipamento_modelo}` : '-'}
                 </td>
+                <td>{o.tipo_pedido_nome || '-'}</td>
                 <td>
                   <select
                     className={`status-select ${STATUS_SELECT_CLASS[o.status]}`}
@@ -1658,6 +1675,32 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                     <option value="PENDENTE_ENTREGA">{STATUS_LABELS.PENDENTE_ENTREGA}</option>
                     <option value="ENTREGUE">{STATUS_LABELS.ENTREGUE}</option>
                   </select>
+                </div>
+                <div className="field">
+                  <label>Tipo de Pedido</label>
+                  <select
+                    value={form.tipo_pedido_codigo}
+                    onChange={(e) => {
+                      const codigo = e.target.value;
+                      const tipo = tiposPedido.find((t) => String(t.codigo) === codigo);
+                      setForm({
+                        ...form,
+                        tipo_pedido_codigo: codigo,
+                        ...(tipo && {
+                          consome_estoque: tipo.movimenta_estoque,
+                          gerar_conta_receber: tipo.gera_conta_receber,
+                        }),
+                      });
+                    }}
+                  >
+                    <option value="">Nenhum</option>
+                    {tiposPedido.map((t) => (
+                      <option key={t.codigo} value={t.codigo}>
+                        {t.nome}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="hint">Ao selecionar, preenche automaticamente os campos abaixo.</p>
                 </div>
                 <div className="field">
                   <label>Consome Estoque?</label>
