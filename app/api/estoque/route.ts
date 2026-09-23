@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   const { rows } = await pool.query(
-    `SELECT mp.codigo, t.nome AS tipo_nome, mp.cor, mp.cor_hex,
+    `SELECT mp.codigo, t.nome AS tipo_nome, mp.cor, mp.cor_hex, mp.estoque_minimo,
             u.sigla AS unidade_medida_sigla,
             COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo,
             COUNT(DISTINCT l.codigo) AS total_lotes,
@@ -30,7 +30,7 @@ export async function GET() {
      LEFT JOIN materia_prima_lotes l ON l.materia_prima_codigo = mp.codigo
      LEFT JOIN movimentacoes_estoque me ON me.lote_codigo = l.codigo
      WHERE mp.empresa_codigo = $1
-     GROUP BY mp.codigo, t.nome, mp.cor, mp.cor_hex, u.sigla
+     GROUP BY mp.codigo, t.nome, mp.cor, mp.cor_hex, mp.estoque_minimo, u.sigla
      ORDER BY mp.codigo`,
     [session.empresa_codigo]
   );

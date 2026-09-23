@@ -17,6 +17,7 @@ interface MateriaPrima {
   unidade_medida_nome: string;
   fornecedor: string | null;
   valor_custo: string | null;
+  estoque_minimo: string | null;
 }
 
 interface Tipo {
@@ -36,6 +37,7 @@ const emptyForm = {
   cor_hex: '#cccccc',
   unidade_medida_codigo: '',
   valor_custo: '',
+  estoque_minimo: '',
 };
 
 const emptyNovoLote = {
@@ -122,6 +124,7 @@ export default function MateriaPrimaPage() {
       cor_hex: item.cor_hex,
       unidade_medida_codigo: String(item.unidade_medida_codigo),
       valor_custo: item.valor_custo || '',
+      estoque_minimo: item.estoque_minimo || '',
     });
     setError('');
     setModalOpen(true);
@@ -135,6 +138,7 @@ export default function MateriaPrimaPage() {
       cor_hex: item.cor_hex,
       unidade_medida_codigo: String(item.unidade_medida_codigo),
       valor_custo: item.valor_custo || '',
+      estoque_minimo: item.estoque_minimo || '',
     });
     setError('');
     setModalOpen(true);
@@ -376,6 +380,17 @@ export default function MateriaPrimaPage() {
                       onChange={(e) => setForm({ ...form, valor_custo: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="field">
+                  <label>Estoque Mínimo</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.estoque_minimo}
+                    onChange={(e) => setForm({ ...form, estoque_minimo: e.target.value })}
+                  />
+                  <p className="hint">Abaixo desse saldo disponível, o item aparece como estoque baixo.</p>
                 </div>
               </div>
               <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>

@@ -71,9 +71,10 @@ export default async function DashboardPage() {
   let faturamentoMensal: { mes: string; valor: number }[] = [];
   let horasImpressaoMensal: { mes: string; horas: number }[] = [];
   let previstoTotal12m = 0;
+  let estoqueBaixo: { codigo: number; tipo_nome: string; cor: string; cor_hex: string; unidade_medida_sigla: string; disponivel: number; minimo: number }[] = [];
 
   if (empresaCodigo) {
-    const [estoqueRes, orcamentosRes, receberRes, pagarRes, faturamentoRes, horasImpressaoRes, previstoRes] = await Promise.all([
+    const [estoqueRes, orcamentosRes, receberRes, pagarRes, faturamentoRes, horasImpressaoRes, previstoRes, estoqueMinimoRes] = await Promise.all([
       pool.query(
         `SELECT COALESCE(SUM(saldo * custo_unitario), 0) AS valor
          FROM (
@@ -141,10 +142,42 @@ export default async function DashboardPage() {
            AND data >= CURRENT_DATE - INTERVAL '12 months'`,
         [empresaCodigo]
       ),
+      pool.query(
+        `SELECT mp.codigo, t.nome AS tipo_nome, mp.cor, mp.cor_hex, mp.estoque_minimo,
+                u.sigla AS unidade_medida_sigla,
+                COALESCE(SUM(CASE WHEN me.tipo = 'ENTRADA' THEN me.quantidade ELSE -me.quantidade END), 0) AS saldo,
+                COALESCE((
+                  SELECT SUM(oim.peso * oi.quantidade)
+                  FROM orcamento_item_materiais oim
+                  JOIN orcamento_itens oi ON oi.codigo = oim.orcamento_item_codigo
+                  JOIN orcamentos o ON o.codigo = oi.orcamento_codigo
+                  WHERE oim.materia_prima_codigo = mp.codigo AND oim.baixado_em IS NULL AND o.status <> 'REJEITADO'
+                        AND o.consome_estoque = true
+                ), 0) AS reservado
+         FROM materia_prima mp
+         JOIN tipos_materia_prima t ON t.codigo = mp.tipo_codigo
+         JOIN unidades_medida u ON u.codigo = mp.unidade_medida_codigo
+         LEFT JOIN materia_prima_lotes l ON l.materia_prima_codigo = mp.codigo
+         LEFT JOIN movimentacoes_estoque me ON me.lote_codigo = l.codigo
+         WHERE mp.empresa_codigo = $1 AND mp.estoque_minimo IS NOT NULL
+         GROUP BY mp.codigo, t.nome, mp.cor, mp.cor_hex, mp.estoque_minimo, u.sigla`,
+        [empresaCodigo]
+      ),
     ]);
 
     valorEstoque = Number(estoqueRes.rows[0]?.valor || 0);
     previstoTotal12m = Number(previstoRes.rows[0]?.valor || 0);
+    estoqueBaixo = estoqueMinimoRes.rows
+      .map((r) => ({
+        codigo: r.codigo,
+        tipo_nome: r.tipo_nome,
+        cor: r.cor,
+        cor_hex: r.cor_hex,
+        unidade_medida_sigla: r.unidade_medida_sigla,
+        disponivel: Number(r.saldo) - Number(r.reservado),
+        minimo: Number(r.estoque_minimo),
+      }))
+      .filter((r) => r.disponivel <= r.minimo);
     orcamentosPorStatus = orcamentosRes.rows.map((r) => ({
       status: r.status,
       quantidade: Number(r.quantidade),
@@ -222,6 +255,37 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <>
+          {estoqueBaixo.length > 0 && (
+            <div className="card" style={{ marginBottom: 16, borderColor: '#fecaca', background: '#fef2f2' }}>
+              <h3 style={{ marginTop: 0, color: '#991b1b' }}>
+                ⚠ {estoqueBaixo.length} {estoqueBaixo.length === 1 ? 'item com estoque baixo' : 'itens com estoque baixo'}
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {estoqueBaixo.map((item) => (
+                  <Link
+                    key={item.codigo}
+                    href="/dashboard/estoque"
+                    className="status-badge status-badge-red"
+                    style={{ textDecoration: 'none' }}
+                    title={`Disponível: ${item.disponivel.toFixed(2)} ${item.unidade_medida_sigla} (mínimo: ${item.minimo.toFixed(2)})`}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 10,
+                        height: 10,
+                        borderRadius: 3,
+                        backgroundColor: item.cor_hex,
+                        marginRight: 6,
+                      }}
+                    />
+                    {item.tipo_nome} — {item.cor}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="fin-summary" style={{ marginBottom: 16 }}>
             <div className="fin-summary-item">
               <span>Valor em Estoque</span>
