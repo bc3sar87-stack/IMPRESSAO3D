@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import SearchBox from '../search-box';
 import TimeInput, { formatSegundos } from '../time-input';
-import { IconEdit, IconCopy, IconTrash, IconList } from '../icons';
+import { IconEdit, IconCopy, IconTrash, IconList, IconImage } from '../icons';
 import MateriaPrimaPicker from '../materia-prima-picker';
 
 interface ProdutoMaterialResumo {
@@ -42,6 +42,11 @@ interface Produto {
 interface Grupo {
   codigo: number;
   nome: string;
+}
+
+interface FotoReal {
+  codigo: number;
+  criado_em: string;
 }
 
 interface MateriaPrima {
@@ -115,6 +120,12 @@ export default function ProdutosPage() {
   const [custosFixos, setCustosFixos] = useState<CustoFixoResumo[]>([]);
   const [novoCustoFixo, setNovoCustoFixo] = useState({ descricao: '', custo: '' });
   const [custoFixoError, setCustoFixoError] = useState('');
+
+  const [fotosAlvo, setFotosAlvo] = useState<Produto | null>(null);
+  const [fotosReais, setFotosReais] = useState<FotoReal[]>([]);
+  const [fotosError, setFotosError] = useState('');
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [fotoRealAmpliada, setFotoRealAmpliada] = useState<FotoReal | null>(null);
 
   const produtosFiltrados = produtos.filter(
     (p) =>
@@ -431,6 +442,66 @@ export default function ProdutosPage() {
     load();
   }
 
+  async function abrirFotos(p: Produto) {
+    setFotosAlvo(p);
+    setFotosError('');
+    const res = await fetch(`/api/produtos/${p.codigo}/fotos`);
+    if (res.ok) setFotosReais(await res.json());
+  }
+
+  function fecharFotos() {
+    setFotosAlvo(null);
+    setFotosReais([]);
+    setFotosError('');
+  }
+
+  async function enviarFotoReal(file: File | null) {
+    if (!file || !fotosAlvo) return;
+    if (!file.type.startsWith('image/')) {
+      setFotosError('O arquivo colado/selecionado precisa ser uma imagem.');
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      setFotosError('A imagem deve ter no máximo 4MB.');
+      return;
+    }
+    setFotosError('');
+    setEnviandoFoto(true);
+    try {
+      const base64 = await blobToBase64(file);
+      const res = await fetch(`/api/produtos/${fotosAlvo.codigo}/fotos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagem_base64: base64, imagem_tipo: file.type }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setFotosError(data.error || 'Não foi possível enviar a foto.');
+        return;
+      }
+      const res2 = await fetch(`/api/produtos/${fotosAlvo.codigo}/fotos`);
+      if (res2.ok) setFotosReais(await res2.json());
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
+
+  function handleFotosPaste(e: React.ClipboardEvent) {
+    const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith('image/'));
+    if (item) {
+      e.preventDefault();
+      enviarFotoReal(item.getAsFile());
+    }
+  }
+
+  async function handleDeleteFotoReal(fotoCodigo: number) {
+    if (!fotosAlvo) return;
+    if (!confirm('Excluir esta foto?')) return;
+    await fetch(`/api/produtos/${fotosAlvo.codigo}/fotos/${fotoCodigo}`, { method: 'DELETE' });
+    const res = await fetch(`/api/produtos/${fotosAlvo.codigo}/fotos`);
+    if (res.ok) setFotosReais(await res.json());
+  }
+
   async function handleAddMaterial(e: FormEvent) {
     e.preventDefault();
     if (!selecionado) return;
@@ -593,6 +664,9 @@ export default function ProdutosPage() {
                         <IconList />
                       </button>
                     )}
+                    <button className="icon-btn" title="Fotos Reais" onClick={() => abrirFotos(p)}>
+                      <IconImage />
+                    </button>
                     <button className="icon-btn danger" title="Excluir" onClick={() => handleDelete(p.codigo)}>
                       <IconTrash />
                     </button>
@@ -1003,6 +1077,107 @@ export default function ProdutosPage() {
         onSelect={(mp) => setNovoMaterial({ ...novoMaterial, materia_prima_codigo: String(mp.codigo) })}
         onClose={() => setMateriaPickerOpen(false)}
       />
+
+      {fotosAlvo && (
+        <div className="modal-overlay" onClick={fecharFotos}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div className="modal-header">
+              <h3>Fotos Reais de {fotosAlvo.descricao}</h3>
+              <button type="button" className="modal-close" onClick={fecharFotos} aria-label="Fechar">
+                ×
+              </button>
+            </div>
+
+            {fotosError && <div className="error-msg">{fotosError}</div>}
+
+            <div className="paste-zone" tabIndex={0} onPaste={handleFotosPaste}>
+              <span className="hint" style={{ margin: 0 }}>
+                {enviandoFoto
+                  ? 'Enviando...'
+                  : 'Clique aqui e pressione Ctrl+V para colar uma foto, ou selecione um arquivo abaixo'}
+              </span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              disabled={enviandoFoto}
+              onChange={(e) => {
+                enviarFotoReal(e.target.files?.[0] || null);
+                e.target.value = '';
+              }}
+            />
+            <p className="hint">Máximo 4MB por foto.</p>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
+                gap: 10,
+                marginTop: 16,
+              }}
+            >
+              {fotosReais.map((foto) => (
+                <div key={foto.codigo} style={{ position: 'relative' }}>
+                  <img
+                    src={`/api/produtos/${fotosAlvo.codigo}/fotos/${foto.codigo}`}
+                    alt={`Foto ${foto.codigo}`}
+                    style={{
+                      width: '100%',
+                      height: 110,
+                      objectFit: 'cover',
+                      borderRadius: 8,
+                      border: '1px solid #e2e8f0',
+                      cursor: 'zoom-in',
+                    }}
+                    onClick={() => setFotoRealAmpliada(foto)}
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn danger"
+                    title="Excluir foto"
+                    style={{ position: 'absolute', top: 4, right: 4, background: '#fff' }}
+                    onClick={() => handleDeleteFotoReal(foto.codigo)}
+                  >
+                    <IconTrash />
+                  </button>
+                </div>
+              ))}
+              {fotosReais.length === 0 && (
+                <p className="hint" style={{ gridColumn: '1 / -1' }}>
+                  Nenhuma foto cadastrada ainda.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fotoRealAmpliada && fotosAlvo && (
+        <div className="modal-overlay" onClick={() => setFotoRealAmpliada(null)}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 720, padding: 12, background: 'transparent', boxShadow: 'none' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                type="button"
+                className="modal-close"
+                style={{ background: '#fff', borderRadius: 8 }}
+                onClick={() => setFotoRealAmpliada(null)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <img
+              src={`/api/produtos/${fotosAlvo.codigo}/fotos/${fotoRealAmpliada.codigo}`}
+              alt={`Foto ${fotoRealAmpliada.codigo}`}
+              style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
