@@ -81,6 +81,7 @@ export default function ContasReceberPage() {
 
   const [baixaConta, setBaixaConta] = useState<ContaReceber | null>(null);
   const [bancoBaixa, setBancoBaixa] = useState('');
+  const [valorBaixa, setValorBaixa] = useState('');
   const [baixaErro, setBaixaErro] = useState('');
   const [baixando, setBaixando] = useState(false);
 
@@ -185,12 +186,14 @@ export default function ContasReceberPage() {
   function abrirBaixa(c: ContaReceber) {
     setBaixaConta(c);
     setBancoBaixa('');
+    setValorBaixa(c.valor);
     setBaixaErro('');
   }
 
   function fecharBaixa() {
     setBaixaConta(null);
     setBancoBaixa('');
+    setValorBaixa('');
     setBaixaErro('');
   }
 
@@ -200,14 +203,26 @@ export default function ContasReceberPage() {
       setBaixaErro('Selecione o banco em que o título será baixado.');
       return;
     }
+    const valorTotal = Number(baixaConta.valor);
+    const valorRecebido = parseDecimal(valorBaixa);
+    if (Number.isNaN(valorRecebido) || valorRecebido <= 0) {
+      setBaixaErro('Informe um valor recebido válido.');
+      return;
+    }
+    if (valorRecebido > valorTotal + 0.001) {
+      setBaixaErro('O valor recebido não pode ser maior que o valor do título.');
+      return;
+    }
+    const parcial = valorRecebido < valorTotal - 0.001;
+
     setBaixando(true);
     try {
       const res = await fetch(`/api/contas-receber/${baixaConta.codigo}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          descricao: baixaConta.descricao,
-          valor: baixaConta.valor,
+          descricao: parcial ? `${baixaConta.descricao} (BAIXA PARCIAL)` : baixaConta.descricao,
+          valor: valorRecebido.toFixed(2),
           data_vencimento: baixaConta.data_vencimento.slice(0, 10),
           data_recebimento: hoje(),
           status: 'RECEBIDO',
@@ -219,6 +234,31 @@ export default function ContasReceberPage() {
         setBaixaErro(data.error || 'Não foi possível marcar como recebido.');
         return;
       }
+
+      if (parcial) {
+        const restante = valorTotal - valorRecebido;
+        const res2 = await fetch('/api/contas-receber', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orcamento_codigo: baixaConta.orcamento_codigo,
+            cliente_codigo: baixaConta.cliente_codigo,
+            descricao: `${baixaConta.descricao} (SALDO RESTANTE)`,
+            valor: restante.toFixed(2),
+            data_vencimento: baixaConta.data_vencimento.slice(0, 10),
+          }),
+        });
+        if (!res2.ok) {
+          const data2 = await res2.json().catch(() => ({}));
+          setBaixaErro(
+            data2.error ||
+              'Baixa parcial registrada, mas não foi possível lançar o saldo restante como novo título.'
+          );
+          load();
+          return;
+        }
+      }
+
       fecharBaixa();
       load();
     } finally {
@@ -439,9 +479,30 @@ export default function ContasReceberPage() {
               </button>
             </div>
             <p className="hint" style={{ marginTop: -8 }}>
-              {baixaConta.descricao} — R$ {baixaConta.valor}
+              {baixaConta.descricao} — Total: R$ {baixaConta.valor}
             </p>
             {baixaErro && <div className="error-msg">{baixaErro}</div>}
+            <div className="field">
+              <label>Valor Recebido (R$)</label>
+              <div className="input-prefix-group">
+                <span className="input-prefix">R$</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={valorBaixa}
+                  onChange={(e) => setValorBaixa(e.target.value)}
+                  required
+                />
+              </div>
+              {parseDecimal(valorBaixa) > 0 &&
+                parseDecimal(valorBaixa) < Number(baixaConta.valor) - 0.001 && (
+                  <p className="hint">
+                    Baixa parcial: o saldo de R${' '}
+                    {(Number(baixaConta.valor) - parseDecimal(valorBaixa)).toFixed(2)} será lançado
+                    como um novo título em aberto.
+                  </p>
+                )}
+            </div>
             <div className="field">
               <label>Banco em que será baixado</label>
               <select value={bancoBaixa} onChange={(e) => setBancoBaixa(e.target.value)} required>
