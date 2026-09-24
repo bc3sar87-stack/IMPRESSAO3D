@@ -12,7 +12,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { codigo } = await params;
-  const { fabricante, modelo, consumo_w_hora } = await request.json().catch(() => ({}));
+  const { fabricante, modelo, consumo_w_hora, valor_aquisicao, vida_util_horas } = await request
+    .json()
+    .catch(() => ({}));
 
   if (!fabricante || !modelo || !consumo_w_hora) {
     return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
@@ -20,12 +22,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (Number.isNaN(Number(consumo_w_hora))) {
     return NextResponse.json({ error: 'Consumo inválido.' }, { status: 400 });
   }
+  if (
+    (valor_aquisicao && (Number.isNaN(Number(valor_aquisicao)) || Number(valor_aquisicao) < 0)) ||
+    (vida_util_horas && (Number.isNaN(Number(vida_util_horas)) || Number(vida_util_horas) < 0))
+  ) {
+    return NextResponse.json({ error: 'Valor de aquisição ou vida útil inválidos.' }, { status: 400 });
+  }
 
   const { rows } = await pool.query(
-    `UPDATE equipamentos SET fabricante=$1, modelo=$2, consumo_w_hora=$3
-     WHERE codigo=$4 AND empresa_codigo=$5
-     RETURNING codigo, fabricante, modelo, consumo_w_hora`,
-    [fabricante, modelo, consumo_w_hora, codigo, session.empresa_codigo]
+    `UPDATE equipamentos SET fabricante=$1, modelo=$2, consumo_w_hora=$3, valor_aquisicao=$4, vida_util_horas=$5
+     WHERE codigo=$6 AND empresa_codigo=$7
+     RETURNING codigo, fabricante, modelo, consumo_w_hora, valor_aquisicao, vida_util_horas`,
+    [fabricante, modelo, consumo_w_hora, valor_aquisicao || null, vida_util_horas || null, codigo, session.empresa_codigo]
   );
   if (rows.length === 0) {
     return NextResponse.json({ error: 'Equipamento não encontrado.' }, { status: 404 });

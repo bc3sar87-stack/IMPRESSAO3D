@@ -9,9 +9,17 @@ interface Equipamento {
   fabricante: string;
   modelo: string;
   consumo_w_hora: string;
+  valor_aquisicao: string | null;
+  vida_util_horas: string | null;
 }
 
-const emptyForm = { fabricante: '', modelo: '', consumo_w_hora: '' };
+const emptyForm = { fabricante: '', modelo: '', consumo_w_hora: '', valor_aquisicao: '', vida_util_horas: '' };
+
+function depreciacaoPorHora(eq: Equipamento): number {
+  const valor = Number(eq.valor_aquisicao) || 0;
+  const vida = Number(eq.vida_util_horas) || 0;
+  return valor > 0 && vida > 0 ? valor / vida : 0;
+}
 
 export default function EquipamentosPage() {
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
@@ -45,14 +53,26 @@ export default function EquipamentosPage() {
 
   function startEdit(eq: Equipamento) {
     setEditingCodigo(eq.codigo);
-    setForm({ fabricante: eq.fabricante, modelo: eq.modelo, consumo_w_hora: eq.consumo_w_hora });
+    setForm({
+      fabricante: eq.fabricante,
+      modelo: eq.modelo,
+      consumo_w_hora: eq.consumo_w_hora,
+      valor_aquisicao: eq.valor_aquisicao ?? '',
+      vida_util_horas: eq.vida_util_horas ?? '',
+    });
     setError('');
     setModalOpen(true);
   }
 
   function startCopy(eq: Equipamento) {
     setEditingCodigo(null);
-    setForm({ fabricante: eq.fabricante, modelo: `${eq.modelo} (cópia)`, consumo_w_hora: eq.consumo_w_hora });
+    setForm({
+      fabricante: eq.fabricante,
+      modelo: `${eq.modelo} (cópia)`,
+      consumo_w_hora: eq.consumo_w_hora,
+      valor_aquisicao: eq.valor_aquisicao ?? '',
+      vida_util_horas: eq.vida_util_horas ?? '',
+    });
     setError('');
     setModalOpen(true);
   }
@@ -118,6 +138,9 @@ export default function EquipamentosPage() {
               <th>Fabricante</th>
               <th>Modelo</th>
               <th>Consumo (W/h)</th>
+              <th>Valor de Aquisição</th>
+              <th>Vida Útil (h)</th>
+              <th>Depreciação (R$/h)</th>
               <th></th>
             </tr>
           </thead>
@@ -128,6 +151,9 @@ export default function EquipamentosPage() {
                 <td>{eq.fabricante}</td>
                 <td>{eq.modelo}</td>
                 <td>{eq.consumo_w_hora}</td>
+                <td>{eq.valor_aquisicao ? `R$ ${Number(eq.valor_aquisicao).toFixed(2)}` : '-'}</td>
+                <td>{eq.vida_util_horas ? Number(eq.vida_util_horas) : '-'}</td>
+                <td>{depreciacaoPorHora(eq) > 0 ? `R$ ${depreciacaoPorHora(eq).toFixed(4)}` : '-'}</td>
                 <td>
                   <div className="row-actions">
                     <button className="icon-btn" title="Editar" onClick={() => startEdit(eq)}>
@@ -145,7 +171,7 @@ export default function EquipamentosPage() {
             ))}
             {equipamentosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={5}>Nenhum equipamento encontrado.</td>
+                <td colSpan={8}>Nenhum equipamento encontrado.</td>
               </tr>
             )}
           </tbody>
@@ -191,7 +217,30 @@ export default function EquipamentosPage() {
                     required
                   />
                 </div>
+                <div className="field">
+                  <label>Valor de Aquisição (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.valor_aquisicao}
+                    onChange={(e) => setForm({ ...form, valor_aquisicao: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Vida Útil (horas de impressão)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={form.vida_util_horas}
+                    onChange={(e) => setForm({ ...form, vida_util_horas: e.target.value })}
+                  />
+                </div>
               </div>
+              <p className="hint" style={{ marginTop: 8 }}>
+                Depreciação por hora = Valor de Aquisição ÷ Vida Útil. É somada ao custo do pedido (horas × quantidade).
+              </p>
               <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
                 <button className="btn-primary" type="submit" disabled={loading} style={{ width: 'auto', padding: '10px 20px' }}>
                   {editingCodigo ? 'Salvar' : 'Adicionar'}

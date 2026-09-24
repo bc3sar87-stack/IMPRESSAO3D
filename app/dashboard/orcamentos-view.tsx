@@ -92,6 +92,8 @@ interface Equipamento {
   fabricante: string;
   modelo: string;
   consumo_w_hora: string;
+  valor_aquisicao: string | null;
+  vida_util_horas: string | null;
 }
 
 interface TipoPedido {
@@ -163,6 +165,7 @@ interface CustoDetalhado {
   materialCost: number;
   maoDeObraCost: number;
   energiaCost: number;
+  depreciacaoCost: number;
   custosFixos: { descricao: string; custo: number }[];
   custosFixosCost: number;
   total: number;
@@ -171,6 +174,7 @@ interface CustoDetalhado {
 interface RaioXData {
   materialTotal: number;
   energiaTotal: number;
+  depreciacaoTotal: number;
   maoDeObraTotal: number;
   custosFixosTotal: number;
   custosFixos: { descricao: string; custo: number }[];
@@ -650,6 +654,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         materialCost: valor,
         maoDeObraCost: 0,
         energiaCost: 0,
+        depreciacaoCost: 0,
         custosFixos: [],
         custosFixosCost: 0,
         total: valor,
@@ -659,6 +664,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
 
     const equipamentoSelecionado = equipamentos.find((eq) => String(eq.codigo) === equipamentoCodigo);
     const consumoWHora = equipamentoSelecionado ? Number(equipamentoSelecionado.consumo_w_hora) : 0;
+    const valorAquisicao = Number(equipamentoSelecionado?.valor_aquisicao) || 0;
+    const vidaUtilHoras = Number(equipamentoSelecionado?.vida_util_horas) || 0;
+    const depreciacaoPorHora = valorAquisicao > 0 && vidaUtilHoras > 0 ? valorAquisicao / vidaUtilHoras : 0;
     const custoKgPadrao = parseDecimal(custoBaseFilamento) || 0;
     const valorHoraEnergia = parseDecimal(valorConsumoHora) || 0;
     const valorHoraMaoObra = parseDecimal(custoMaoObraHora) || 0;
@@ -701,6 +709,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     const horasImpressao = (produto.tempo_impressao_segundos || 0) / 3600;
     const horasMaoObra = (produto.tempo_mao_obra_segundos || 0) / 3600;
     const energiaCost = (consumoWHora / 1000) * horasImpressao * valorHoraEnergia;
+    const depreciacaoCost = horasImpressao * depreciacaoPorHora;
     const maoDeObraCost = horasMaoObra * valorHoraMaoObra;
     const custosFixos = produto.custos_fixos || [];
     const custosFixosCost = custosFixos.reduce((soma, c) => soma + (Number(c.custo) || 0), 0);
@@ -710,12 +719,19 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       materialCost,
       maoDeObraCost,
       energiaCost,
+      depreciacaoCost,
       custosFixos: custosFixos.map((c) => ({ descricao: c.descricao, custo: Number(c.custo) || 0 })),
       custosFixosCost,
-      total: materialCost + maoDeObraCost + energiaCost + custosFixosCost,
+      total: materialCost + maoDeObraCost + energiaCost + depreciacaoCost + custosFixosCost,
     };
 
-    return { materialCost: materialCost + custosFixosCost, energiaCost, maoDeObraCost, detalhe };
+    // A depreciação do equipamento é somada à energia (ambas dependem das horas de impressão × quantidade).
+    return {
+      materialCost: materialCost + custosFixosCost,
+      energiaCost: energiaCost + depreciacaoCost,
+      maoDeObraCost,
+      detalhe,
+    };
   }
 
   function dividirCustoDetalhado(detalhe: CustoDetalhado, divisor: number): CustoDetalhado {
@@ -725,6 +741,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       materialCost: detalhe.materialCost / divisor,
       maoDeObraCost: detalhe.maoDeObraCost / divisor,
       energiaCost: detalhe.energiaCost / divisor,
+      depreciacaoCost: detalhe.depreciacaoCost / divisor,
       custosFixos: detalhe.custosFixos.map((c) => ({ ...c, custo: c.custo / divisor })),
       custosFixosCost: detalhe.custosFixosCost / divisor,
       total: detalhe.total / divisor,
@@ -745,6 +762,9 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     }
     if (detalhe.energiaCost > 0) {
       linhas.push(`Energia: R$ ${detalhe.energiaCost.toFixed(2)}`);
+    }
+    if (detalhe.depreciacaoCost > 0) {
+      linhas.push(`Depreciação do equipamento: R$ ${detalhe.depreciacaoCost.toFixed(2)}`);
     }
     if (detalhe.custosFixos.length > 0) {
       linhas.push('Custos fixos:');
@@ -784,6 +804,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       materialCost: 0,
       maoDeObraCost: 0,
       energiaCost: 0,
+      depreciacaoCost: 0,
       custosFixos: [],
       custosFixosCost: 0,
       total: 0,
@@ -794,6 +815,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       agregado.materialCost += d.materialCost;
       agregado.maoDeObraCost += d.maoDeObraCost;
       agregado.energiaCost += d.energiaCost;
+      agregado.depreciacaoCost += d.depreciacaoCost;
       agregado.custosFixos.push(...d.custosFixos);
       agregado.custosFixosCost += d.custosFixosCost;
       agregado.total += d.total;
@@ -915,11 +937,13 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       const taxa = Number(o.taxa_percentual) || 0;
 
       const materialTotal = itensCalculados.reduce((s, i) => s + (i.detalhe ? i.detalhe.materialCost : i.materialCost), 0);
-      const energiaTotal = itensCalculados.reduce((s, i) => s + i.energiaCost, 0);
+      // i.energiaCost inclui a depreciação; no Raio-X as duas aparecem separadas.
+      const depreciacaoTotal = itensCalculados.reduce((s, i) => s + (i.detalhe?.depreciacaoCost || 0), 0);
+      const energiaTotal = itensCalculados.reduce((s, i) => s + i.energiaCost, 0) - depreciacaoTotal;
       const maoDeObraTotal = itensCalculados.reduce((s, i) => s + i.maoDeObraCost, 0);
       const custosFixosTotal = itensCalculados.reduce((s, i) => s + (i.detalhe?.custosFixosCost || 0), 0);
       const custosFixos = itensCalculados.flatMap((i) => i.detalhe?.custosFixos || []);
-      const custoIndustrial = materialTotal + custosFixosTotal + energiaTotal + maoDeObraTotal + embalagem + custosExtras;
+      const custoIndustrial = materialTotal + custosFixosTotal + energiaTotal + depreciacaoTotal + maoDeObraTotal + embalagem + custosExtras;
       const lucro = custoIndustrial * (markup / 100);
       const precoBase = custoIndustrial + lucro;
       const percentualFees = (impostos + taxa) / 100;
@@ -978,6 +1002,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       setRaioX({
         materialTotal,
         energiaTotal,
+        depreciacaoTotal,
         maoDeObraTotal,
         custosFixosTotal,
         custosFixos,
@@ -2079,6 +2104,15 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
               </div>
               <div className="raiox-line-value">R$ {raioX.energiaTotal.toFixed(2)}</div>
             </div>
+            {raioX.depreciacaoTotal > 0 && (
+              <div className="raiox-line">
+                <div>
+                  <div className="raiox-line-label">Depreciação do Equipamento</div>
+                  <div className="raiox-line-hint">Valor de aquisição ÷ vida útil × horas de impressão × quantidade.</div>
+                </div>
+                <div className="raiox-line-value">R$ {raioX.depreciacaoTotal.toFixed(2)}</div>
+              </div>
+            )}
             <div className="raiox-line">
               <div>
                 <div className="raiox-line-label">Mão de Obra</div>
