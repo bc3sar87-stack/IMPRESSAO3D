@@ -328,7 +328,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         fetch('/api/grupos-produtos'),
         fetch('/api/tipos-pedido'),
       ]);
-    if (orcRes.ok) setOrcamentos(await orcRes.json());
+    if (orcRes.ok) {
+      setOrcamentos(await orcRes.json());
+      setCustosOrcamentosDetalhado({}); // invalida o cache dos tooltips de custo
+    }
     if (cliRes.ok) setClientes(await cliRes.json());
     if (prodRes.ok) setProdutos(await prodRes.json());
     if (eqRes.ok) setEquipamentos(await eqRes.json());
@@ -796,7 +799,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         const produto = produtos.find((p) => p.codigo === item.produto_codigo);
         if (!produto) return null;
         const { detalhe } = await calcularCustoProduto(produto, equipamentoCodigo);
-        return detalhe || null;
+        if (!detalhe) return null;
+        // Custos do produto são por lote (produto.quantidade unidades); escala para a quantidade pedida.
+        const quantidade = Number(item.quantidade) || 1;
+        const fator = quantidade / (produto.quantidade > 0 ? produto.quantidade : 1);
+        return dividirCustoDetalhado(detalhe, 1 / fator);
       })
     );
     const agregado: CustoDetalhado = {
@@ -1385,6 +1392,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     if (orcRes.ok) {
       const listaOrc: Orcamento[] = await orcRes.json();
       setOrcamentos(listaOrc);
+      setCustosOrcamentosDetalhado({});
       const atual = listaOrc.find((o) => o.codigo === codigo);
       if (atual) {
         setSelecionado(atual);
