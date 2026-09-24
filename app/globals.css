@@ -1132,3 +1132,15 @@ body {
 .modal-overlay-top {
   z-index: 110;
 }
+
+.modal-overlay {
+  overscroll-behavior: contain;
+}
+
+body:has(.modal-overlay) {
+  overflow: hidden;
+}
+
+.product-picker-list {
+  overscroll-behavior: contain;
+}
