@@ -100,7 +100,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { rows: atualRows } = await pool.query(
-    `SELECT status, consome_estoque FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`,
+    `SELECT status, consome_estoque, gerar_conta_receber, tipo_pedido_codigo
+     FROM orcamentos WHERE codigo=$1 AND empresa_codigo=$2`,
     [codigo, session.empresa_codigo]
   );
   if (atualRows.length === 0) {
@@ -108,6 +109,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   const statusAnterior = atualRows[0].status;
   const consomeEstoqueAnterior = atualRows[0].consome_estoque;
+
+  // Campos que nem toda chamada envia (ex.: troca de status pela lista): se ausentes, preserva o valor atual.
+  const consomeEstoqueFinal = consome_estoque === undefined ? consomeEstoqueAnterior : consome_estoque !== false;
+  const gerarContaReceberFinal =
+    gerar_conta_receber === undefined ? atualRows[0].gerar_conta_receber : gerar_conta_receber !== false;
+  const tipoPedidoFinal =
+    tipo_pedido_codigo === undefined ? atualRows[0].tipo_pedido_codigo : tipo_pedido_codigo || null;
 
   if (status !== statusAnterior) {
     const { rows: itensRows } = await pool.query(
@@ -148,15 +156,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         custos_extras_valor || 0,
         valor_sugerido || null,
         custo_total || null,
-        consome_estoque === false ? false : true,
-        gerar_conta_receber === false ? false : true,
-        tipo_pedido_codigo || null,
+        consomeEstoqueFinal,
+        gerarContaReceberFinal,
+        tipoPedidoFinal,
         codigo,
         session.empresa_codigo,
       ]
     );
 
-    const consomeEstoqueAtual = consome_estoque !== false;
+    const consomeEstoqueAtual = consomeEstoqueFinal;
     if (status === 'FINALIZADO') {
       if (statusAnterior !== 'FINALIZADO') {
         if (consomeEstoqueAtual) {
