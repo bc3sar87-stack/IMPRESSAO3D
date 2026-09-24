@@ -33,7 +33,7 @@ export default function MateriaPrimaPicker({
   const filtrados = materiais.filter((m) => `${m.tipo_nome} ${m.cor}`.toLowerCase().includes(q));
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay modal-overlay-top" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="modal-header">
           <h3>Selecionar Matéria Prima</h3>

@@ -1128,3 +1128,7 @@ body {
     padding: 0 !important;
   }
 }
+
+.modal-overlay-top {
+  z-index: 110;
+}

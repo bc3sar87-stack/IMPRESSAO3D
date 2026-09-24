@@ -2184,7 +2184,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       )}
 
       {novoItemParamsOpen && (
-        <div className="modal-overlay" onClick={() => setNovoItemParamsOpen(false)}>
+        <div className="modal-overlay modal-overlay-top" onClick={() => setNovoItemParamsOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Parâmetros de Custo do Item</h3>
@@ -2313,7 +2313,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       />
 
       {novoClienteOpen && (
-        <div className="modal-overlay" onClick={fecharNovoCliente}>
+        <div className="modal-overlay modal-overlay-top" onClick={fecharNovoCliente}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Novo cliente</h3>
@@ -2713,7 +2713,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       )}
 
       {editandoCoresItem && (
-        <div className="modal-overlay" onClick={fecharEdicaoCores}>
+        <div className="modal-overlay modal-overlay-top" onClick={fecharEdicaoCores}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Cores de {editandoCoresItem.produto_descricao}</h3>
@@ -2748,7 +2748,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       />
 
       {fotoAmpliada && (
-        <div className="modal-overlay" onClick={() => setFotoAmpliada(null)}>
+        <div className="modal-overlay modal-overlay-top" onClick={() => setFotoAmpliada(null)}>
           <div
             className="modal-card"
             onClick={(e) => e.stopPropagation()}
