@@ -304,7 +304,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
 
   const totalPendente = itensPendentes.reduce(
     (soma, item) =>
-      soma + Number(item.quantidade || 0) * (Number(String(item.valor_unitario || 0).replace(',', '.')) || 0),
+      soma + (parseDecimal(String(item.quantidade || 0)) || 0) * (Number(String(item.valor_unitario || 0).replace(',', '.')) || 0),
     0
   );
 
@@ -853,6 +853,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setRaioX(null);
   }
 
+  function handleQuantidadePendenteChange(index: number, value: string) {
+    setItensPendentes(itensPendentes.map((item, i) => (i === index ? { ...item, quantidade: value } : item)));
+    setRaioX(null);
+  }
+
   function handleValorUnitarioChange(index: number, value: string) {
     setItensPendentes(
       itensPendentes.map((item, i) => (i === index ? { ...item, valor_unitario: value } : item))
@@ -879,16 +884,27 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       const itensCalculados = await Promise.all(
         itensSalvos.map(async (item) => {
           const produto = produtos.find((p) => p.codigo === item.produto_codigo);
-          const quantidade = produto?.quantidade || Number(item.quantidade) || 1;
+          const quantidade = Number(item.quantidade) || 1;
           if (!produto) {
             return { item, quantidade, materialCost: 0, energiaCost: 0, maoDeObraCost: 0, detalhe: undefined as CustoDetalhado | undefined };
           }
-          const { materialCost, energiaCost, maoDeObraCost, detalhe } = await calcularCustoProduto(
-            produto,
-            equipamentoCodigo,
-            materiaisMap
-          );
-          return { item, quantidade, materialCost, energiaCost, maoDeObraCost, detalhe };
+          // Custos do produto são por lote (produto.quantidade unidades); escala para a quantidade pedida.
+          const fator = quantidade / (produto.quantidade > 0 ? produto.quantidade : 1);
+          const mapaItem = new Map<number, MaterialAgregado>();
+          const custo = await calcularCustoProduto(produto, equipamentoCodigo, mapaItem);
+          for (const [codigoMp, m] of mapaItem) {
+            const existente = materiaisMap.get(codigoMp);
+            if (existente) existente.pesoTotal += m.pesoTotal * fator;
+            else materiaisMap.set(codigoMp, { ...m, pesoTotal: m.pesoTotal * fator });
+          }
+          return {
+            item,
+            quantidade,
+            materialCost: custo.materialCost * fator,
+            energiaCost: custo.energiaCost * fator,
+            maoDeObraCost: custo.maoDeObraCost * fator,
+            detalhe: dividirCustoDetalhado(custo.detalhe, 1 / fator),
+          };
         })
       );
 
@@ -1023,7 +1039,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         !editingCodigo && itensPendentes.length > 0
           ? (
               itensPendentes.reduce(
-                (s, item) => s + Number(item.custo_unitario || 0) * Number(item.quantidade || 0),
+                (s, item) => s + Number(item.custo_unitario || 0) * (parseDecimal(String(item.quantidade || 0)) || 0),
                 0
               ) +
               (parseDecimal(sanitized.embalagem_valor) || 0) +
@@ -1054,6 +1070,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...item,
+              quantidade: String(item.quantidade).replace(',', '.'),
               valor_unitario: String(item.valor_unitario).replace(',', '.'),
             }),
           });
@@ -1220,10 +1237,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
         if (!produto) return;
         const { materialCost, energiaCost, maoDeObraCost, detalhe } = await calcularCustoProduto(produto, equipamentoCodigo);
         const custoTotal = materialCost + energiaCost + maoDeObraCost;
-        const quantidade = Number(item.quantidade) || 1;
-        novoMapa[item.codigo] = quantidade > 0 ? custoTotal / quantidade : custoTotal;
+        // Custo unitário = custo do cadastro do produto (lote) / unidades do lote, independente da quantidade pedida.
+        const unidadesLote = produto.quantidade > 0 ? produto.quantidade : 1;
+        novoMapa[item.codigo] = custoTotal / unidadesLote;
         if (detalhe) {
-          novoDetalhado[item.codigo] = quantidade > 0 ? dividirCustoDetalhado(detalhe, quantidade) : detalhe;
+          novoDetalhado[item.codigo] = dividirCustoDetalhado(detalhe, unidadesLote);
         }
       })
     );
@@ -1431,6 +1449,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
     setItens(itens.map((it) => (it.codigo === itemCodigo ? { ...it, valor_unitario: value } : it)));
   }
 
+  function handleItemQuantidadeChange(itemCodigo: number, value: string) {
+    setItens(itens.map((it) => (it.codigo === itemCodigo ? { ...it, quantidade: value } : it)));
+  }
+
   async function handleSalvarValorItem(item: ItemOrcamento) {
     if (!selecionado) return;
     setSalvandoValorCodigo(item.codigo);
@@ -1438,7 +1460,10 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
       const res = await fetch(`/api/orcamentos/${selecionado.codigo}/itens/${item.codigo}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ valor_unitario: String(item.valor_unitario).replace(',', '.') }),
+        body: JSON.stringify({
+          valor_unitario: String(item.valor_unitario).replace(',', '.'),
+          quantidade: String(item.quantidade).replace(',', '.'),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -1831,7 +1856,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                             <th>Produto</th>
                             <th>Cor</th>
                             <th>Quantidade</th>
-                            <th>Valor Custo</th>
+                            <th>Custo Unit.</th>
+                            <th>Custo Total</th>
                             <th>Valor Unitário</th>
                             <th>Subtotal</th>
                             <th>Lucro</th>
@@ -1840,7 +1866,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                         </thead>
                         <tbody>
                           {itensPendentes.map((item, index) => {
-                            const qtd = Number(item.quantidade) || 0;
+                            const qtd = parseDecimal(String(item.quantidade)) || 0;
                             const valorUnit = Number(String(item.valor_unitario).replace(',', '.')) || 0;
                             const custoUnit = Number(item.custo_unitario || 0);
                             const lucroItem = (valorUnit - custoUnit) * qtd;
@@ -1865,7 +1891,15 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                                     ))}
                                   </div>
                                 </td>
-                                <td>{item.quantidade}</td>
+                                <td>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    style={{ width: 70 }}
+                                    value={item.quantidade}
+                                    onChange={(e) => handleQuantidadePendenteChange(index, e.target.value)}
+                                  />
+                                </td>
                                 <td>
                                   <span
                                     title={formatCustoTooltip(item.custo_detalhado) || undefined}
@@ -1877,6 +1911,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                                     R$ {custoUnit.toFixed(2)}
                                   </span>
                                 </td>
+                                <td>R$ {(custoUnit * qtd).toFixed(2)}</td>
                                 <td>
                                   <div className="input-prefix-group" style={{ minWidth: 140 }}>
                                     <span className="input-prefix">R$</span>
@@ -1904,7 +1939,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                             );
                           })}
                           <tr>
-                            <td colSpan={5} style={{ textAlign: 'right', fontWeight: 600 }}>
+                            <td colSpan={6} style={{ textAlign: 'right', fontWeight: 600 }}>
                               Total
                             </td>
                             <td style={{ fontWeight: 600 }}>R$ {totalPendente.toFixed(2)}</td>
@@ -1912,7 +1947,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                               R${' '}
                               {itensPendentes
                                 .reduce((s, item) => {
-                                  const qtd = Number(item.quantidade) || 0;
+                                  const qtd = parseDecimal(String(item.quantidade)) || 0;
                                   const valorUnit = Number(String(item.valor_unitario).replace(',', '.')) || 0;
                                   const custoUnit = Number(item.custo_unitario || 0);
                                   return s + (valorUnit - custoUnit) * qtd;
@@ -2515,7 +2550,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   <th>Produto</th>
                   <th>Cor</th>
                   <th>Quantidade</th>
-                  <th>Valor Custo</th>
+                  <th>Custo Unit.</th>
+                  <th>Custo Total</th>
                   <th>Valor Unitário</th>
                   <th>Subtotal</th>
                   <th>Lucro</th>
@@ -2528,7 +2564,8 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                   const custoDetalhe = custosItensDetalhado[item.codigo];
                   const lucroItem =
                     custoUnit !== undefined
-                      ? (Number(item.valor_unitario) - custoUnit) * (Number(item.quantidade) || 0)
+                      ? ((parseDecimal(String(item.valor_unitario)) || 0) - custoUnit) *
+                        (parseDecimal(String(item.quantidade)) || 0)
                       : undefined;
                   return (
                     <tr key={item.codigo}>
@@ -2551,7 +2588,15 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                           ))}
                         </div>
                       </td>
-                      <td>{item.quantidade}</td>
+                      <td>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          style={{ width: 70 }}
+                          value={item.quantidade}
+                          onChange={(e) => handleItemQuantidadeChange(item.codigo, e.target.value)}
+                        />
+                      </td>
                       <td>
                         {custoUnit !== undefined ? (
                           <span
@@ -2565,6 +2610,11 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                         )}
                       </td>
                       <td>
+                        {custoUnit !== undefined
+                          ? `R$ ${(custoUnit * (parseDecimal(String(item.quantidade)) || 0)).toFixed(2)}`
+                          : '-'}
+                      </td>
+                      <td>
                         <div className="input-prefix-group" style={{ width: 120 }}>
                           <span className="input-prefix">R$</span>
                           <input
@@ -2575,13 +2625,18 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                           />
                         </div>
                       </td>
-                      <td>R$ {Number(item.subtotal).toFixed(2)}</td>
+                      <td>
+                        R${' '}
+                        {(
+                          (parseDecimal(String(item.quantidade)) || 0) * (parseDecimal(String(item.valor_unitario)) || 0)
+                        ).toFixed(2)}
+                      </td>
                       <td>{lucroItem !== undefined ? `R$ ${lucroItem.toFixed(2)}` : '-'}</td>
                       <td>
                         <div className="row-actions">
                           <button
                             className="icon-btn"
-                            title="Salvar valor unitário"
+                            title="Salvar quantidade e valor unitário"
                             onClick={() => handleSalvarValorItem(item)}
                             disabled={salvandoValorCodigo === item.codigo}
                           >
@@ -2606,7 +2661,7 @@ export default function OrcamentosView({ titulo, status }: { titulo: string; sta
                 })}
                 {itens.length === 0 && (
                   <tr>
-                    <td colSpan={8}>Nenhum item adicionado.</td>
+                    <td colSpan={9}>Nenhum item adicionado.</td>
                   </tr>
                 )}
               </tbody>
