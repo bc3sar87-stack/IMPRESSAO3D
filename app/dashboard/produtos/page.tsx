@@ -187,6 +187,11 @@ export default function ProdutosPage() {
     return custoPrevioDetalhado(p).total;
   }
 
+  function sugestaoVenda(p: Produto): number {
+    const custo = p.tipo === 'REVENDA' ? Number(p.valor_custo) || 0 : custoPrevio(p);
+    return custo * 2; // markup de 100%
+  }
+
   function custoPrevioTooltip(p: Produto): string {
     const d = custoPrevioDetalhado(p);
     const linhas: string[] = [];
@@ -596,6 +601,7 @@ export default function ProdutosPage() {
               <th>Tempo Mão de Obra</th>
               <th>Valor Custo</th>
               <th>Custo Prévio</th>
+              <th>Sugestão de Venda</th>
               <th>STL</th>
               <th></th>
             </tr>
@@ -639,6 +645,9 @@ export default function ProdutosPage() {
                     '-'
                   )}
                 </td>
+                <td title="Custo × 2 (markup de 100%)" style={{ cursor: 'help' }}>
+                  R$ {sugestaoVenda(p).toFixed(2)}
+                </td>
                 <td>
                   {p.stl_nome && (
                     <a href={`/api/produtos/${p.codigo}/stl`}>{p.stl_nome}</a>
@@ -676,7 +685,7 @@ export default function ProdutosPage() {
             ))}
             {produtosFiltrados.length === 0 && (
               <tr>
-                <td colSpan={12}>Nenhum produto encontrado.</td>
+                <td colSpan={13}>Nenhum produto encontrado.</td>
               </tr>
             )}
           </tbody>
